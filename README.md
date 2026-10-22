@@ -1,0 +1,110 @@
+# Rental Custom
+
+A standalone, multi-tenant SaaS for party and event rental businesses: bookings, inventory, products,
+customers, quotes, deposits, invoices, payments and reminder emails. It rebuilds the FreedomFun USA
+Odoo system as an independent product. Freedom Fun is the first tenant.
+
+Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/Betdr7kQ7JDVFC7bscU8E6
+
+## Status
+
+**Phase 0 (foundation) is done.**
+
+- Sign up and sign in (email and password).
+- Four-step onboarding with a live preview of the organization's own app as it is set up:
+  business details and address, brand (logo, colour, light/dark default, corner style),
+  first location on the map, and booking rules as sliders with live examples. Ends with a celebration.
+- **Region is detected, never asked:** country from the business address, time zone from the
+  location's map pin (offline lookup), currency and date/distance formats from the country.
+  Owners can override them in Business profile.
+- **Mapbox** address search (type ahead), interactive map with a draggable pin, and map pictures.
+  Needs `NEXT_PUBLIC_MAPBOX_TOKEN`; without it, addresses and coordinates can be typed by hand.
+- Settings, for owners and admins:
+
+  | Tab | Contents |
+  | --- | --- |
+  | Business profile | Name, legal name, contact details, tax ID, address, detected region (with override) |
+  | Branding | Logo, a logo for dark backgrounds, brand colour, default light/dark mode, corner style |
+  | Locations | Places equipment ships from (branch = warehouse): address and pin, time zone from the pin, phone, tax rate, crew loading notes, one primary |
+  | Booking rules | Deposit (30% default), when the balance is due, auto-charge, quote validity, turnaround buffer, damage waiver, travel fees |
+  | Emails and documents | Quote, invoice and receipt number prefixes; sender name, reply-to address, staff alert emails, email footer |
+  | Team | Invite by link, roles, disable access; the last owner is protected |
+  | Activity log | Who changed what, and when |
+
+- Each organization gets its own brand theme and gradient. Colours are checked for readable contrast in light and dark mode.
+- Motion throughout (page transitions, staggered lists, animated progress, sliding indicators); it switches off when the device asks for reduced motion.
+- Tenant isolation is enforced in PostgreSQL with row-level security, not just in application code.
+
+**Next: Phase 1.** Catalog, customers, booking with availability, and the pricing engine with parity tests against Odoo.
+
+## Stack
+
+| Part | Choice |
+| --- | --- |
+| Web app | Next.js 16 (App Router), React 19, Tailwind CSS 4, deployed on Vercel |
+| Database | PostgreSQL 17 (Neon in production; an embedded local server for development) |
+| Data access | Drizzle ORM, SQL migrations, row-level security |
+| Auth | Better Auth (email and password, sessions in our own database) |
+| Background jobs | graphile-worker (queue in Postgres), on Railway |
+| Language | TypeScript, pnpm workspaces, Turborepo |
+
+```
+apps/
+  web/        Next.js app: staff app, onboarding, settings (later: customer quote/pay pages, crew app)
+  worker/     background jobs (housekeeping now; emails, reminders, auto-charge later)
+packages/
+  core/       framework-free business rules: settings schemas, theme engine, phones, regions
+  db/         Drizzle schema, migrations, tenant-scoped services, integration tests
+```
+
+## Run it locally
+
+Requires Node 22+ and pnpm. No Docker needed.
+
+```bash
+pnpm install
+cp .env.example .env        # then set BETTER_AUTH_SECRET (command is in the file)
+pnpm db:start               # local PostgreSQL 17 on port 54329; leave it running
+pnpm db:migrate             # in a second terminal
+pnpm dev                    # http://localhost:3000
+pnpm worker                 # optional: background jobs
+```
+
+Open http://localhost:3000, create an account, and the onboarding wizard starts.
+
+## Tests
+
+```bash
+pnpm test                   # core unit tests and database integration tests (needs db:start)
+pnpm typecheck
+pnpm --filter @rental/web build && pnpm --filter @rental/web start
+node apps/web/scripts/e2e-onboarding.mjs   # real-browser run of sign-up, onboarding and settings, with screenshots
+```
+
+The database tests connect as the restricted runtime role, the same one the app uses. They prove one
+tenant can neither read nor write another tenant's rows.
+
+## How tenant isolation works
+
+- Every tenant-owned table has `tenant_id` and a composite key `(tenant_id, id)`. Foreign keys include
+  `tenant_id`, so a row cannot point at another tenant's row.
+- The app connects as `rental_app`, which does not own any table, so row-level security always applies to it.
+- Each request runs inside `withTenant()`, which sets `app.tenant_id` for that transaction only.
+- Queries that must cross tenants ("which organizations do I belong to", "open this invitation link")
+  go through two small `SECURITY DEFINER` functions.
+- Migrations and the worker use the owner role. Worker code must still scope every query to one tenant.
+
+## Deploying
+
+You create the accounts and add the keys as environment variables. Never commit `.env`.
+
+1. **Neon.** Create a project (Postgres 17). Put the owner connection string in `DATABASE_URL_OWNER` and
+   choose a strong `APP_DB_PASSWORD`. Run `pnpm db:migrate` once; it creates the `rental_app` role and
+   sets its password. Then set `DATABASE_URL` to the **pooled** connection string with user
+   `rental_app` and that password.
+2. **Vercel.** Import the repo, set Root Directory to `apps/web`, and add `DATABASE_URL`,
+   `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (your domain) and `NEXT_PUBLIC_MAPBOX_TOKEN`.
+3. **Railway.** New service from the repo, config file `apps/worker/railway.json`, with env var
+   `DATABASE_URL_OWNER` (the direct, non-pooled Neon connection).
+
+CI (GitHub Actions) runs migrations, typecheck, tests and the production build against PostgreSQL 17 on every push.

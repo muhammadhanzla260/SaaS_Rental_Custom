@@ -1,0 +1,23 @@
+{
+  "name": "rental-custom",
+  "private": true,
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@rental/web",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:start": "pnpm --filter @rental/db local:start",
+    "db:generate": "pnpm --filter @rental/db generate",
+    "db:migrate": "pnpm --filter @rental/db migrate",
+    "db:seed": "pnpm --filter @rental/db seed",
+    "worker": "pnpm --filter @rental/worker dev"
+  },
+  "devDependencies": {
+    "turbo": "2.11.7",
+    "typescript": "5.9.3"
+  }
+}

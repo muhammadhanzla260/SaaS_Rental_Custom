@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "locations_one_primary" ON "locations" USING btree ("tenant_id") WHERE "locations"."is_primary";

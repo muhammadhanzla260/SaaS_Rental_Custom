@@ -1,0 +1,237 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/*
+ * Platform tokens. Brand tokens (--brand*) and --radius are overridden per
+ * tenant by themeCss() from @rental/core. --surface values must match
+ * SURFACES in packages/core/src/theme.ts (contrast is computed against them).
+ */
+:root {
+  --bg: #f5f6f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f6;
+  --ink: #141822;
+  --muted: #5a6276;
+  --line: #e2e5ec;
+  --line-strong: #cdd2dc;
+  --brand: #2450c8;
+  --brand-fg: #ffffff;
+  --brand-strong: #1c41a8;
+  --brand-soft: #e9eefa;
+  --brand-text: #2450c8;
+  --radius: 10px;
+  --ok: #1b7a4b;
+  --ok-soft: #e3f3ea;
+  --warn: #9a4d08;
+  --warn-soft: #fcf0e1;
+  --danger: #b4231f;
+  --danger-soft: #fbe9e8;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -16px rgb(16 24 40 / 0.22);
+  --shadow-pop: 0 2px 4px rgb(16 24 40 / 0.06), 0 24px 48px -20px rgb(16 24 40 / 0.35);
+  --grid-dot: rgb(20 24 34 / 0.07);
+  /* Second gradient stop: the brand colour shifted round the hue wheel. */
+  --brand-2: var(--brand-strong);
+  color-scheme: light;
+}
+
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --brand-2: oklch(from var(--brand) calc(l + 0.07) calc(c * 1.08) calc(h + 40));
+  }
+}
+
+[data-theme='dark'] {
+  --bg: #0d1016;
+  --surface: #141821;
+  --surface-2: #1b2029;
+  --ink: #e8ebf2;
+  --muted: #9aa3b6;
+  --line: #262c38;
+  --line-strong: #353d4c;
+  --brand: #4a72e0;
+  --brand-fg: #ffffff;
+  --brand-strong: #3d63cc;
+  --brand-soft: #1d2840;
+  --brand-text: #8aa6f0;
+  --ok: #6fd3a0;
+  --ok-soft: #13291e;
+  --warn: #f0a35e;
+  --warn-soft: #2d2115;
+  --danger: #ff8f87;
+  --danger-soft: #331816;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 14px 34px -18px rgb(0 0 0 / 0.7);
+  --shadow-pop: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 28px 56px -22px rgb(0 0 0 / 0.85);
+  --grid-dot: rgb(255 255 255 / 0.05);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-brand-2: var(--brand-2);
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --radius-ui: var(--radius);
+  --radius-ui-sm: calc(var(--radius) * 0.6);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, Consolas, monospace;
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* iOS zooms into inputs under 16px; keep form text at 16px on phones. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Dotted canvas behind app content. */
+.bg-canvas {
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+}
+
+.text-gradient {
+  background-image: linear-gradient(110deg, var(--brand-text) 10%, var(--brand-2) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft brand-coloured light, for hero areas. */
+.brand-glow {
+  background-image:
+    radial-gradient(60% 80% at 0% 0%, color-mix(in oklab, var(--brand) 18%, transparent), transparent 70%),
+    radial-gradient(50% 70% at 100% 100%, color-mix(in oklab, var(--brand-2) 16%, transparent), transparent 70%);
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* Light sweep across primary buttons on hover. */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-100%);
+}
+.btn-shine:hover::after {
+  animation: shimmer 0.9s ease;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* Range slider in the brand colour, filled up to the thumb (--fill set inline). */
+.range-brand {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) var(--fill, 50%), var(--line) var(--fill, 50%));
+  cursor: pointer;
+}
+.range-brand::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 3px solid var(--brand);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  transition: transform 0.15s;
+}
+.range-brand::-webkit-slider-thumb:hover,
+.range-brand:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.range-brand::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 3px solid var(--brand);
+}
+.range-brand:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
