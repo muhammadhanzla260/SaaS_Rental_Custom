@@ -4,10 +4,10 @@ import { CalendarClock, Clock4, Coins, Globe2, ImageUp, Lightbulb, MapPin, Monit
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  buildPalette, countryName, countryOptions, currencyOptions, detectRegion, formatPhone, listTimezones, normalizePhone,
+  addressQuery, buildPalette, countryName, countryOptions, currencyOptions, detectRegion, formatPhone, listTimezones, normalizePhone,
   RADIUS_OPTIONS, THEME_PRESETS, timezoneAt, timezoneOptions, type BookingDefaults,
 } from '@rental/core';
-import { AddressSearch, PinMap } from './address-picker';
+import { geocodeAddress, PinMap, StreetAutocomplete, type SearchArea } from './address-picker';
 import { useMapboxToken } from './mapbox-token';
 import { Button, cx, Field, Input, Notice, Segmented, Select, Textarea, Toggle } from './ui';
 
@@ -96,43 +96,75 @@ export function ProfileFields({ s, country, hideName }: { s: Scope; country: str
 // --- address with coordinates ----------------------------------------------------------
 
 export function AddressFields({
-  s, requireStreet, showCoordinates = false, showMap = true, near,
+  s, requireStreet, showCoordinates = false, showMap = true, near, bbox,
 }: {
   s: Scope;
   requireStreet?: boolean;
-  /** The pin matters (warehouses: travel fees are measured from it). */
+  /** The pin matters (locations: travel fees are measured from it). */
   showCoordinates?: boolean;
   showMap?: boolean;
-  /** Bias search results toward this point (for example the business address). */
+  /** Rank suggestions near this point (Odoo: the customer's pin, else the service-area center). */
   near?: { lat: number; lng: number } | null;
+  /** Hard service-area filter "minLng,minLat,maxLng,maxLat" (customer and event addresses). */
+  bbox?: string | null;
 }) {
   const countries = useMemo(() => countryOptions(), []);
   const token = useMapboxToken();
   const a = s.v;
   const hasCoords = typeof a.lat === 'number' && typeof a.lng === 'number';
   const [manualCoords, setManualCoords] = useState(false);
+  const [pinNote, setPinNote] = useState<string | null>(null);
+  // The address text the current pin belongs to; typing a different address re-pins it.
+  const pinnedFor = useRef<string | null>(hasCoords ? addressQuery(a) : null);
+  const area: SearchArea = {
+    country: a.country,
+    proximity: hasCoords ? `${a.lng},${a.lat}` : near ? `${near.lng},${near.lat}` : null,
+    bbox,
+  };
 
-  /** A search pick replaces the whole address; a pin move keeps line 2 (suite, unit). */
+  /** A pick replaces the whole address; a pin move keeps line 2 (suite, unit). */
   const apply = (filled: Partial<Record<string, unknown>>, replace: boolean) => {
     for (const key of ['line1', 'line2', 'city', 'region', 'postalCode', 'country', 'lat', 'lng'] as const) {
       if (filled[key] !== undefined) s.set(key, filled[key]);
       else if (replace && key === 'line2') s.set(key, '');
     }
+    pinnedFor.current = addressQuery({ ...a, ...filled } as never);
   };
+
+  /** Odoo geocoded warehouses that had no coordinates; we pin hand-typed addresses the same way. */
+  const autoPin = async () => {
+    if (!token) return;
+    const q = addressQuery(a);
+    if (!a.line1 || !a.city || q === pinnedFor.current) return;
+    const hit = await geocodeAddress(token, q, area);
+    if (hit?.lat != null && hit.lng != null) {
+      s.set('lat', hit.lat);
+      s.set('lng', hit.lng);
+      pinnedFor.current = q;
+      setPinNote('Pinned automatically from the address. Drag the pin if it is not exact.');
+    }
+  };
+
+  const textField = (name: string, label: string, auto: string, optional: boolean, className: string) => (
+    <Field label={label} htmlFor={fid(s, name)} error={s.err(name)} optional={optional} className={className}>
+      <Input id={fid(s, name)} value={a[name] ?? ''} autoComplete={auto} aria-invalid={!!s.err(name)}
+        onChange={(e) => s.set(name, e.target.value)} onBlur={() => void autoPin()} />
+    </Field>
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-6">
-      <div className="flex flex-col gap-3 sm:col-span-6">
-        <AddressSearch country={a.country} near={hasCoords ? { lat: a.lat, lng: a.lng } : near} onPick={(f) => apply(f, true)} />
-        {showMap && token && (
-          <PinMap lat={a.lat} lng={a.lng} label={a.line1 || 'this address'} onMove={(f) => apply(f, false)} />
-        )}
-      </div>
-      <TextField s={s} name="line1" label="Street address" autoComplete="address-line1" optional={!requireStreet} className="sm:col-span-4" />
-      <TextField s={s} name="line2" label="Suite, unit" autoComplete="address-line2" optional className="sm:col-span-2" />
-      <TextField s={s} name="city" label="City" autoComplete="address-level2" optional={!requireStreet} className="sm:col-span-2" />
-      <TextField s={s} name="region" label="State / region" autoComplete="address-level1" optional className="sm:col-span-2" />
-      <TextField s={s} name="postalCode" label="ZIP / postal code" autoComplete="postal-code" optional className="sm:col-span-2" />
+      <Field label="Street address" htmlFor={fid(s, 'line1')} error={s.err('line1')} optional={!requireStreet} className="sm:col-span-4"
+        hint={token ? 'Start typing and pick your address: the rest fills in.' : undefined}>
+        <div onBlur={() => setTimeout(() => void autoPin(), 250)}>
+          <StreetAutocomplete id={fid(s, 'line1')} value={a.line1 ?? ''} area={area} invalid={!!s.err('line1')}
+            onType={(v) => s.set('line1', v)} onPick={(f) => { setPinNote(null); apply(f, true); }} />
+        </div>
+      </Field>
+      {textField('line2', 'Suite, unit', 'address-line2', true, 'sm:col-span-2')}
+      {textField('city', 'City', 'address-level2', !requireStreet, 'sm:col-span-2')}
+      {textField('region', 'State / region', 'address-level1', true, 'sm:col-span-2')}
+      {textField('postalCode', 'ZIP / postal code', 'postal-code', true, 'sm:col-span-2')}
       <Field label="Country" htmlFor={fid(s, 'country')} className="sm:col-span-3">
         <Select id={fid(s, 'country')} value={a.country ?? 'US'} onChange={(e) => s.set('country', e.target.value)}>
           {countries.map((c) => (
@@ -140,6 +172,19 @@ export function AddressFields({
           ))}
         </Select>
       </Field>
+      {showMap && token && (
+        <div className="sm:col-span-6">
+          <PinMap lat={a.lat} lng={a.lng} label={a.line1 || 'this address'} onMove={(f) => { setPinNote(null); apply(f, false); }} />
+        </div>
+      )}
+      {!token && (
+        <div className="sm:col-span-6">
+          <Notice kind="warn">
+            Address suggestions and the map need a Mapbox token (<code className="font-mono">NEXT_PUBLIC_MAPBOX_TOKEN</code> in .env).
+            Until then, type the address and coordinates by hand.
+          </Notice>
+        </div>
+      )}
       {(showCoordinates || hasCoords) && (
         <div className="flex flex-col gap-3 sm:col-span-6">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
@@ -157,13 +202,14 @@ export function AddressFields({
               </button>
             )}
           </div>
+          {pinNote && hasCoords && <p className="flex items-center gap-1.5 text-sm text-muted"><Sparkles aria-hidden className="size-4 text-brand-text" />{pinNote}</p>}
           {(manualCoords || !token) && (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Latitude" htmlFor={fid(s, 'lat')} error={s.err('lat')} optional hint="For example 30.267153">
-                <CoordinateInput id={fid(s, 'lat')} value={a.lat} onChange={(n) => s.set('lat', n)} invalid={!!s.err('lat')} />
+                <CoordinateInput id={fid(s, 'lat')} value={a.lat} onChange={(n) => { s.set('lat', n); pinnedFor.current = addressQuery(a); }} invalid={!!s.err('lat')} />
               </Field>
               <Field label="Longitude" htmlFor={fid(s, 'lng')} error={s.err('lng')} optional hint="For example -97.743057">
-                <CoordinateInput id={fid(s, 'lng')} value={a.lng} onChange={(n) => s.set('lng', n)} invalid={!!s.err('lng')} />
+                <CoordinateInput id={fid(s, 'lng')} value={a.lng} onChange={(n) => { s.set('lng', n); pinnedFor.current = addressQuery(a); }} invalid={!!s.err('lng')} />
               </Field>
             </div>
           )}
@@ -490,7 +536,7 @@ export function DetectedRegion({ s, country, point }: { s: Scope; country: strin
 // --- locations -------------------------------------------------------------------------------
 
 /** A location = a place equipment ships from. Its pin sets the time zone. */
-export function LocationFields({ s, country, onCodeEdited }: { s: Scope; country: string; onCodeEdited?: () => void }) {
+export function LocationFields({ s, country, onCodeEdited, near }: { s: Scope; country: string; onCodeEdited?: () => void; near?: { lat: number; lng: number } | null }) {
   const [tzOpen, setTzOpen] = useState(false);
   const a = s.v.address ?? {};
   const pinTz = timezoneAt(a.lat, a.lng);
@@ -504,7 +550,7 @@ export function LocationFields({ s, country, onCodeEdited }: { s: Scope; country
             onChange={(e) => { onCodeEdited?.(); s.set('code', e.target.value.toUpperCase()); }} aria-invalid={!!s.err('code')} />
         </Field>
       </div>
-      <AddressFields s={scopeChild(s, 'address')} requireStreet showCoordinates />
+      <AddressFields s={scopeChild(s, 'address')} requireStreet showCoordinates near={near} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-ui-sm bg-surface-2/70 px-3.5 py-3 text-sm">
         <Clock4 aria-hidden className="size-4 shrink-0 text-brand-text" />
         <span className="min-w-0 flex-1">
@@ -673,6 +719,8 @@ export function BookingFields({ s, currency, distanceUnit }: { s: Scope; currenc
         <div className="grid gap-4 sm:grid-cols-2">
           <SliderField s={s} name="damageWaiverPercent" label="Damage waiver" min={0} max={25} step={0.5} format={(n) => `${n}% of rental`} />
           <SliderField s={s} name="freeTravelDistance" label="Free delivery distance" min={0} max={50} step={1} format={(n) => `${n} ${distanceUnit}`} />
+          <SliderField s={s} name="serviceRadius" label="Service area" min={10} max={300} step={5} format={(n) => `${n} ${distanceUnit} around your locations`}
+            hint="Customer address search only suggests places inside this area." />
           <SliderField s={s} name="travelRateStaffed" label="Travel fee, staffed" min={0} max={10} step={0.25} format={(n) => `${money(n)} / ${distanceUnit}`} />
           <SliderField s={s} name="travelRateDropoff" label="Travel fee, drop-off" min={0} max={10} step={0.25} format={(n) => `${money(n)} / ${distanceUnit}`} />
         </div>

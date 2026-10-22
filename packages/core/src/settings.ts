@@ -132,6 +132,8 @@ export const bookingDefaultsSchema = z.object({
   damageWaiverPercent: z.coerce.number().min(0).max(100).default(10),
   damageWaiverDefaultOn: z.boolean().default(true),
   freeTravelDistance: z.coerce.number().min(0).max(1000).default(10),
+  /** How far from your locations customer addresses are searched and served (Odoo: the Austin service box). */
+  serviceRadius: z.coerce.number().min(5).max(1000).default(80),
   travelRateStaffed: z.coerce.number().min(0).max(1000).default(2.5),
   travelRateDropoff: z.coerce.number().min(0).max(1000).default(3),
   defaultTaxPercent: z.coerce.number().min(0).max(100).default(0),

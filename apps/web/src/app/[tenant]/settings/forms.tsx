@@ -26,7 +26,7 @@ function useUnsavedGuard(dirty: boolean) {
   }, [dirty]);
 }
 
-export function ProfileForm({ slug, initial, point }: { slug: string; initial: Obj; point: { lat?: number; lng?: number } | null }) {
+export function ProfileForm({ slug, initial, point }: { slug: string; initial: Obj; point: { lat: number; lng: number } | null }) {
   const form = useForm(initial);
   useUnsavedGuard(form.dirty);
   const country = form.values.profile.address?.country || form.values.regional.country;
@@ -36,7 +36,7 @@ export function ProfileForm({ slug, initial, point }: { slug: string; initial: O
         <ProfileFields s={scope(form, 'profile')} country={country} />
       </Card>
       <Card title="Business address" description="Search and pick it, or type it in.">
-        <AddressFields s={scopeChild(scope(form, 'profile'), 'address')} />
+        <AddressFields s={scopeChild(scope(form, 'profile'), 'address')} near={point} />
       </Card>
       <Card title="Region" description="Worked out for you. Times, reminders, money and distances use these.">
         <DetectedRegion s={scope(form, 'regional')} country={country} point={point} />
@@ -147,7 +147,9 @@ export function DocumentsForm({ slug, initial }: { slug: string; initial: Obj })
   );
 }
 
-export function LocationForm({ slug, id, initial, country, canDelete }: { slug: string; id: string | null; initial: Obj; country: string; canDelete?: boolean }) {
+export function LocationForm({ slug, id, initial, country, canDelete, near }: {
+  slug: string; id: string | null; initial: Obj; country: string; canDelete?: boolean; near?: { lat: number; lng: number } | null;
+}) {
   const form = useForm(initial);
   const router = useRouter();
   const [deleting, startDelete] = useTransition();
@@ -157,7 +159,7 @@ export function LocationForm({ slug, id, initial, country, canDelete }: { slug: 
   return (
     <div className="flex flex-col gap-6">
       <Card title="Location" description="A place your equipment ships from. Delivery distance is measured from its pin.">
-        <LocationFields s={scope(form, 'location')} country={country} />
+        <LocationFields s={scope(form, 'location')} country={country} near={near} />
       </Card>
       <Card title="Tax and status">
         <div className="grid gap-5 sm:grid-cols-2">

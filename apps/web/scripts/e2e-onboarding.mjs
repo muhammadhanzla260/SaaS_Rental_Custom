@@ -47,6 +47,13 @@ const clickText = async (text) => {
   const el = await page.waitForSelector(`::-p-xpath(//button[normalize-space(.)=${JSON.stringify(text)}] | //a[normalize-space(.)=${JSON.stringify(text)}])`, { timeout: 10000 });
   await el.click();
 };
+/** With a Mapbox token the coordinate boxes sit behind "Enter coordinates by hand". */
+const revealCoords = async (prefix) => {
+  if (await page.$(`#${prefix}-lat`)) return;
+  const btn = await page.$('::-p-text(Enter coordinates by hand)');
+  if (btn) await btn.click();
+  await page.waitForSelector(`#${prefix}-lat`, { timeout: 5000 });
+};
 const type = async (sel, value) => {
   await page.waitForSelector(sel);
   await page.$eval(sel, (el) => { el.focus(); el.select?.(); });
@@ -114,6 +121,7 @@ try {
   check((await page.$eval('#location-code', (e) => e.value)) === 'AUS', 'location code derived from the name');
   check((await page.$eval('#location-address-line1', (e) => e.value)) === '700 Congress Ave', 'location uses the business address by default');
   // No Mapbox token in this test run: coordinates are typed by hand.
+  await revealCoords('location-address');
   await type('#location-address-lat', '30.2690');
   await type('#location-address-lng', '-97.7428');
   await page.waitForFunction(() => document.body.innerText.includes('America/Chicago'), { timeout: 5000 });
@@ -203,6 +211,7 @@ try {
   await type('#location-code', 'LAX');
   await type('#location-address-line1', '1 Dock St');
   await type('#location-address-city', 'Los Angeles');
+  await revealCoords('location-address');
   await type('#location-address-lat', '34.0522');
   await type('#location-address-lng', '-118.2437');
   await page.waitForFunction(() => document.body.innerText.includes('America/Los Angeles'), { timeout: 5000 });
@@ -210,6 +219,21 @@ try {
   await clickText('Add location');
   await page.waitForFunction(() => /[0-9a-f-]{36}$/.test(location.pathname) && location.pathname.includes('/settings/locations/'), { timeout: 15000 });
   check(true, 'second location saved');
+
+  // Booking rules: travel fee for a real address, nearest location by driving distance (Odoo POS logic).
+  await page.goto(`${BASE}/${slug}/settings/booking`, { waitUntil: 'networkidle0' });
+  const tokenOn = !!(await page.$('#travel-check-address'));
+  if (tokenOn) {
+    await page.type('#travel-check-address', '1100 Congress Ave Austin', { delay: 25 });
+    await page.waitForSelector('[role=listbox] [role=option]', { timeout: 10000 });
+    await page.click('[role=listbox] [role=option]');
+    await page.waitForFunction(() => /ships from/i.test(document.body.innerText), { timeout: 15000 });
+    const quote = await page.evaluate(() => document.body.innerText.match(/ships from[\s\S]{0,200}/i)?.[0].replace(/\n+/g, ' | '));
+    check(/Austin/.test(quote ?? ''), `travel check picks the Austin location (${quote})`);
+    await shot('14-travel-check');
+  } else {
+    console.log('note: no Mapbox token, travel check skipped');
+  }
   await shot('12-location-detail');
   // Viewport capture: shows sticky sidebar and save bar where a person sees them.
   await page.setViewport(desktop);

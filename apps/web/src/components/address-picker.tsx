@@ -1,51 +1,78 @@
 'use client';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { LoaderCircle, MapPin, Search, X } from 'lucide-react';
+import { LoaderCircle, MapPin } from 'lucide-react';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MAPBOX_GEOCODE, MAPBOX_SEARCH, mapboxToAddress, type MapboxProperties, type MapboxSuggestion } from '@rental/core';
 import { useMapboxToken } from './mapbox-token';
-import { cx, Input, Notice } from './ui';
+import { cx, Input } from './ui';
 
 type Filled = ReturnType<typeof mapboxToAddress>;
 
 /**
- * Address search (Mapbox Search Box API) plus an interactive map with a
- * draggable pin. Picking a suggestion fills the address fields and the pin;
- * moving the pin updates the coordinates and the address (reverse geocoding).
+ * Search settings follow the FreedomFun Odoo integration (partner_address_mapbox.js,
+ * pos_view.js mapboxSuggest): suggestions on the street field after 3 characters,
+ * 300 ms debounce, 5 results, address/street/place types, country filter,
+ * proximity bias, and an optional hard service-area box.
  */
-export function AddressSearch({
-  country, near, onPick,
-}: {
+const SUGGEST = { minChars: 3, debounceMs: 300, limit: '5', types: 'address,street,place' } as const;
+
+export type SearchArea = {
   country?: string;
-  near?: { lat: number; lng: number } | null;
-  onPick: (address: Filled) => void;
+  /** "lng,lat" ranking bias. Odoo: the customer's coordinates, else the service-area center. */
+  proximity?: string | null;
+  /** "minLng,minLat,maxLng,maxLat" hard filter. Odoo: the served-zip box. */
+  bbox?: string | null;
+};
+
+const newSession = () => crypto.randomUUID();
+
+/** Odoo mapboxGeocode: forward-geocode a typed address to coordinates. */
+export async function geocodeAddress(token: string, query: string, area: SearchArea): Promise<Filled | null> {
+  if (query.trim().length < 5) return null;
+  const params = new URLSearchParams({ q: query, access_token: token, limit: '1', types: 'address,place' });
+  if (area.country) params.set('country', area.country.toLowerCase());
+  if (area.proximity) params.set('proximity', area.proximity);
+  try {
+    const res = await fetch(`${MAPBOX_SEARCH}/forward?${params}`);
+    if (!res.ok) return null;
+    const f = ((await res.json()) as { features?: { geometry?: { coordinates: [number, number] }; properties: MapboxProperties }[] }).features?.[0];
+    return f ? mapboxToAddress(f.properties, f.geometry?.coordinates) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The street input with Mapbox suggestions underneath (Odoo patched the street
+ * CharField the same way). Typing works as a normal text field too.
+ */
+export function StreetAutocomplete({
+  id, value, onType, onPick, area, invalid, describedBy, placeholder,
+}: {
+  id: string; value: string; onType: (v: string) => void; onPick: (a: Filled) => void; area: SearchArea;
+  invalid?: boolean; describedBy?: string; placeholder?: string;
 }) {
   const token = useMapboxToken();
   const listId = useId();
-  const [query, setQuery] = useState('');
+  const [items, setItems] = useState<MapboxSuggestion[]>([]);
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<MapboxSuggestion[]>([]);
-  const [active, setActive] = useState(-1);
-  const session = useRef<string>('');
-  const skipNext = useRef(false);
+  const session = useRef('');
+  const typed = useRef(false); // only search what the person types
+  const areaKey = `${area.country ?? ''}|${area.proximity ?? ''}|${area.bbox ?? ''}`;
+
+  useEffect(() => { session.current = newSession(); }, []);
 
   useEffect(() => {
-    session.current = crypto.randomUUID();
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
-    if (skipNext.current) {
-      skipNext.current = false;
-      return;
-    }
-    const q = query.trim();
-    if (q.length < 3) {
+    if (!token || !typed.current) return;
+    const q = value.trim();
+    if (q.length < SUGGEST.minChars) {
       setItems([]);
+      setOpen(false);
       return;
     }
     const ctrl = new AbortController();
@@ -54,15 +81,15 @@ export function AddressSearch({
       setError(null);
       try {
         const params = new URLSearchParams({
-          q, access_token: token, session_token: session.current, limit: '6', language: 'en',
-          types: 'address,poi,street,place,postcode',
+          q, access_token: token, session_token: session.current, limit: SUGGEST.limit, types: SUGGEST.types, language: 'en',
         });
-        if (country) params.set('country', country.toLowerCase());
-        params.set('proximity', near ? `${near.lng},${near.lat}` : 'ip');
+        if (area.country) params.set('country', area.country.toLowerCase());
+        params.set('proximity', area.proximity || 'ip');
+        if (area.bbox) params.set('bbox', area.bbox);
         const res = await fetch(`${MAPBOX_SEARCH}/suggest?${params}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error(res.status === 401 ? 'The Mapbox token was rejected.' : 'Address search is unavailable right now.');
-        const json = (await res.json()) as { suggestions?: MapboxSuggestion[] };
-        setItems(json.suggestions ?? []);
+        const list = ((await res.json()) as { suggestions?: MapboxSuggestion[] }).suggestions ?? [];
+        setItems(list);
         setActive(-1);
         setOpen(true);
       } catch (e) {
@@ -70,16 +97,16 @@ export function AddressSearch({
       } finally {
         setLoading(false);
       }
-    }, 250);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [query, token, country, near]);
+    }, SUGGEST.debounceMs);
+    return () => { clearTimeout(t); ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, token, areaKey]);
 
   const pick = async (s: MapboxSuggestion) => {
     if (!token) return;
     setOpen(false);
+    setItems([]);
+    typed.current = false;
     setLoading(true);
     try {
       const params = new URLSearchParams({ access_token: token, session_token: session.current });
@@ -88,45 +115,35 @@ export function AddressSearch({
       const f = ((await res.json()) as { features?: { geometry: { coordinates: [number, number] }; properties: MapboxProperties }[] }).features?.[0];
       if (!f) throw new Error('Could not load that address. Try again.');
       const filled = mapboxToAddress(f.properties, f.geometry.coordinates);
+      // Odoo: street = feature street, else the suggestion's address or name.
+      if (!filled.line1) filled.line1 = s.address || s.name;
       onPick(filled);
-      skipNext.current = true;
-      setQuery(filled.label);
-      session.current = crypto.randomUUID(); // a pick ends the billing session
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      session.current = newSession(); // a pick ends the Mapbox billing session
       setLoading(false);
     }
   };
 
-  if (!token) {
-    return (
-      <Notice kind="warn">
-        Address search and the map need a Mapbox token. Add <code className="font-mono">NEXT_PUBLIC_MAPBOX_TOKEN</code> (a public
-        token starting with pk.) to <code className="font-mono">.env</code> and restart the app. Until then, type the address and
-        coordinates by hand.
-      </Notice>
-    );
-  }
-
   return (
     <div className="relative">
-      <label htmlFor={`${listId}-input`} className="sr-only">Search for an address</label>
-      <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
       <Input
-        id={`${listId}-input`}
-        role="combobox"
-        aria-expanded={open && items.length > 0}
-        aria-controls={`${listId}-list`}
-        aria-autocomplete="list"
+        id={id}
+        role={token ? 'combobox' : undefined}
+        aria-expanded={token ? open && items.length > 0 : undefined}
+        aria-controls={token ? `${listId}-list` : undefined}
+        aria-autocomplete={token ? 'list' : undefined}
         aria-activedescendant={active >= 0 ? `${listId}-opt-${active}` : undefined}
-        autoComplete="off"
-        placeholder="Search for the address or place name"
-        value={query}
-        className="pl-9 pr-9"
-        onChange={(e) => setQuery(e.target.value)}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        autoComplete={token ? 'off' : 'address-line1'}
+        placeholder={placeholder ?? (token ? 'Start typing the address…' : undefined)}
+        value={value}
+        className={token ? 'pr-9' : undefined}
+        onChange={(e) => { typed.current = true; onType(e.target.value); }}
         onFocus={() => items.length && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
         onKeyDown={(e) => {
           if (!open || !items.length) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(items.length - 1, a + 1)); }
@@ -135,18 +152,13 @@ export function AddressSearch({
           else if (e.key === 'Escape') setOpen(false);
         }}
       />
-      <span className="absolute right-2 top-1/2 -translate-y-1/2">
-        {loading ? (
-          <LoaderCircle aria-hidden className="size-4 animate-spin text-muted" />
-        ) : query ? (
-          <button type="button" aria-label="Clear search" className="grid size-7 place-items-center rounded-ui-sm text-muted hover:bg-surface-2"
-            onClick={() => { setQuery(''); setItems([]); }}>
-            <X aria-hidden className="size-4" />
-          </button>
-        ) : null}
-      </span>
+      {token && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+          {loading ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <MapPin aria-hidden className="size-4" />}
+        </span>
+      )}
       {open && items.length > 0 && (
-        <ul id={`${listId}-list`} role="listbox" className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-auto rounded-ui border border-line bg-surface p-1 shadow-lg">
+        <ul id={`${listId}-list`} role="listbox" className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-auto rounded-ui border border-line bg-surface p-1 shadow-pop">
           {items.map((s, i) => (
             <li
               key={s.mapbox_id}
@@ -160,15 +172,15 @@ export function AddressSearch({
               <MapPin aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
               <span className="min-w-0">
                 <span className="block truncate text-[15px] font-medium">{s.name}</span>
-                <span className="block truncate text-sm text-muted">{s.full_address ?? s.place_formatted}</span>
+                <span className="block truncate text-sm text-muted">{s.place_formatted || s.full_address}</span>
               </span>
             </li>
           ))}
           <li aria-hidden className="px-3 pb-1 pt-1.5 text-right text-[11px] text-muted">Search by Mapbox</li>
         </ul>
       )}
-      {open && !loading && query.trim().length >= 3 && items.length === 0 && !error && (
-        <p className="mt-1.5 text-sm text-muted">No matches. Try the street and city, or place the pin on the map.</p>
+      {open && !loading && typed.current && value.trim().length >= SUGGEST.minChars && items.length === 0 && !error && (
+        <p className="mt-1.5 text-sm text-muted">{area.bbox ? 'No matches inside your service area.' : 'No matches.'} Keep typing, or place the pin on the map.</p>
       )}
       {error && <p className="mt-1.5 text-sm text-danger">{error}</p>}
     </div>
@@ -207,7 +219,6 @@ export function PinMap({
     [token],
   );
 
-  // Create the map once.
   useEffect(() => {
     if (!token || !box.current) return;
     let cancelled = false;
@@ -221,9 +232,8 @@ export function PinMap({
         const m = new mapboxgl.Map({
           container: box.current,
           style: dark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12',
-          center: hasPin ? [lng!, lat!] : [-30, 25],
-          zoom: hasPin ? 15 : 1.2,
-          attributionControl: true,
+          center: hasPin ? [lng!, lat!] : [-98.5, 39.5],
+          zoom: hasPin ? 15 : 3,
           cooperativeGestures: true,
         });
         m.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
@@ -248,7 +258,7 @@ export function PinMap({
         map.current = m;
         marker.current = mk;
       } catch {
-        if (!cancelled) setFailed('The map could not load. You can still type the address and coordinates.');
+        if (!cancelled) setFailed('The map could not load. You can still type the address.');
       }
     })();
     return () => {
@@ -260,13 +270,12 @@ export function PinMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Follow coordinates set elsewhere (search pick, typed numbers).
+  // Follow coordinates set elsewhere (a pick, automatic pinning, typed numbers).
   useEffect(() => {
     const m = map.current;
     const mk = marker.current;
     if (!m || !mk || !hasPin) return;
     const cur = pinned.current ? mk.getLngLat() : null;
-    // Pin already there (it was dragged): don't fly the map around.
     if (cur && Math.abs(cur.lat - lat!) < 1e-5 && Math.abs(cur.lng - lng!) < 1e-5) return;
     mk.setLngLat([lng!, lat!]).addTo(m);
     pinned.current = true;
@@ -280,12 +289,12 @@ export function PinMap({
         ref={box}
         role="region"
         aria-label={`Map for ${label}. Click the map or drag the pin to set the exact spot.`}
-        className="h-64 w-full overflow-hidden rounded-ui-sm border border-line bg-surface-2 sm:h-72"
+        className="h-60 w-full overflow-hidden rounded-ui-sm border border-line bg-surface-2 sm:h-72"
       />
       {failed ? (
         <p className="text-sm text-danger">{failed}</p>
       ) : (
-        <p className="text-sm text-muted">{hasPin ? 'Drag the pin, or click the map, to fine-tune the exact spot.' : 'Search above, or click the map to drop a pin.'}</p>
+        <p className="text-sm text-muted">{hasPin ? 'Drag the pin, or click the map, for the exact spot (a gate or loading dock).' : 'Type the street above, or click the map to drop a pin.'}</p>
       )}
     </div>
   );

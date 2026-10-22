@@ -246,6 +246,7 @@ export function OnboardingWizard({ ownerName, ownerEmail, appUrl }: { ownerName:
                         set(`location.${p}`, val);
                       } }}
                       country={country}
+                      near={v.profile.address?.lat != null ? { lat: v.profile.address.lat, lng: v.profile.address.lng } : null}
                       onCodeEdited={() => setCodeTouched(true)}
                     />
                   </Panel>

@@ -27,6 +27,7 @@ export default async function EditLocation({ params }: { params: Promise<{ tenan
         id={loc.id}
         country={tenant.country}
         canDelete={!loc.isPrimary}
+        near={tenant.lat != null && tenant.lng != null ? { lat: tenant.lat, lng: tenant.lng } : null}
         initial={locationValues(loc, loc.taxRate?.rate, tenant.country)}
       />
     </div>

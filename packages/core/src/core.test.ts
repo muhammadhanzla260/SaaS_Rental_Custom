@@ -145,3 +145,45 @@ describe('region detection', () => {
     expect(currencyForCountry('SN')).toBe('XOF');
   });
 });
+
+describe('travel fee (Odoo POS parity)', () => {
+  it('matches the POS formula: (miles - 10 free) x $2.50 staffed, $3.00 if any drop-off, $0 pick-up', async () => {
+    const { travelFee } = await import('./travel');
+    const rules = { freeDistance: 10, rateStaffed: 2.5, rateDropoff: 3, unit: 'mi' as const };
+    expect(travelFee(25, ['staffed'], rules)).toMatchObject({ billable: 15, rate: 2.5, fee: 37.5 });
+    expect(travelFee(25, ['staffed', 'dropoff'], rules)).toMatchObject({ rate: 3, fee: 45 });
+    expect(travelFee(25, ['pickup', 'pickup'], rules)).toMatchObject({ fee: 0, reason: 'pickup' });
+    expect(travelFee(8, ['staffed'], rules).fee).toBe(0);
+    expect(travelFee(12.345, ['staffed'], rules).fee).toBe(5.86);
+  });
+
+  it('picks the nearest location by driving among the 3 closest, falling back to straight line', async () => {
+    const { findNearestOrigin, haversineMiles } = await import('./travel');
+    const austin = { name: 'AUS', lat: 30.2672, lng: -97.7431 };
+    const roundRock = { name: 'RR', lat: 30.5083, lng: -97.6789 };
+    const houston = { name: 'HOU', lat: 29.7604, lng: -95.3698 };
+    const noPin = { name: 'X', lat: null, lng: null };
+    const party = { lat: 30.45, lng: -97.7 };
+    // Round Rock is closer in a straight line, but pretend the road from Austin is shorter.
+    const drive = async (from: { lat: number }) => (from.lat === roundRock.lat ? 20 : from.lat === austin.lat ? 14 : 170);
+    const best = await findNearestOrigin([austin, roundRock, houston, noPin], party, drive);
+    expect(best).toMatchObject({ origin: { name: 'AUS' }, miles: 14, isDriving: true });
+    const fallback = await findNearestOrigin([austin, roundRock], party, async () => null);
+    expect(fallback!.origin.name).toBe('RR');
+    expect(fallback!.miles).toBeCloseTo(haversineMiles(roundRock, party), 6);
+    expect(await findNearestOrigin([noPin], party, drive)).toBeNull();
+  });
+
+  it('builds a service-area box around the locations, like the Austin box in Odoo', async () => {
+    const { serviceArea } = await import('./travel');
+    const area = serviceArea([{ lat: 30.2672, lng: -97.7431 }], 80)!;
+    const [w, s, e, n] = area.bbox.split(',').map(Number);
+    // Odoo's hand-made box was -99.45,29.5,-96.65,31.3
+    expect(w).toBeCloseTo(-99.13, 1);
+    expect(e).toBeCloseTo(-96.36, 1);
+    expect(s).toBeCloseTo(29.11, 1);
+    expect(n).toBeCloseTo(31.43, 1);
+    expect(area.center).toBe('-97.7431,30.2672');
+    expect(serviceArea([], 80)).toBeNull();
+  });
+});

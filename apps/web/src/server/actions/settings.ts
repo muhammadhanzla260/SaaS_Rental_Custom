@@ -13,6 +13,7 @@ import {
 import { invalid, type ActionResult } from '@/lib/result';
 import { requireSettingsAccess } from '../context';
 import { db } from '../db';
+import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
@@ -142,5 +143,27 @@ export async function updateMemberAction(slug: string, membershipId: string, inp
     await updateMember(db, ctx.tenant.id, ctx.actor, membershipId, parsed.data);
     refresh(slug);
     return { ok: true, message: 'Team member updated.' };
+  });
+}
+
+// --- travel fee check -----------------------------------------------------------------
+
+const travelCheck = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  mode: z.enum(['staffed', 'dropoff', 'pickup']),
+});
+
+/** Booking rules: "what would a delivery to this address cost?" using the live rules. */
+type TravelQuote = NonNullable<Awaited<ReturnType<typeof quoteTravelFee>>>;
+
+export async function checkTravelFeeAction(slug: string, input: unknown): Promise<ActionResult<TravelQuote>> {
+  return run<TravelQuote>(async () => {
+    const ctx = await requireSettingsAccess(slug);
+    const parsed = travelCheck.safeParse(input);
+    if (!parsed.success) return invalid(parsed.error);
+    const result = await quoteTravelFee(ctx.tenant.id, ctx.prefs, parsed.data, [parsed.data.mode]);
+    if (!result) return { ok: false, error: 'Pin at least one active location on the map first.' };
+    return { ok: true, data: result };
   });
 }
