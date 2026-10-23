@@ -130,26 +130,6 @@ try {
   await shot('03-onboarding-location');
   await shot('03-onboarding-location-phone', phone);
   await page.setViewport(desktop);
-  await clickText('Continue');
-
-  // --- step 4: booking rules (sliders) + create --------------------------------------------------
-  await page.waitForSelector('#booking-depositPercent');
-  check((await page.$eval('#booking-depositPercent', (e) => e.value)) === '30', 'deposit defaults to 30%');
-  await page.$eval('#booking-depositPercent', (el) => {
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    set.call(el, '40');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await page.waitForFunction(() => document.body.innerText.includes('$400.00 to book'), { timeout: 5000 });
-  check(true, 'deposit slider updates the live example ($400 on $1,000)');
-  await page.$eval('#booking-defaultTaxPercent', (el) => {
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    set.call(el, '8.25');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await shot('04-onboarding-booking');
-  await shot('04-onboarding-booking-phone', phone);
-  await page.setViewport(desktop);
   await clickText('Create my organization');
   await page.waitForFunction(() => document.body.innerText.includes("You're all set"), { timeout: 15000 });
   check(true, 'celebration shows after creating the organization');
@@ -171,7 +151,7 @@ try {
   await page.setViewport(desktop);
 
   // --- settings tabs ------------------------------------------------------------------------------
-  for (const tab of ['general', 'branding', 'locations', 'booking', 'documents', 'team', 'activity']) {
+  for (const tab of ['general', 'branding', 'locations', 'team', 'activity']) {
     await page.goto(`${BASE}/${slug}/settings/${tab}`, { waitUntil: 'networkidle0' });
     const h = await page.$eval('h1', (e) => e.textContent);
     check(h === 'Settings', `settings/${tab} renders`);
@@ -220,20 +200,6 @@ try {
   await page.waitForFunction(() => /[0-9a-f-]{36}$/.test(location.pathname) && location.pathname.includes('/settings/locations/'), { timeout: 15000 });
   check(true, 'second location saved');
 
-  // Booking rules: travel fee for a real address, nearest location by driving distance (Odoo POS logic).
-  await page.goto(`${BASE}/${slug}/settings/booking`, { waitUntil: 'networkidle0' });
-  const tokenOn = !!(await page.$('#travel-check-address'));
-  if (tokenOn) {
-    await page.type('#travel-check-address', '1100 Congress Ave Austin', { delay: 25 });
-    await page.waitForSelector('[role=listbox] [role=option]', { timeout: 10000 });
-    await page.click('[role=listbox] [role=option]');
-    await page.waitForFunction(() => /ships from/i.test(document.body.innerText), { timeout: 15000 });
-    const quote = await page.evaluate(() => document.body.innerText.match(/ships from[\s\S]{0,200}/i)?.[0].replace(/\n+/g, ' | '));
-    check(/Austin/.test(quote ?? ''), `travel check picks the Austin location (${quote})`);
-    await shot('14-travel-check');
-  } else {
-    console.log('note: no Mapbox token, travel check skipped');
-  }
   await shot('12-location-detail');
   // Viewport capture: shows sticky sidebar and save bar where a person sees them.
   await page.setViewport(desktop);

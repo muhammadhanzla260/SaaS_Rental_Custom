@@ -7,6 +7,7 @@
  *   4. fee = max(0, miles - free miles) x rate (staffed or drop-off), rounded to the cent.
  * Pure functions; the driving lookup is passed in so this stays testable.
  */
+import type { ServiceMode } from './pricing';
 
 export const EARTH_RADIUS_MILES = 3958.8;
 export const KM_PER_MILE = 1.609344;
@@ -55,7 +56,6 @@ export async function findNearestOrigin<T>(
   return results[0]!;
 }
 
-export type ServiceMode = 'staffed' | 'pickup' | 'dropoff';
 
 export type TravelFeeRules = {
   freeDistance: number;

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { HEX_RE, RADIUS_OPTIONS } from './theme';
 import { isValidTimezone } from './regional';
 import { normalizePhone } from './phone';
+import { DEFAULT_SETUP_SURFACES } from './pricing';
 
 /**
  * Organisation settings. Identity, contact, branding and core regional values
@@ -134,6 +135,8 @@ export const bookingDefaultsSchema = z.object({
   freeTravelDistance: z.coerce.number().min(0).max(1000).default(10),
   /** How far from your locations customer addresses are searched and served (Odoo: the Austin service box). */
   serviceRadius: z.coerce.number().min(5).max(1000).default(80),
+  /** Setup surfaces and their per-item fee (Odoo: asphalt/concrete/turf $35, drive-in asphalt $100). */
+  setupSurfaces: z.array(z.object({ code: z.string(), label: z.string(), feeCents: z.number().int().min(0) })).default(DEFAULT_SETUP_SURFACES.map((s) => ({ ...s }))),
   travelRateStaffed: z.coerce.number().min(0).max(1000).default(2.5),
   travelRateDropoff: z.coerce.number().min(0).max(1000).default(3),
   defaultTaxPercent: z.coerce.number().min(0).max(100).default(0),

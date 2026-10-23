@@ -36,6 +36,20 @@
       "when": 1792702236920,
       "tag": "0004_one_primary_location",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792710015382,
+      "tag": "0005_catalog_customers_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792710017819,
+      "tag": "0006_commerce_security",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,14 @@
 'use client';
 
 import confetti from 'canvas-confetti';
-import { ArrowLeft, ArrowRight, Building2, Check, CircleCheck, CircleX, Gauge, MapPinned, Palette, PartyPopper, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Check, CircleCheck, CircleX, MapPinned, Palette, PartyPopper, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   bookingDefaultsSchema, countryName, detectRegion, onboardingSchema, slugify, timezoneAt, type RadiusOption,
 } from '@rental/core';
-import { AddressFields, BookingFields, BrandingFields, LocationFields, LogoInput, ProfileFields, scope, scopeChild } from '@/components/fields';
+import { AddressFields, BrandingFields, LocationFields, LogoInput, ProfileFields, scope, scopeChild } from '@/components/fields';
 import { EASE, ProgressBar } from '@/components/motion';
 import { Button, cx, Field, Input, Notice, Toggle } from '@/components/ui';
 import { useForm } from '@/lib/form';
@@ -20,7 +20,6 @@ const STEPS = [
   { key: 'business', icon: Building2, title: 'Your business', lead: "Let's set up your rental business.", text: 'Who you are and where customers can reach you.' },
   { key: 'brand', icon: Palette, title: 'Brand', lead: 'Make it yours.', text: 'Your logo and colour appear across the app, emails, quotes and invoices.' },
   { key: 'location', icon: MapPinned, title: 'Location', lead: 'Where does your equipment ship from?', text: 'Your first location. Its map pin sets your time zone and drives delivery fees.' },
-  { key: 'booking', icon: Gauge, title: 'Booking rules', lead: 'How you take bookings.', text: 'Drag the sliders. You can fine-tune any of this later.' },
 ] as const;
 
 type Obj = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -41,7 +40,6 @@ function stepErrors(step: number, d: Draft): Record<string, string> {
     [['slug', sh.slug, d.slug], ['profile', sh.profile, d.profile]],
     [['branding', sh.branding, d.branding]],
     [['location', sh.location, d.location]],
-    [['booking', sh.booking, d.booking]],
   ];
   const out: Record<string, string> = {};
   for (const [prefix, schema, value] of checks[step]!) {
@@ -138,7 +136,7 @@ export function OnboardingWizard({ ownerName, ownerEmail, appUrl }: { ownerName:
         form.setErrors(res.fieldErrors ?? {});
         form.setStatus({ kind: 'error', text: res.error });
         const first = Object.keys(res.fieldErrors ?? {})[0] ?? '';
-        const idx = ['slug|profile', 'branding', 'location', 'booking'].findIndex((p) => new RegExp(`^(${p})`).test(first));
+        const idx = ['slug|profile', 'branding', 'location|booking'].findIndex((p) => new RegExp(`^(${p})`).test(first));
         if (idx >= 0) go(idx);
       }
     });
@@ -262,30 +260,6 @@ export function OnboardingWizard({ ownerName, ownerEmail, appUrl }: { ownerName:
                 </>
               )}
 
-              {step === 3 && (
-                <>
-                  <Panel>
-                    <BookingFields s={scope(form, 'booking')} currency={region.currency} distanceUnit={region.formats.distanceUnit} />
-                  </Panel>
-                  <Panel title="Ready when you are">
-                    <dl className="grid gap-x-6 gap-y-2 text-[15px] sm:grid-cols-2">
-                      {[
-                        ['Organization', v.profile.name],
-                        ['Web address', `/${v.slug}`],
-                        ['Owner', `${ownerName} (${ownerEmail})`],
-                        ['First location', `${v.location.name} (${v.location.code})`],
-                        ['Time zone', region.timezone.replace(/_/g, ' ')],
-                        ['Currency', region.currency],
-                      ].map(([k, val]) => (
-                        <div key={k} className="flex min-w-0 justify-between gap-3 border-b border-line py-1.5 sm:block sm:border-0">
-                          <dt className="text-muted">{k}</dt>
-                          <dd className="truncate font-medium">{val}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </Panel>
-                </>
-              )}
             </motion.div>
           </AnimatePresence>
 

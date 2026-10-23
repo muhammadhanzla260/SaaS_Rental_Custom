@@ -92,61 +92,6 @@ export function BrandingForm({ slug, initial, name, logoUrl, logoDarkUrl }: {
   );
 }
 
-export function BookingForm({ slug, initial, currency, distanceUnit }: { slug: string; initial: Obj; currency: string; distanceUnit: 'mi' | 'km' }) {
-  const form = useForm(initial);
-  useUnsavedGuard(form.dirty);
-  return (
-    <div className="flex flex-col gap-6">
-      <Card title="Booking rules" description="Defaults for new quotes. Staff with permission can change them on a single order.">
-        <BookingFields s={scope(form, '')} currency={currency} distanceUnit={distanceUnit} />
-      </Card>
-      <SaveBar {...form} onSave={() => form.submit(() => saveBookingAction(slug, form.values))} />
-    </div>
-  );
-}
-
-export function DocumentsForm({ slug, initial }: { slug: string; initial: Obj }) {
-  const form = useForm(initial);
-  const [alerts, setAlerts] = useState((initial.communication.internalAlertEmails as string[]).join(', '));
-  useUnsavedGuard(form.dirty);
-  const n = form.values.numbering;
-  return (
-    <div className="flex flex-col gap-6">
-      <Card title="Document numbers" description={`Next quote: ${n.quotePrefix}00001 · invoice: ${n.invoicePrefix}00001 · receipt: ${n.receiptPrefix}00001`}>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {(['quotePrefix', 'invoicePrefix', 'receiptPrefix'] as const).map((k) => (
-            <Field key={k} label={{ quotePrefix: 'Quote prefix', invoicePrefix: 'Invoice prefix', receiptPrefix: 'Receipt prefix' }[k]} htmlFor={k} error={form.error(`numbering.${k}`)}>
-              <Input id={k} value={n[k]} maxLength={12} className="font-mono uppercase" onChange={(e) => form.set(`numbering.${k}`, e.target.value.toUpperCase())} />
-            </Field>
-          ))}
-        </div>
-      </Card>
-      <Card title="Customer emails" description="Sender details for quotes, invoices and reminders. Connecting your own email server arrives in Phase 2.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Sender name" htmlFor="senderName" optional hint="For example: Freedom Fun USA Team">
-            <Input id="senderName" value={form.values.communication.senderName ?? ''} onChange={(e) => form.set('communication.senderName', e.target.value)} />
-          </Field>
-          <Field label="Reply-to email" htmlFor="replyTo" optional error={form.error('communication.replyToEmail')}>
-            <Input id="replyTo" type="email" inputMode="email" value={form.values.communication.replyToEmail ?? ''} onChange={(e) => form.set('communication.replyToEmail', e.target.value)} />
-          </Field>
-          <Field label="Staff alert emails" htmlFor="alerts" optional className="sm:col-span-2"
-            hint="Declined cards, last-minute bookings and tomorrow's events. Separate addresses with commas."
-            error={Object.entries(form.errors).find(([k]) => k.startsWith('communication.internalAlertEmails'))?.[1]}>
-            <Input id="alerts" value={alerts} onChange={(e) => {
-              setAlerts(e.target.value);
-              form.set('communication.internalAlertEmails', e.target.value.split(',').map((x) => x.trim()).filter(Boolean));
-            }} />
-          </Field>
-          <Field label="Email footer" htmlFor="footer" optional className="sm:col-span-2" hint="Added to the bottom of every customer email.">
-            <Textarea id="footer" value={form.values.communication.emailFooter ?? ''} onChange={(e) => form.set('communication.emailFooter', e.target.value)} />
-          </Field>
-        </div>
-      </Card>
-      <SaveBar {...form} onSave={() => form.submit(() => saveDocumentsAction(slug, form.values))} />
-    </div>
-  );
-}
-
 export function LocationForm({ slug, id, initial, country, canDelete, near }: {
   slug: string; id: string | null; initial: Obj; country: string; canDelete?: boolean; near?: { lat: number; lng: number } | null;
 }) {

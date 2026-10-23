@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@rental/core', '@rental/db'],
   serverExternalPackages: ['postgres'],
   experimental: {
-    serverActions: { bodySizeLimit: '2mb' },
+    serverActions: { bodySizeLimit: '6mb' },
   },
 };
 

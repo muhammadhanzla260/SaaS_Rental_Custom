@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { Building2, Gauge, History, Mail, MapPinned, Palette, Users } from 'lucide-react';
+import { Building2, History, MapPinned, Palette, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cx } from '@/components/ui';
 
@@ -11,8 +11,6 @@ export const SETTINGS_TABS = [
   { href: 'general', label: 'Business profile', icon: Building2 },
   { href: 'branding', label: 'Branding', icon: Palette },
   { href: 'locations', label: 'Locations', icon: MapPinned },
-  { href: 'booking', label: 'Booking rules', icon: Gauge },
-  { href: 'documents', label: 'Emails and documents', short: 'Emails', icon: Mail },
   { href: 'team', label: 'Team', icon: Users },
   { href: 'activity', label: 'Activity log', short: 'Activity', icon: History },
 ] as const;

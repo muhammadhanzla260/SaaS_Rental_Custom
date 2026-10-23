@@ -15,12 +15,14 @@ import { cx } from './ui';
 
 type Org = { slug: string; name: string; brandColor: string };
 
-const MAIN = [{ href: '', label: 'Dashboard', icon: LayoutDashboard }];
+const MAIN = [
+  { href: '', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/orders', label: 'Orders', icon: ClipboardList },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/catalog', label: 'Catalog', icon: Boxes },
+];
 const SOON = [
-  { label: 'Orders', icon: ClipboardList, phase: 1 },
-  { label: 'Calendar', icon: CalendarDays, phase: 1 },
-  { label: 'Customers', icon: Users, phase: 1 },
-  { label: 'Catalog', icon: Boxes, phase: 1 },
   { label: 'Invoices', icon: FileText, phase: 2 },
   { label: 'Payments', icon: CreditCard, phase: 2 },
   { label: 'Reports', icon: BarChart3, phase: 3 },
@@ -127,6 +129,11 @@ export function AppShell({
           )}
         </AnimatePresence>
       </div>
+
+      <Link href={`${base}/orders/new`}
+        className="btn-shine brand-gradient flex min-h-11 items-center justify-center gap-2 rounded-ui-sm font-semibold text-brand-fg shadow-[0_8px_20px_-10px_var(--brand)] transition-transform active:scale-[0.98]">
+        <Plus aria-hidden className="size-4" /> New order
+      </Link>
 
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         {MAIN.map((item) => (

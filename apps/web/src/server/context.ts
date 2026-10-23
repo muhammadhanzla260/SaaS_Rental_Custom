@@ -48,4 +48,15 @@ export async function requireSettingsAccess(slug: string) {
   return { ...ctx, actor };
 }
 
+/** For server actions that need one of these roles (owner and admin always pass). */
+export async function requireRole(slug: string, roles: readonly Role[]) {
+  const ctx = await getTenantContext(slug);
+  if (!['owner', 'admin', ...roles].includes(ctx.role)) throw new ActionError('Your role cannot do this. Ask an admin.');
+  const actor: Actor & { role: Role } = { type: 'user', userId: ctx.user.id, ip: await clientIp(), role: ctx.role };
+  return { ...ctx, actor };
+}
+
+export const CAN_SELL: readonly Role[] = ['manager', 'sales'];
+export const CAN_EDIT_CATALOG: readonly Role[] = ['manager'];
+
 export class ActionError extends Error {}

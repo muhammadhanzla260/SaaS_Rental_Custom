@@ -1,21 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, CircleCheck, CircleDashed, Clock, Clock4, Coins, Percent, Phone, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, CalendarCheck2, CalendarDays, CircleCheck, CircleDashed, Clock, FileClock, MapPin, Phone, Plus, Sparkles, Wallet } from 'lucide-react';
 import { motion } from 'motion/react';
-import { ProgressRing, Reveal, Stagger, StaggerItem } from '@/components/motion';
+import { AnimatedNumber, ProgressRing, Reveal, Stagger, StaggerItem } from '@/components/motion';
 import { StaticMap } from '@/components/static-map';
 import { Badge, cx } from '@/components/ui';
 
 type Step = { done: boolean; title: string; text: string; href?: string; soon?: string };
 type Loc = { id: string; name: string; code: string; city: string; lat: number | null; lng: number | null; isPrimary: boolean; href: string };
 
+type Upcoming = { id: string; href: string; customer: string; items: string; when: string; totalCents: number; city: string | null };
+
 export function DashboardView({
-  welcome, greeting, today, localTime, tenantName, canManageSettings, steps, facts, locations,
+  welcome, greeting, today, localTime, tenantName, canManageSettings, steps, facts, locations, stats, currency, upcoming, newOrderHref,
 }: {
   welcome: boolean; greeting: string; today: string; localTime: string; tenantName: string; canManageSettings: boolean;
   steps: Step[]; facts: { timezone: string; currency: string; phone: string; deposit: number; team: number }; locations: Loc[];
+  stats: { upcoming: number; thisWeek: number; quotesOpen: number; bookedThisMonthCents: number }; currency: string; upcoming: Upcoming[]; newOrderHref: string;
 }) {
+  const money = new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 });
+  const setupDone = steps.filter((s) => !s.soon).every((s) => s.done);
   const done = steps.filter((s) => s.done).length;
   const next = steps.find((s) => !s.done && !s.soon);
 
@@ -46,27 +51,53 @@ export function DashboardView({
         </div>
       </Reveal>
 
-      {/* quick facts */}
+      {/* key numbers */}
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4" delay={0.1}>
         {[
-          { icon: Clock4, label: 'Time zone', value: facts.timezone },
-          { icon: Coins, label: 'Currency', value: facts.currency },
-          { icon: Percent, label: 'Deposit to book', value: `${facts.deposit}%` },
-          { icon: Users, label: 'Team', value: `${facts.team} ${facts.team === 1 ? 'person' : 'people'}` },
+          { icon: CalendarCheck2, label: 'Upcoming bookings', value: <AnimatedNumber value={stats.upcoming} /> },
+          { icon: CalendarDays, label: 'Events this week', value: <AnimatedNumber value={stats.thisWeek} /> },
+          { icon: FileClock, label: 'Open quotes', value: <AnimatedNumber value={stats.quotesOpen} /> },
+          { icon: Wallet, label: 'Booked this month', value: <AnimatedNumber value={stats.bookedThisMonthCents / 100} prefix={money.formatToParts(0).find((x) => x.type === 'currency')?.value ?? ''} /> },
         ].map((f) => (
-          <StaggerItem key={f.label} className="flex min-w-0 items-center gap-3 rounded-ui border border-line bg-surface p-4 shadow-card">
-            <span className="grid size-10 shrink-0 place-items-center rounded-ui-sm bg-brand-soft text-brand-text"><f.icon aria-hidden className="size-5" /></span>
-            <span className="min-w-0">
-              <span className="block text-xs font-medium uppercase tracking-wide text-muted">{f.label}</span>
-              <span className="block truncate font-semibold">{f.value}</span>
+          <StaggerItem key={f.label} className="flex min-w-0 flex-col gap-2 rounded-ui border border-line bg-surface p-4 shadow-card">
+            <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
+              <span className="grid size-8 place-items-center rounded-ui-sm bg-brand-soft text-brand-text"><f.icon aria-hidden className="size-4" /></span>
+              {f.label}
             </span>
+            <span className="font-display text-3xl font-bold">{f.value}</span>
           </StaggerItem>
         ))}
       </Stagger>
 
+      {/* coming up */}
+      <Reveal delay={0.12} className="rounded-[calc(var(--radius)*1.4)] border border-line bg-surface p-5 shadow-card sm:p-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Coming up</h2>
+          <Link href={newOrderHref} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline"><Plus aria-hidden className="size-4" /> New order</Link>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="text-muted">No bookings yet. Your next events will show here.</p>
+        ) : (
+          <Stagger as="ul" className="-mx-2 flex flex-col" gap={0.05}>
+            {upcoming.map((o) => (
+              <StaggerItem as="li" key={o.id}>
+                <Link href={o.href} className="flex items-center gap-3 rounded-ui-sm px-2 py-2.5 hover:bg-surface-2">
+                  <span className="brand-gradient size-2.5 shrink-0 rounded-full" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{o.customer} <span className="font-normal text-muted">· {o.items || 'No items'}</span></span>
+                    <span className="flex flex-wrap gap-x-3 text-sm text-muted"><span>{o.when}</span>{o.city && <span className="inline-flex items-center gap-1"><MapPin aria-hidden className="size-3" />{o.city}</span>}</span>
+                  </span>
+                  <span className="font-semibold tabular">{money.format(o.totalCents / 100)}</span>
+                </Link>
+              </StaggerItem>
+            ))}
+          </Stagger>
+        )}
+      </Reveal>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* checklist */}
-        <Reveal delay={0.15} className="rounded-[calc(var(--radius)*1.4)] border border-line bg-surface p-5 shadow-card sm:p-6">
+        <Reveal delay={0.15} className={cx('rounded-[calc(var(--radius)*1.4)] border border-line bg-surface p-5 shadow-card sm:p-6', setupDone && 'opacity-80')}>
           <div className="mb-4 flex items-baseline justify-between gap-3">
             <h2 className="text-lg font-semibold">Setup checklist</h2>
             <span className="text-sm text-muted tabular">{done} of {steps.length} done</span>
@@ -119,7 +150,7 @@ export function DashboardView({
               </Link>
             </motion.div>
           ))}
-          <p className="flex items-center gap-2 px-1 text-sm text-muted"><Phone aria-hidden className="size-4" /> Main line {facts.phone}</p>
+          <p className="flex items-center gap-2 px-1 text-sm text-muted"><Phone aria-hidden className="size-4" /> Main line {facts.phone} · {facts.timezone}</p>
         </Reveal>
       </div>
     </div>

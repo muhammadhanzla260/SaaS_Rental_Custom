@@ -1,5 +1,5 @@
-import { listLocations, listTeam } from '@rental/db';
-import { formatPhone } from '@rental/core';
+import { listLocations, listOrders, listProducts, listTeam, orderStats } from '@rental/db';
+import { formatEventTime, formatPhone } from '@rental/core';
 import { getTenantContext } from '@/server/context';
 import { db } from '@/server/db';
 import { DashboardView } from './dashboard-view';
@@ -12,10 +12,18 @@ export default async function Dashboard({
   const { tenant: slug } = await params;
   const { welcome } = await searchParams;
   const { tenant, prefs, canManageSettings, user } = await getTenantContext(slug);
-  const [locs, team] = await Promise.all([listLocations(db, tenant.id), listTeam(db, tenant.id)]);
+  const [locs, team, products, stats, upcoming] = await Promise.all([
+    listLocations(db, tenant.id),
+    listTeam(db, tenant.id),
+    listProducts(db, tenant.id),
+    orderStats(db, tenant.id, tenant.timezone),
+    listOrders(db, tenant.id, { status: 'booked', from: new Date(), limit: 6 }),
+  ]);
   const base = `/${slug}/settings`;
 
   const steps = [
+    { done: products.length > 0, title: 'Add your first product', text: 'Photos, staffed, pick-up and drop-off prices, and how many you own.', href: `/${slug}/catalog/new` },
+    { done: stats.upcoming > 0 || stats.bookedThisMonthCents > 0, title: 'Take your first booking', text: 'Customer, time, address and items: the price works itself out.', href: `/${slug}/orders/new` },
     { done: !!(tenant.email && tenant.phone && tenant.line1), title: 'Complete your business profile', text: 'Email, phone and address appear on quotes and invoices.', href: `${base}/general` },
     { done: !!tenant.logoFileId, title: 'Upload your logo', text: 'Shown in the app, on emails, quotes and invoices.', href: `${base}/branding` },
     { done: locs.length > 0 && locs.every((l) => l.lat != null && l.lng != null), title: 'Pin every location on the map', text: 'Delivery distance and travel fees are measured from these points.', href: `${base}/locations` },
@@ -39,6 +47,13 @@ export default async function Dashboard({
       tenantName={tenant.name}
       canManageSettings={canManageSettings}
       steps={steps}
+      stats={stats}
+      currency={tenant.currency}
+      upcoming={upcoming.map((o) => ({
+        id: o.id, href: `/${slug}/orders/${o.id}`, customer: o.customerName, items: o.items, when: formatEventTime(o.eventStartsAt, o.eventEndsAt, tenant.timezone),
+        totalCents: o.totalCents, city: o.eventCity,
+      }))}
+      newOrderHref={`/${slug}/orders/new`}
       facts={{
         timezone: tenant.timezone.replace(/_/g, ' '),
         currency: tenant.currency,

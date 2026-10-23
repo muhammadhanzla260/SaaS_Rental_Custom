@@ -297,3 +297,13 @@ export function listActivity(db: Db, tenantId: string, limit = 100) {
     return [...rows];
   });
 }
+
+export const IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp'] as const;
+export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Product photos and other public images (PNG, JPG, WebP up to 4 MB). */
+export async function saveImage(db: Db, tenantId: string, userId: string, file: UploadedFile, purpose: string) {
+  if (!(IMAGE_MIME as readonly string[]).includes(file.mime)) throw new OrgError('Upload a PNG, JPG or WebP photo.', 'invalid');
+  if (file.bytes.length > IMAGE_MAX_BYTES) throw new OrgError('The photo must be 4 MB or smaller.', 'invalid');
+  return withTenant(db, tenantId, (tx) => storeFile(tx, tenantId, userId, file, purpose, true));
+}
