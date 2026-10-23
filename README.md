@@ -8,12 +8,15 @@ Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/
 
 ## Status
 
-**Phase 0 (foundation) is done.**
+**Phase 0 (foundation) and Phase 1 (catalog, customers, booking) are done.**
+
+### Phase 0
 
 - Sign up and sign in (email and password).
-- Four-step onboarding with a live preview of the organization's own app as it is set up:
+- Three-step onboarding with a live preview of the organization's own app as it is set up:
   business details and address, brand (logo, colour, light/dark default, corner style),
-  first location on the map, and booking rules as sliders with live examples. Ends with a celebration.
+  and the first location on the map. Ends with a celebration. Booking rules (deposit, waiver,
+  travel, surfaces) start from FreedomFun's defaults and are set per order in the order builder.
 - **Region is detected, never asked:** country from the business address, time zone from the
   location's map pin (offline lookup), currency and date/distance formats from the country.
   Owners can override them in Business profile.
@@ -26,8 +29,6 @@ Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/
   | Business profile | Name, legal name, contact details, tax ID, address, detected region (with override) |
   | Branding | Logo, a logo for dark backgrounds, brand colour, default light/dark mode, corner style |
   | Locations | Places equipment ships from (branch = warehouse): address and pin, time zone from the pin, phone, tax rate, crew loading notes, one primary |
-  | Booking rules | Deposit (30% default), when the balance is due, auto-charge, quote validity, turnaround buffer, damage waiver, travel fees |
-  | Emails and documents | Quote, invoice and receipt number prefixes; sender name, reply-to address, staff alert emails, email footer |
   | Team | Invite by link, roles, disable access; the last owner is protected |
   | Activity log | Who changed what, and when |
 
@@ -35,7 +36,29 @@ Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/
 - Motion throughout (page transitions, staggered lists, animated progress, sliding indicators); it switches off when the device asks for reduced motion.
 - Tenant isolation is enforced in PostgreSQL with row-level security, not just in application code.
 
-**Next: Phase 1.** Catalog, customers, booking with availability, and the pricing engine with parity tests against Odoo.
+### Phase 1
+
+- **Catalog:** categories, products with staffed / pick-up / drop-off prices, included hours, hourly
+  rate, 15-minute overtime blocks, minimum hours, turnaround time, photo, and stock per location.
+- **Customers:** search, duplicate warning (email or phone), Mapbox address, order history.
+- **Order builder:** customer, event window (multi-day too), event address on the map, products with
+  live availability, setup surfaces, damage waiver, travel fee from driving distance, discounts,
+  coupon, tax, deposit (30% default). Totals update as you type; the server recomputes them on save.
+- **Availability:** booking an order holds its equipment from the event start until return plus
+  cleanup. Overlapping bookings beyond stock are refused in the database, under a lock.
+- **Order flow:** draft → quote sent → booked → completed, with cancel and reopen; edits are
+  version-checked so two people cannot overwrite each other.
+- **Calendar** of events and a dashboard with what is coming up.
+- **Pricing parity with Odoo,** checked against the 150 most recent FreedomFun orders on staging
+  (`pnpm --filter @rental/core parity`, read-only):
+  - Order totals: all 150 match to the cent. 145 match Odoo's current rules. The other 5 were saved
+    between 12 and 18 Sep 2026, when Odoo briefly took % discounts on merchandise plus fees and put
+    $ discounts after tax; they match that rule to the cent, and Odoo keeps their stored totals.
+  - Line prices: 308 of 317 match the POS formula. The other 9 are prices staff typed in (including
+    $0 comped lines). Odoo treats them as manual overrides, and migration imports them the same way.
+
+**Next: Phase 2.** Quote emails over the tenant's SMTP, the customer quote / sign / pay page, Stripe
+deposits, invoices and receipts.
 
 ## Stack
 
@@ -53,7 +76,7 @@ apps/
   web/        Next.js app: staff app, onboarding, settings (later: customer quote/pay pages, crew app)
   worker/     background jobs (housekeeping now; emails, reminders, auto-charge later)
 packages/
-  core/       framework-free business rules: settings schemas, theme engine, phones, regions
+  core/       framework-free business rules: pricing engine, settings schemas, theme engine, phones, regions
   db/         Drizzle schema, migrations, tenant-scoped services, integration tests
 ```
 
@@ -79,6 +102,8 @@ pnpm test                   # core unit tests and database integration tests (ne
 pnpm typecheck
 pnpm --filter @rental/web build && pnpm --filter @rental/web start
 node apps/web/scripts/e2e-onboarding.mjs   # real-browser run of sign-up, onboarding and settings, with screenshots
+node apps/web/scripts/e2e-orders.mjs       # real-browser run of catalog, customers, booking and overlap refusal
+pnpm --filter @rental/core parity          # read-only pricing comparison with Odoo staging (needs ODOO_ENV_FILE)
 ```
 
 The database tests connect as the restricted runtime role, the same one the app uses. They prove one

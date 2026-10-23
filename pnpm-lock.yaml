@@ -217,6 +217,12 @@ importers:
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
+      dotenv:
+        specifier: 18.0.6
+        version: 18.0.6
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
       typescript:
         specifier: 5.9.3
         version: 5.9.3
