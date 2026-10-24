@@ -261,7 +261,9 @@ export async function saveWarehouseStep(db: Db, tenantId: string, actor: Actor, 
 export function launchWorkspace(db: Db, tenantId: string, actor: Actor, plan: 'starter' | 'growth' | 'scale') {
   return withTenant(db, tenantId, async (tx) => {
     await markStepTx(tx, tenantId, 'launch', 'done', 5);
-    return updateTenantTx(tx, tenantId, actor, 'tenant.launched', { plan, onboardedAt: new Date() });
+    // Launching puts the org live on everything released so far (Phase 1: catalog and booking).
+    const [cur] = await tx.select({ rolloutPhase: tenants.rolloutPhase }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+    return updateTenantTx(tx, tenantId, actor, 'tenant.launched', { plan, onboardedAt: new Date(), rolloutPhase: Math.max(1, cur?.rolloutPhase ?? 0) });
   });
 }
 

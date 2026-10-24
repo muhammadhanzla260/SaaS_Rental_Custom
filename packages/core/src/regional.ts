@@ -2,7 +2,6 @@
  * Time zones, countries and currencies. Lists come from generated static data
  * (regions-data.ts) so server and browser render identical options.
  */
-import tzlookup from '@photostructure/tz-lookup';
 import { COUNTRIES, CURRENCIES, TIMEZONES } from './regions-data';
 
 const TZ_SET = new Set<string>(TIMEZONES);
@@ -111,50 +110,19 @@ export function currencyForCountry(country: string): string {
   return COUNTRY_CURRENCY[country.toUpperCase()] ?? 'USD';
 }
 
-/** IANA time zone at a point on the map (offline lookup), or null. */
-export function timezoneAt(lat: number | null | undefined, lng: number | null | undefined): string | null {
-  if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) return null;
-  try {
-    const tz = tzlookup(lat, lng);
-    return isValidTimezone(tz) ? tz : null;
-  } catch {
-    return null;
-  }
-}
-
-export type DetectedRegion = {
-  country: string;
-  timezone: string;
-  currency: string;
-  locale: string;
-  formats: { dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY'; timeFormat: '12h' | '24h'; weekStartsOn: 'sunday' | 'monday'; distanceUnit: 'mi' | 'km' };
-  /** Where the time zone came from, for the "detected from ..." note. */
-  timezoneSource: 'map' | 'device' | 'default';
-};
-
-/**
- * Everything regional, worked out from the country and a map pin, so nobody
- * has to fill in a separate region form.
- */
-export function detectRegion(country: string, point?: { lat?: number | null; lng?: number | null } | null, deviceTimezone?: string | null): DetectedRegion {
+/** Formats and money for a country (no map lookup: safe for the browser). */
+export function regionDefaults(country: string) {
   const c = (country || 'US').toUpperCase();
-  const fromMap = timezoneAt(point?.lat, point?.lng);
-  // Map pin first. Without one, the country's main zone beats the device's:
-  // staff often set up from abroad (a Karachi laptop must not make Austin "Asia/Karachi").
-  const countryTz = COUNTRY_DEFAULTS[c]?.timezone ?? null;
-  const device = deviceTimezone && isValidTimezone(deviceTimezone) ? deviceTimezone : null;
-  const timezone = fromMap ?? countryTz ?? device ?? 'UTC';
   return {
     country: c,
-    timezone,
     currency: currencyForCountry(c),
     locale: COUNTRY_DEFAULTS[c]?.locale ?? `en-${c}`,
+    timezone: COUNTRY_DEFAULTS[c]?.timezone ?? null,
     formats: {
-      dateFormat: MONTH_FIRST.has(c) ? 'MM/DD/YYYY' : 'DD/MM/YYYY',
-      timeFormat: MONTH_FIRST.has(c) || ['CA', 'AU', 'NZ', 'PK', 'IN'].includes(c) ? '12h' : '24h',
-      weekStartsOn: SUNDAY_FIRST.has(c) ? 'sunday' : 'monday',
-      distanceUnit: MILES.has(c) ? 'mi' : 'km',
+      dateFormat: (MONTH_FIRST.has(c) ? 'MM/DD/YYYY' : 'DD/MM/YYYY') as 'MM/DD/YYYY' | 'DD/MM/YYYY',
+      timeFormat: (MONTH_FIRST.has(c) || ['CA', 'AU', 'NZ', 'PK', 'IN'].includes(c) ? '12h' : '24h') as '12h' | '24h',
+      weekStartsOn: (SUNDAY_FIRST.has(c) ? 'sunday' : 'monday') as 'sunday' | 'monday',
+      distanceUnit: (MILES.has(c) ? 'mi' : 'km') as 'mi' | 'km',
     },
-    timezoneSource: fromMap ? 'map' : countryTz ? 'default' : device ? 'device' : 'default',
   };
 }

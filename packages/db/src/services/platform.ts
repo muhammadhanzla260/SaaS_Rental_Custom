@@ -176,3 +176,20 @@ export async function activeImpersonation(db: Db, userId: string, sessionToken: 
   );
   return row ? { id: row.id, reason: row.reason, startedAt: new Date(row.started_at) } : null;
 }
+
+export type PlatformAuditRow = {
+  id: string; at: Date; tenantId: string; tenantName: string | null; tenantSlug: string | null; actorType: string;
+  actorName: string | null; actorEmail: string | null; entityType: string; action: string; changes: unknown; ip: string | null;
+};
+
+/** Audit log across every organization (console). */
+export async function listPlatformAudit(db: Db, adminId: string, opts: { limit?: number; tenantId?: string | null; platformOnly?: boolean } = {}): Promise<PlatformAuditRow[]> {
+  const rows = await db.execute<{
+    id: string; at: string; tenant_id: string; tenant_name: string | null; tenant_slug: string | null; actor_type: string; actor_name: string | null;
+    actor_email: string | null; entity_type: string; action: string; changes: unknown; ip: string | null;
+  }>(sql`select * from app_platform_audit(${adminId}, ${opts.limit ?? 200}::int, ${opts.tenantId ?? null}::uuid, ${opts.platformOnly ?? false})`);
+  return [...rows].map((r) => ({
+    id: r.id, at: new Date(r.at), tenantId: r.tenant_id, tenantName: r.tenant_name, tenantSlug: r.tenant_slug, actorType: r.actor_type,
+    actorName: r.actor_name, actorEmail: r.actor_email, entityType: r.entity_type, action: r.action, changes: r.changes, ip: r.ip,
+  }));
+}

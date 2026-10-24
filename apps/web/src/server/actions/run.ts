@@ -5,7 +5,7 @@ import type { ActionResult } from '@/lib/result';
 import { ActionError } from '../context';
 
 /** Turns expected errors into a friendly result; anything else is logged and hidden. */
-export async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+export async function run<T = undefined>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
     return await fn();
   } catch (e) {

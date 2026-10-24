@@ -187,7 +187,8 @@ describe('mapbox address mapping', () => {
 
 describe('region detection', () => {
   it('reads the time zone from the map pin and the rest from the country', async () => {
-    const { detectRegion, timezoneAt, currencyForCountry } = await import('./regional');
+    const { detectRegion, timezoneAt } = await import('./geo-tz');
+    const { currencyForCountry } = await import('./regional');
     expect(timezoneAt(30.2672, -97.7431)).toBe('America/Chicago');
     expect(timezoneAt(34.0522, -118.2437)).toBe('America/Los_Angeles');
     expect(timezoneAt(24.8607, 67.0011)).toBe('Asia/Karachi');

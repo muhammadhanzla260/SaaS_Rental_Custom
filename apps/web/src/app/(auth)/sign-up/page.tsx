@@ -1,12 +1,8 @@
-import { Suspense } from 'react';
-import { AuthForm } from '../auth-form';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'Create account' };
-
-export default function SignUpPage() {
-  return (
-    <Suspense>
-      <AuthForm mode="sign-up" />
-    </Suspense>
-  );
+/** Old link: registering a business now lives at /register. */
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
+  const qs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();
+  redirect(`/register${qs ? `?${qs}` : ''}`);
 }

@@ -71,6 +71,34 @@
       "when": 1792829952839,
       "tag": "0009_numbering_by_location",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792832217978,
+      "tag": "0010_payment_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792832669598,
+      "tag": "0011_platform_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792846259899,
+      "tag": "0012_users_insert_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792846489022,
+      "tag": "0013_users_admin_trigger",
+      "breakpoints": true
     }
   ]
 }

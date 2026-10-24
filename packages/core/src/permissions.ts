@@ -32,11 +32,11 @@ export const ROLE_TONE: Record<Role, 'owner' | 'info' | 'violet' | 'success' | '
 
 export const PERMISSIONS = {
   'orders.create': 'Create and book orders',
-  'orders.override_price': 'Override unit prices',
+  'orders.override_price': 'Override line prices',
   'orders.override_tax': 'Override the tax rate on an order',
-  'payments.refund': 'Refunds and credits',
-  'reports.view': 'Financial reports',
-  'settings.manage': 'Locations and email settings',
+  'payments.refund': 'Refund and issue credits',
+  'reports.view': 'View financial reports',
+  'settings.manage': 'Manage locations and email',
   'members.manage': 'Invite and remove people',
   'billing.manage': 'Plan and billing',
   'org.delete': 'Delete the organization',
@@ -59,7 +59,7 @@ const MATRIX: Record<Permission, readonly Role[]> = {
 
 /** Rows of the read-only permission matrix shown on the Team screen. */
 export const PERMISSION_MATRIX: { key: Permission; label: string; roles: readonly Role[] }[] = (
-  ['orders.create', 'orders.override_price', 'payments.refund', 'reports.view', 'settings.manage', 'members.manage', 'coach.portal'] as const
+  ['orders.create', 'orders.override_price', 'payments.refund', 'reports.view', 'settings.manage', 'members.manage'] as const
 ).map((key) => ({ key, label: PERMISSIONS[key], roles: MATRIX[key] }));
 
 /** Permissions that may be granted to one person on top of their role. */

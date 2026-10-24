@@ -6,7 +6,8 @@ import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MAPBOX_GEOCODE, MAPBOX_SEARCH, mapboxToAddress, type MapboxProperties, type MapboxSuggestion } from '@rental/core';
 import { useMapboxToken } from './mapbox-token';
-import { cx, Input } from './ui';
+import { cx } from './kit/core';
+import { Input } from './kit/forms';
 
 type Filled = ReturnType<typeof mapboxToAddress>;
 

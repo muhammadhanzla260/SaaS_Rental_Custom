@@ -12,7 +12,8 @@
     "test": "vitest run",
     "generate": "drizzle-kit generate",
     "migrate": "tsx scripts/migrate.ts",
-    "local:start": "tsx scripts/local-postgres.ts"
+    "local:start": "tsx scripts/local-postgres.ts",
+    "platform:admin": "tsx scripts/platform-admin.ts"
   },
   "dependencies": {
     "@rental/core": "workspace:*",

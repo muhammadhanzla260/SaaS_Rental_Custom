@@ -177,6 +177,10 @@ describe('tenant isolation (row-level security)', () => {
   it('cannot make anyone a platform admin through the app connection', async () => {
     const err = await db.update(users).set({ isPlatformAdmin: true }).where(eq(users.id, alice.id)).catch((e: Error) => e);
     expect(String((err as Error & { cause?: Error }).cause?.message)).toMatch(/permission denied/);
+    const id = `test-sneaky-${run}`;
+    await db.insert(users).values({ id, name: 'Sneaky', email: `sneaky-${run}@example.test`, isPlatformAdmin: true });
+    const [row] = await owner.db.select({ admin: users.isPlatformAdmin }).from(users).where(eq(users.id, id));
+    expect(row!.admin).toBe(false);
   });
 });
 

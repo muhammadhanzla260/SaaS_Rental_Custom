@@ -2,6 +2,7 @@ export * from './theme';
 export * from './settings';
 export * from './permissions';
 export * from './regional';
+export * from './geo-tz';
 export * from './phone';
 export * from './mapbox';
 export * from './travel';

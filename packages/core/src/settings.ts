@@ -472,8 +472,16 @@ export const smsAccountSchema = z.object({
 });
 export type SmsAccountInput = z.infer<typeof smsAccountSchema>;
 
+export const PAYMENT_PROVIDERS = [
+  { key: 'stripe', label: 'Stripe', sub: 'Cards and wallets. Connect in 2 minutes.' },
+  { key: 'ipos', label: 'iPOS Pay', sub: 'Card payments with saved tokens.' },
+  { key: 'manual', label: 'Manual only', sub: 'Cash, check, Zelle, ACH recorded by staff.' },
+] as const;
+
 export const paymentAccountSchema = z.object({
-  provider: z.enum(['none', 'stripe']).default('none'),
+  provider: z.enum(['manual', 'stripe', 'ipos']).default('manual'),
+  /** iPOS Pay terminal id (TPN). */
+  merchantId: optionalText(64),
   publishableKey: z
     .string()
     .trim()
@@ -483,8 +491,12 @@ export const paymentAccountSchema = z.object({
   secretKey: z
     .string()
     .trim()
-    .regex(/^$|^(sk|rk)_(test|live)_[A-Za-z0-9]+$/, 'A Stripe secret key starts with sk_test_ or sk_live_.')
+    .max(512)
     .optional(),
+}).superRefine((v, ctx) => {
+  if (v.provider === 'stripe' && v.secretKey && !/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/.test(v.secretKey)) {
+    ctx.addIssue({ code: 'custom', path: ['secretKey'], message: 'A Stripe secret key starts with sk_test_ or sk_live_.' });
+  }
 });
 export type PaymentAccountInput = z.infer<typeof paymentAccountSchema>;
 

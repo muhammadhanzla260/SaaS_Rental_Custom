@@ -65,7 +65,9 @@ export const paymentAccounts = pgTable(
     tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
     id: id(),
     locationId: uuid('location_id'),
-    provider: text('provider').notNull().default('none'),
+    provider: text('provider').notNull().default('manual'),
+    /** iPOS Pay terminal id (TPN). */
+    merchantId: text('merchant_id'),
     publishableKey: text('publishable_key'),
     secretEnc: text('secret_enc'),
     /** 'test' or 'live', read from the key prefix. */
@@ -78,6 +80,6 @@ export const paymentAccounts = pgTable(
     foreignKey({ columns: [t.tenantId, t.locationId], foreignColumns: [locations.tenantId, locations.id] }).onDelete('cascade'),
     uniqueIndex('payment_accounts_org').on(t.tenantId).where(sql`${t.locationId} is null`),
     uniqueIndex('payment_accounts_location').on(t.tenantId, t.locationId).where(sql`${t.locationId} is not null`),
-    check('payment_accounts_provider', sql`${t.provider} in ('none','stripe')`),
+    check('payment_accounts_provider', sql`${t.provider} in ('manual','stripe','ipos')`),
   ],
 );

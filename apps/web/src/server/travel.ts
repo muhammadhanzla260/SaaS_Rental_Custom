@@ -1,5 +1,5 @@
 import 'server-only';
-import { findNearestOrigin, travelFee, type Point, type ServiceMode, type TenantPreferences } from '@rental/core';
+import { findNearestOrigin, parseLocationSettings, travelFee, type Point, type ServiceMode, type TenantPreferences } from '@rental/core';
 import { listLocations } from '@rental/db';
 import { db } from './db';
 
@@ -33,11 +33,13 @@ export async function quoteTravelFee(tenantId: string, prefs: TenantPreferences,
   const nearest = await findNearestOrigin(locations, to, drivingMiles);
   if (!nearest) return null;
   const unit = prefs.formats.distanceUnit;
+  // A location may override the org's free miles and rates (null = org default).
+  const own = parseLocationSettings(nearest.origin.settings);
   const fee = travelFee(nearest.miles, modes, {
     unit,
-    freeDistance: prefs.booking.freeTravelDistance,
-    rateStaffed: prefs.booking.travelRateStaffed,
-    rateDropoff: prefs.booking.travelRateDropoff,
+    freeDistance: own.freeTravelMiles ?? prefs.booking.freeTravelDistance,
+    rateStaffed: own.travelRateStaffed ?? prefs.booking.travelRateStaffed,
+    rateDropoff: own.travelRateDropoff ?? prefs.booking.travelRateDropoff,
   });
   return {
     location: { id: nearest.origin.id, name: nearest.origin.name, code: nearest.origin.code },

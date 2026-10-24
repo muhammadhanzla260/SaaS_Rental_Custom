@@ -6,6 +6,7 @@ export * from './services/locations';
 export * from './services/team';
 export * from './services/platform';
 export * from './services/integrations';
+export * from './services/numbering';
 export { encryptSecret, decryptSecret, sha256Hex } from './crypto';
 export * from './services/catalog';
 export * from './services/customers';

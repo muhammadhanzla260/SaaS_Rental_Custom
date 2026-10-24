@@ -149,11 +149,11 @@ export function revokeInvitation(db: Db, tenantId: string, actor: Actor, id: str
   });
 }
 
-async function countOwners(tx: Tx) {
+async function countOwners(tx: Tx, tenantId: string) {
   const [row] = await tx
     .select({ n: sql<number>`count(*)::int` })
     .from(memberships)
-    .where(and(eq(memberships.role, 'owner'), eq(memberships.status, 'active')));
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.role, 'owner'), eq(memberships.status, 'active')));
   return row?.n ?? 0;
 }
 
@@ -178,7 +178,7 @@ export function updateMember(
       throw new OrgError('Only an owner can change owners.', 'forbidden');
     }
     const losesOwner = m.role === 'owner' && m.status === 'active' && ((change.role && change.role !== 'owner') || change.status === 'disabled');
-    if (losesOwner && (await countOwners(tx)) <= 1) {
+    if (losesOwner && (await countOwners(tx, tenantId)) <= 1) {
       throw new OrgError('The organization needs at least one owner. Make someone else an owner first.', 'last_owner');
     }
     if (m.userId === actor.userId && change.status === 'disabled') throw new OrgError('You cannot disable yourself.', 'invalid');
@@ -272,4 +272,10 @@ export async function acceptInvitation(db: Db, token: string, user: { id: string
     });
     return inv;
   });
+}
+
+/** Whether a login exists for this email (invite page: "create account" or "sign in"). */
+export async function loginExists(db: Db, email: string): Promise<boolean> {
+  const rows = await db.select({ id: users.id }).from(users).where(sql`lower(${users.email}) = lower(${email})`).limit(1);
+  return rows.length > 0;
 }

@@ -76,7 +76,9 @@ export type AccentCheck = {
 };
 
 /** The readout under the colour picker ("Button text contrast 6.4:1 · passes for all text sizes"). */
-export function checkAccent(hex: string): AccentCheck {
+export function checkAccent(input: string): AccentCheck {
+  // Never throw from a render path: anything that is not #RRGGBB is treated as the default accent.
+  const hex = HEX_RE.test(input) ? input : DEFAULT_ACCENT;
   const white = contrastRatio('#FFFFFF', hex);
   const ink = contrastRatio(INK, hex);
   const onAccent = white >= ink ? '#FFFFFF' : INK;

@@ -115,13 +115,16 @@ export function saveSmsAccount(db: Db, tenantId: string, actor: Actor, input: Sm
 
 async function upsertPaymentTx(tx: Tx, tenantId: string, actor: Actor, locationId: string | null, input: PaymentAccountInput) {
   const [existing] = await tx.select().from(paymentAccounts).where(scopeWhere(paymentAccounts, locationId)).limit(1);
-  const none = input.provider === 'none';
+  const none = input.provider === 'manual';
   const key = input.secretKey || null;
   const values = {
     provider: input.provider,
-    publishableKey: none ? null : input.publishableKey || existing?.publishableKey || null,
-    secretEnc: none ? null : key ? encryptSecret(key) : existing?.secretEnc ?? null,
-    keyMode: none ? null : key ? (key.includes('_live_') ? 'live' : 'test') : existing?.keyMode ?? (input.publishableKey?.includes('_live_') ? 'live' : 'test'),
+    merchantId: input.provider === 'ipos' ? input.merchantId ?? existing?.merchantId ?? null : null,
+    publishableKey: input.provider === 'stripe' ? input.publishableKey || existing?.publishableKey || null : null,
+    secretEnc: none ? null : key ? encryptSecret(key) : existing?.provider === input.provider ? existing?.secretEnc ?? null : null,
+    keyMode: input.provider !== 'stripe'
+      ? null
+      : key ? (key.includes('_live_') ? 'live' : 'test') : existing?.keyMode ?? ((input.publishableKey ?? '').includes('_live_') ? 'live' : 'test'),
   };
   const [row] = existing
     ? await tx.update(paymentAccounts).set(values).where(eq(paymentAccounts.id, existing.id)).returning()
