@@ -63,7 +63,11 @@ export type LinePriceTrace = {
   hours: number;
   includedHours: number;
   extraCents: number;
-  method: 'flat' | 'included' | 'hourly' | 'blocks';
+  method: 'flat' | 'included' | 'hourly' | 'blocks' | 'custom';
+  /** Started overtime blocks or hours charged, and their size and price (for the "4 × 15 min × $25.00" label). */
+  units?: number;
+  unitMinutes?: number;
+  unitCents?: number;
 };
 
 /** Unit price for one rental for `hours` (Odoo _package_duration_price). */
@@ -71,19 +75,43 @@ export function packageDurationCents(p: ProductPricing, hours: number, baseCents
   const h = hours > 0 ? Math.max(1 / 60, hours) : 0;
   const rate = p.hourlyRateCents && p.hourlyRateCents > 0 ? p.hourlyRateCents : 0;
   const baseHrs = p.baseHours && p.baseHours > 0 ? p.baseHours : 0;
-  const trace = (extraCents: number, method: LinePriceTrace['method'], includedHours: number) => ({
+  const trace = (extraCents: number, method: LinePriceTrace['method'], includedHours: number, extra: Partial<LinePriceTrace> = {}) => ({
     cents: baseCents + extraCents,
-    trace: { baseCents, hours: h, includedHours, extraCents, method },
+    trace: { baseCents, hours: h, includedHours, extraCents, method, ...extra },
   });
+  const blocks = (included: number) => {
+    const cents = overtimeBlocksCents(h, included, p.overtimeBlockMinutes, p.overtimeBlockCents);
+    if (!cents) return trace(0, 'included', included);
+    const units = p.overtimeBlockCents > 0 ? Math.round(cents / p.overtimeBlockCents) : 0;
+    return trace(cents, 'blocks', included, { units, unitMinutes: p.overtimeBlockMinutes, unitCents: p.overtimeBlockCents });
+  };
   if (h <= 0) return trace(0, 'included', baseHrs || 1);
   if (baseHrs > 0) {
     const excess = Math.max(0, h - baseHrs);
     if (excess === 0) return trace(0, 'included', baseHrs);
-    if (rate > 0) return trace(Math.floor(excess * rate + 0.5), 'hourly', baseHrs);
-    return trace(overtimeBlocksCents(h, baseHrs, p.overtimeBlockMinutes, p.overtimeBlockCents), 'blocks', baseHrs);
+    if (rate > 0) return trace(Math.floor(excess * rate + 0.5), 'hourly', baseHrs, { unitMinutes: Math.round(excess * 60), unitCents: rate });
+    return blocks(baseHrs);
   }
-  if (rate > 0) return trace(Math.max(0, Math.ceil(Number(h.toFixed(6))) - 1) * rate, 'hourly', 1);
-  return trace(overtimeBlocksCents(h, 1, p.overtimeBlockMinutes, p.overtimeBlockCents), 'blocks', 1);
+  if (rate > 0) {
+    const started = Math.max(0, Math.ceil(Number(h.toFixed(6))) - 1);
+    return started ? trace(started * rate, 'hourly', 1, { units: started, unitMinutes: 60, unitCents: rate }) : trace(0, 'included', 1);
+  }
+  return blocks(1);
+}
+
+/** Human price trace: "$225.00 incl. 4 h + 4 × 15 min × $25.00". `money` formats cents. */
+export function describeTrace(t: LinePriceTrace, money: (cents: number) => string): string {
+  const hrs = (h: number) => {
+    const m = Math.round(h * 60);
+    return `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
+  };
+  if (t.method === 'custom') return 'Custom line';
+  if (t.method === 'flat') return `${money(t.baseCents)} flat rate`;
+  const head = `${money(t.baseCents)} incl. ${hrs(t.includedHours)}`;
+  if (t.method === 'included' || !t.extraCents) return `${head} · within included time`;
+  if (t.method === 'blocks') return `${head} + ${t.units} × ${t.unitMinutes} min × ${money(t.unitCents ?? 0)}`;
+  if (t.units) return `${head} + ${t.units} started h × ${money(t.unitCents ?? 0)}`;
+  return `${head} + ${hrs((t.unitMinutes ?? 0) / 60)} × ${money(t.unitCents ?? 0)}/h`;
 }
 
 export function linePrice(p: ProductPricing, mode: ServiceMode, hours: number, opts: { flatRate?: boolean; overrideUnitCents?: number | null } = {}) {
@@ -97,7 +125,18 @@ export function linePrice(p: ProductPricing, mode: ServiceMode, hours: number, o
 
 // --- order summary ------------------------------------------------------------------------
 
-export type SummaryLine = { unitCents: number; quantity: number; setupSurfaceFeeCents?: number };
+export type SummaryLine = {
+  unitCents: number;
+  quantity: number;
+  setupSurfaceFeeCents?: number;
+  /** Default true. A non-taxable line stays out of the taxable base. */
+  taxable?: boolean;
+  /** A custom line (no product): counted on its own, outside merchandise, waiver and discounts. */
+  custom?: boolean;
+};
+
+/** A coupon's rule; the amount is worked out from merchandise and capped there. */
+export type CouponRule = { kind: 'percent' | 'amount'; value: number };
 
 export type SummaryInput = {
   lines: SummaryLine[];
@@ -109,6 +148,8 @@ export type SummaryInput = {
   /** General discount. Percent applies to merchandise only. After-tax = raincheck style. */
   discount?: { kind: 'percent' | 'amount'; value: number; afterTax?: boolean } | null;
   couponCents?: number;
+  /** Coupon by rule (overrides couponCents): % of merchandise, or $ capped at merchandise. */
+  coupon?: CouponRule | null;
   taxPercent: number;
   /** Store credit (Odoo wallet), applied last and capped at the total. */
   creditCents?: number;
@@ -118,6 +159,8 @@ export type SummaryInput = {
 
 export type OrderSummary = {
   merchandiseCents: number;
+  customCents: number;
+  nonTaxableCents: number;
   damageWaiverCents: number;
   setupSurfaceCents: number;
   eventLocationCents: number;
@@ -137,13 +180,27 @@ export type OrderSummary = {
 
 export function orderSummary(input: SummaryInput): OrderSummary {
   // Merchandise: each line's subtotal rounded to the cent (Odoo price_subtotal).
-  const merch = input.lines.reduce((sum, l) => sum + roundCents(l.unitCents * l.quantity), 0);
-  const setup = input.lines.reduce((sum, l) => sum + (l.setupSurfaceFeeCents ?? 0), 0);
+  const sub = (l: SummaryLine) => roundCents(l.unitCents * l.quantity);
+  const items = input.lines.filter((l) => !l.custom);
+  const customs = input.lines.filter((l) => l.custom);
+  const merch = items.reduce((sum, l) => sum + sub(l), 0);
+  const custom = customs.reduce((sum, l) => sum + sub(l), 0);
+  const nonTaxable = input.lines.filter((l) => l.taxable === false).reduce((sum, l) => sum + sub(l), 0);
+  const nonTaxableMerch = items.filter((l) => l.taxable === false).reduce((sum, l) => sum + sub(l), 0);
+  const customTaxable = customs.filter((l) => l.taxable !== false).reduce((sum, l) => sum + sub(l), 0);
+  const setup = items.reduce((sum, l) => sum + (l.setupSurfaceFeeCents ?? 0), 0);
   // Damage waiver: % of merchandise BEFORE any discount or coupon.
   const waiver = input.damageWaiver.enabled ? roundCents((merch * input.damageWaiver.percent) / 100) : 0;
   const eventLocation = input.eventLocationFeeCents ?? 0;
   const extras = input.travelFeeCents + input.miscFeesCents + waiver + eventLocation + setup;
-  const coupon = Math.max(0, input.couponCents ?? 0);
+  const coupon = input.coupon
+    ? Math.min(
+        merch,
+        input.coupon.kind === 'percent'
+          ? roundCents((merch * Math.max(0, input.coupon.value)) / 100)
+          : roundCents(Math.max(0, input.coupon.value) * 100),
+      )
+    : Math.max(0, input.couponCents ?? 0);
   const pct = input.taxPercent || 0;
   const taxOn = (base: number) => (pct ? roundCents((Math.max(0, base) * pct) / 100) : 0);
 
@@ -165,15 +222,18 @@ export function orderSummary(input: SummaryInput): OrderSummary {
   const postTax = d?.afterTax ? discount : 0;
 
   // One-pass tax on (merchandise + extras - pre-tax reductions), like the POS.
-  const taxableBase = Math.max(0, merch + extras - preTax - coupon);
+  // Non-taxable lines stay out of the base; custom taxable lines join it.
+  const taxableBase = Math.max(0, merch - nonTaxableMerch + customTaxable + extras - preTax - coupon);
   const tax = taxOn(taxableBase);
-  const beforeCredit = merch + tax + extras - preTax - coupon - postTax;
+  const beforeCredit = Math.max(0, merch + custom + tax + extras - preTax - coupon - postTax);
   const credit = Math.min(Math.max(0, input.creditCents ?? 0), Math.max(0, beforeCredit));
   const total = beforeCredit - credit;
 
   const { depositCents, depositPercent } = depositDue(total, input.deposit, input.defaultDepositPercent ?? 30);
   return {
     merchandiseCents: merch,
+    customCents: custom,
+    nonTaxableCents: nonTaxable,
     damageWaiverCents: waiver,
     setupSurfaceCents: setup,
     eventLocationCents: eventLocation,
@@ -224,15 +284,18 @@ export function formatMoney(cents: number, currency: string, locale = 'en-US') {
 // --- whole order ----------------------------------------------------------------------------
 
 export type QuoteLineInput = {
-  productId: string;
+  /** Null for a custom line. */
+  productId: string | null;
   name: string;
-  pricing: ProductPricing;
+  /** Null for a custom line: its price is `overrideUnitCents`. */
+  pricing: ProductPricing | null;
   minHours: number | null;
   serviceMode: ServiceMode;
   quantity: number;
   flatRate: boolean;
   overrideUnitCents: number | null;
   setupSurfaceFeeCents: number;
+  taxable?: boolean;
 };
 
 export type QuoteInput = Omit<SummaryInput, 'lines'> & {
@@ -258,6 +321,11 @@ export type QuotedLine = QuoteLineInput & {
 export function quoteOrder(input: QuoteInput) {
   const hours = billableHours(input.startsAt, input.endsAt, input.multiDay);
   const lines: QuotedLine[] = input.lines.map((l) => {
+    if (!l.pricing) {
+      const unit = Math.max(0, l.overrideUnitCents ?? 0);
+      const trace: LinePriceTrace = { baseCents: unit, hours, includedHours: 0, extraCents: 0, method: 'custom' };
+      return { ...l, setupSurfaceFeeCents: 0, unitCents: unit, autoUnitCents: unit, overridden: false, lineTotalCents: roundCents(unit * l.quantity), trace, warnings: [] };
+    }
     const p = linePrice(l.pricing, l.serviceMode, hours, { flatRate: l.flatRate, overrideUnitCents: l.overrideUnitCents });
     const warnings: string[] = [];
     if (basePackageCents(l.pricing, l.serviceMode) <= 0 && !p.overridden) {
@@ -266,6 +334,11 @@ export function quoteOrder(input: QuoteInput) {
     if (l.minHours && hours + 1e-6 < l.minHours) warnings.push(`${l.name} has a minimum booking of ${l.minHours} hours.`);
     return { ...l, unitCents: p.unitCents, autoUnitCents: p.autoUnitCents, overridden: p.overridden, lineTotalCents: roundCents(p.unitCents * l.quantity), trace: p.trace, warnings };
   });
-  const summary = orderSummary({ ...input, lines: lines.map((l) => ({ unitCents: l.unitCents, quantity: l.quantity, setupSurfaceFeeCents: l.setupSurfaceFeeCents })) });
+  const summary = orderSummary({
+    ...input,
+    lines: lines.map((l) => ({
+      unitCents: l.unitCents, quantity: l.quantity, setupSurfaceFeeCents: l.setupSurfaceFeeCents, taxable: l.taxable, custom: !l.pricing,
+    })),
+  });
   return { hours, lines, summary, warnings: lines.flatMap((l) => l.warnings) };
 }

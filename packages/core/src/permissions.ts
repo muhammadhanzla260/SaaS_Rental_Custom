@@ -31,10 +31,14 @@ export const ROLE_TONE: Record<Role, 'owner' | 'info' | 'violet' | 'success' | '
 };
 
 export const PERMISSIONS = {
+  'orders.view': 'See orders, the calendar and inventory',
   'orders.create': 'Create and book orders',
   'orders.override_price': 'Override line prices',
   'orders.override_tax': 'Override the tax rate on an order',
+  'payments.record': 'Record cash, check and other payments',
   'payments.refund': 'Refund and issue credits',
+  'customers.manage': 'Add and edit customers',
+  'catalog.manage': 'Edit products, prices and stock',
   'reports.view': 'View financial reports',
   'settings.manage': 'Manage locations and email',
   'members.manage': 'Invite and remove people',
@@ -45,10 +49,14 @@ export const PERMISSIONS = {
 export type Permission = keyof typeof PERMISSIONS;
 
 const MATRIX: Record<Permission, readonly Role[]> = {
+  'orders.view': ['owner', 'admin', 'manager', 'sales', 'accountant', 'viewer'],
   'orders.create': ['owner', 'admin', 'manager', 'sales'],
   'orders.override_price': ['owner', 'admin', 'manager'],
   'orders.override_tax': ['owner', 'admin', 'manager'],
+  'payments.record': ['owner', 'admin', 'manager', 'sales', 'accountant'],
   'payments.refund': ['owner', 'admin', 'manager', 'accountant'],
+  'customers.manage': ['owner', 'admin', 'manager', 'sales'],
+  'catalog.manage': ['owner', 'admin', 'manager'],
   'reports.view': ['owner', 'admin', 'manager', 'accountant'],
   'settings.manage': ['owner', 'admin'],
   'members.manage': ['owner', 'admin'],
@@ -63,7 +71,9 @@ export const PERMISSION_MATRIX: { key: Permission; label: string; roles: readonl
 ).map((key) => ({ key, label: PERMISSIONS[key], roles: MATRIX[key] }));
 
 /** Permissions that may be granted to one person on top of their role. */
-export const GRANTABLE: readonly Permission[] = ['orders.create', 'orders.override_price', 'orders.override_tax', 'payments.refund', 'reports.view'];
+export const GRANTABLE: readonly Permission[] = [
+  'orders.create', 'orders.override_price', 'orders.override_tax', 'payments.record', 'payments.refund', 'customers.manage', 'catalog.manage', 'reports.view',
+];
 
 export function can(role: Role, permission: Permission, extra: readonly string[] = []): boolean {
   return MATRIX[permission].includes(role) || (GRANTABLE.includes(permission) && extra.includes(permission));

@@ -146,6 +146,10 @@ describe('permissions', () => {
     expect(can('admin', 'billing.manage')).toBe(false);
     expect(can('coach', 'coach.portal')).toBe(true);
     expect(can('viewer', 'orders.create')).toBe(false);
+    expect(can('viewer', 'orders.view')).toBe(true);
+    expect(can('sales', 'catalog.manage')).toBe(false);
+    expect(can('sales', 'customers.manage')).toBe(true);
+    expect(can('sales', 'catalog.manage', ['catalog.manage'])).toBe(true);
   });
   it('allows extra grants for grantable permissions only', () => {
     expect(can('sales', 'orders.override_price', ['orders.override_price'])).toBe(true);
