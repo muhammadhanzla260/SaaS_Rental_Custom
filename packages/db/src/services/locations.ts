@@ -1,5 +1,5 @@
 import { and, asc, eq, ne, sql } from 'drizzle-orm';
-import { timezoneAt, type LocationInput } from '@rental/core';
+import { timezoneAt, type LocationValues } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import { locations, taxRates, tenants } from '../schema';
 import { audit, diff, type Actor } from './audit';
@@ -8,7 +8,7 @@ import { OrgError } from './errors';
 export type Location = typeof locations.$inferSelect;
 
 /** Location row values. The time zone comes from the map pin unless set by hand. */
-export function locationValues(input: LocationInput, fallbackTimezone: string) {
+export function locationValues(input: LocationValues, fallbackTimezone: string) {
   return {
     name: input.name,
     code: input.code,
@@ -26,6 +26,7 @@ export function locationValues(input: LocationInput, fallbackTimezone: string) {
     loadingNotes: input.loadingNotes ?? null,
     isPrimary: input.isPrimary,
     isActive: input.isActive,
+    settings: input.settings,
   };
 }
 
@@ -81,7 +82,7 @@ export function getLocation(db: Db, tenantId: string, id: string) {
   });
 }
 
-export function createLocation(db: Db, tenantId: string, actor: Actor, input: LocationInput, taxPercent: number) {
+export function createLocation(db: Db, tenantId: string, actor: Actor, input: LocationValues, taxPercent: number) {
   return withTenant(db, tenantId, async (tx) => {
     await assertCodeFree(tx, input.code);
     const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(locations)) as [{ n: number }];
@@ -97,7 +98,7 @@ export function createLocation(db: Db, tenantId: string, actor: Actor, input: Lo
   });
 }
 
-export function updateLocation(db: Db, tenantId: string, actor: Actor, id: string, input: LocationInput, taxPercent: number) {
+export function updateLocation(db: Db, tenantId: string, actor: Actor, id: string, input: LocationValues, taxPercent: number) {
   return withTenant(db, tenantId, async (tx) => {
     const [before] = await tx.select().from(locations).where(eq(locations.id, id)).limit(1);
     if (!before) throw new OrgError('Location not found.', 'not_found');

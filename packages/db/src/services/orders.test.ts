@@ -5,7 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
-import { customerSchema, onboardingSchema, orderSchema, parsePreferences, productSchema, type OrderInput } from '@rental/core';
+import { customerSchema, orderSchema, parsePreferences, productSchema, type OrderInput } from '@rental/core';
 import '../../scripts/env';
 import { createDb } from '../client';
 import { tenants, users } from '../schema';
@@ -13,7 +13,7 @@ import { createCategory, createProduct, getProduct, listProducts, productAvailab
 import { createCustomer, getCustomer, listCustomers } from './customers';
 import { listLocations } from './locations';
 import { createOrder, getOrder, listOrders, orderStats, transitionOrder, updateOrder } from './orders';
-import { createOrganization } from './organizations';
+import { setupOrganization } from './organizations';
 
 const app = createDb(process.env.DATABASE_URL!, { max: 6 });
 const owner = createDb(process.env.DATABASE_URL_OWNER!, { max: 2 });
@@ -45,13 +45,12 @@ const orderInput = (start: Date, end: Date, lines: { productId: string; quantity
 
 beforeAll(async () => {
   await owner.db.insert(users).values({ id: actor.userId!, name: 'P1 Owner', email: `p1-${run}@example.test` });
-  const tenant = await createOrganization(db, { userId: actor.userId! }, onboardingSchema.parse({
+  const tenant = await setupOrganization(db, { userId: actor.userId! }, {
     slug: `p1-${run}`,
-    profile: { name: 'P1 Rentals', address: { country: 'US' } },
-    branding: { brandColor: '#2450C8', themeMode: 'system', radius: 'soft' },
+    name: 'P1 Rentals',
     location: { name: 'Austin', code: 'AUS', address: { line1: '700 Congress Ave', city: 'Austin', country: 'US', lat: 30.2692, lng: -97.7428 } },
-    booking: { defaultTaxPercent: 8.25 },
-  }));
+    taxPercent: 8.25,
+  });
   tenantId = tenant.id;
   locationId = (await listLocations(db, tenantId))[0]!.id;
   const cat = await createCategory(db, tenantId, actor, 'Inflatables');
@@ -92,7 +91,7 @@ describe('orders', () => {
   it('prices like the POS, numbers the quote, and stores the summary', async () => {
     // 2 PM - 7:30 PM = 5.5 h: castle $299 + 1.5 h x $50 = $374
     const o = await createOrder(db, tenantId, actor, orderInput(t(7, 14), t(7, 19, 30), [{ productId: bounceId }], { travelFee: 37.5 }), prefs);
-    expect(o.number).toMatch(/^Q-\d{5}$/);
+    expect(o.number).toMatch(/^Q-AUS-\d{5}$/);
     const full = await getOrder(db, tenantId, o.id);
     expect(full!.lines[0]).toMatchObject({ unitCents: 37400, lineTotalCents: 37400 });
     // waiver 10% = 3740, extras = 3750 + 3740 = 7490, tax 8.25% of 44890 = 3703.425 -> 3703

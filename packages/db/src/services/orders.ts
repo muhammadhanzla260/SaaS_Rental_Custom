@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql } from 'drizzle-orm';
 import {
-  quoteOrder, toCents, type OrderInput, type OrderStatus, type TenantPreferences,
+  quoteOrder, renderPrefix, sequenceScope, toCents,
+  type DocumentKind, type OrderInput, type OrderStatus, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import { customers, locations, orderLines, orders, products, reservations, taxRates } from '../schema';
@@ -165,10 +166,21 @@ async function reserveAll(tx: Tx, order: Order, lines: OrderLine[], prefs: Tenan
   }
 }
 
+/** Next document number for a location: Q-AUS-01042 (prefix template from Settings, own counter per prefix). */
+export async function nextDocumentNumber(tx: Tx, kind: DocumentKind, prefs: TenantPreferences, locationId: string): Promise<string> {
+  const [loc] = await tx.select({ code: locations.code }).from(locations).where(eq(locations.id, locationId)).limit(1);
+  const prefix = renderPrefix(prefs.numbering[`${kind}Prefix`], { loc: loc?.code ?? '' });
+  const padding = prefs.numbering[`${kind}Padding`];
+  const [row] = (await tx.execute<{ number: string }>(
+    sql`select app_next_number(${sequenceScope(kind, prefix)}, ${prefix}, ${padding}::int) as number`,
+  )) as unknown as [{ number: string }];
+  return row.number;
+}
+
 export function createOrder(db: Db, tenantId: string, actor: Actor, input: OrderInput, prefs: TenantPreferences) {
   return withTenant(db, tenantId, async (tx) => {
     const priced = await priceOrder(tx, input, prefs);
-    const [{ number }] = (await tx.execute<{ number: string }>(sql`select app_next_number('quote', ${prefs.numbering.quotePrefix}) as number`)) as unknown as [{ number: string }];
+    const number = await nextDocumentNumber(tx, 'quote', prefs, input.locationId);
     const [order] = await tx
       .insert(orders)
       .values({ tenantId, number, status: 'draft', createdByUserId: actor.userId ?? null, ...orderValues(input, priced, prefs) })

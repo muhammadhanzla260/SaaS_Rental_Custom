@@ -1,7 +1,7 @@
 import type { Tx } from '../client';
 import { auditLog } from '../schema';
 
-export type Actor = { type: 'user' | 'system' | 'customer' | 'api' | 'ai'; userId?: string | null; ip?: string | null };
+export type Actor = { type: 'user' | 'system' | 'customer' | 'api' | 'ai' | 'platform'; userId?: string | null; ip?: string | null };
 
 /** Shallow before/after diff, so the log stores only what changed. */
 export function diff(before: Record<string, unknown>, after: Record<string, unknown>) {

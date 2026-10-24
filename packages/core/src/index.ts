@@ -1,5 +1,6 @@
 export * from './theme';
 export * from './settings';
+export * from './permissions';
 export * from './regional';
 export * from './phone';
 export * from './mapbox';

@@ -1,33 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildPalette, contrastRatio, SURFACES, THEME_PRESETS, themeCss,
+  accentTokens, checkAccent, contrastRatio, initials, SURFACES, THEME_PRESETS, themeCss,
   slugify, slugSchema, normalizePhone, formatPhone, parsePreferences,
-  onboardingSchema, isValidTimezone, timezoneOptions,
+  isValidTimezone, timezoneOptions, registerSchema, passwordScore, profileStepSchema, brandStepSchema,
+  warehouseStepSchema, documentNumberingSchema, exampleNumber, renderPrefix, sequenceScope, parseZipList,
+  onboardingPercent, can,
 } from './index';
 
-describe('theme palette', () => {
-  it.each([...THEME_PRESETS.map((p) => p.hex), '#FFEB3B', '#FFFFFF', '#000000', '#7FFFD4'])(
-    '%s gives readable button text and links in both modes',
-    (hex) => {
-      const p = buildPalette(hex);
-      for (const [mode, t] of [['light', p.light], ['dark', p.dark]] as const) {
-        expect(contrastRatio(t.brand, t.brandFg)).toBeGreaterThanOrEqual(4.5);
-        expect(contrastRatio(t.brandText, SURFACES[mode])).toBeGreaterThanOrEqual(4.5);
-      }
-    },
-  );
-
-  it('warns about colours that are too light or too dark', () => {
-    expect(buildPalette('#FFEB3B').warnings[0]).toMatch(/very light/);
-    expect(buildPalette('#0A0A0A').warnings.some((w) => /very dark/.test(w))).toBe(true);
-    expect(buildPalette('#2450C8').warnings).toEqual([]);
+describe('tenant theme', () => {
+  it.each(THEME_PRESETS.map((p) => p.hex))('preset %s passes for all text sizes and links stay readable', (hex) => {
+    expect(checkAccent(hex).level).toBe('all');
+    const t = accentTokens(hex);
+    expect(contrastRatio(t.light.text, SURFACES.light)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(t.dark.text, SURFACES.dark)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('emits light and dark CSS variables', () => {
-    const css = themeCss('#2450C8', 'round');
-    expect(css).toContain(':root{--brand:#2450C8');
-    expect(css).toContain('--radius:16px');
-    expect(css).toContain(':root[data-theme=dark]{--brand:');
+  it('picks white or ink text, whichever contrasts more, and reports the ratio', () => {
+    expect(checkAccent('#2C4FE0')).toMatchObject({ onAccent: '#FFFFFF', level: 'all' });
+    expect(checkAccent('#2C4FE0').message).toMatch(/^Button text contrast \d+\.\d:1 · passes for all text sizes$/);
+    expect(checkAccent('#D4FF3A').onAccent).toBe('#0B0D12');
+  });
+
+  it('never drops below 3:1 because it picks white or ink (mid-greys are the worst case)', () => {
+    for (let v = 0; v <= 255; v += 5) {
+      const h = v.toString(16).padStart(2, '0');
+      const c = checkAccent(`#${h}${h}${h}`.toUpperCase());
+      expect(c.ratio).toBeGreaterThanOrEqual(3);
+      expect(c.level).not.toBe('fail');
+    }
+  });
+
+  it('emits light and dark CSS variables with the corner scale', () => {
+    const css = themeCss('#2C4FE0', 'round');
+    expect(css).toContain(':root{--accent:#2C4FE0');
+    expect(css).toContain('--radius-card:18px');
+    expect(themeCss('#2C4FE0', 'sharp')).toContain('--radius-control:4px');
+    expect(css).toContain(':root[data-theme=dark]{--accent:');
+  });
+
+  it('makes initials', () => {
+    expect(initials('Freedom Fun USA')).toBe('FF');
+    expect(initials('  ')).toBe('?');
   });
 });
 
@@ -74,28 +87,69 @@ describe('regional', () => {
   });
 });
 
-describe('onboarding', () => {
-  it('accepts a complete organisation without any region questions', () => {
-    const input = {
-      slug: 'freedom-fun',
-      profile: { name: 'Freedom Fun USA', email: 'hello@example.com', phone: '512-981-5557', address: { country: 'US' } },
-      branding: { brandColor: '#d32f2f', themeMode: 'system', radius: 'soft' },
-      location: { name: 'Austin', code: 'aus', address: { line1: '100 Main St', city: 'Austin', country: 'US', lat: 30.27, lng: -97.74 } },
-      booking: {},
-    };
-    const r = onboardingSchema.safeParse(input);
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.branding.brandColor).toBe('#D32F2F');
-      expect(r.data.profile.phone).toBe('+15129815557');
-      expect(r.data.location.code).toBe('AUS');
-      expect(r.data.location.timezone).toBeUndefined();
-      expect(r.data.booking.depositPercent).toBe(30);
-    }
+describe('registration and onboarding steps', () => {
+  const reg = {
+    businessName: 'Lakeside Party Rentals', slug: 'lakeside', ownerName: 'Jordan Reyes', country: 'US',
+    email: 'jordan@example.com', password: 'Lakeside-2026', acceptTerms: true,
+  };
+  it('registers a workspace and requires the terms', () => {
+    expect(registerSchema.safeParse(reg).success).toBe(true);
+    expect(registerSchema.safeParse({ ...reg, acceptTerms: false }).success).toBe(false);
+    expect(registerSchema.safeParse({ ...reg, password: 'short' }).success).toBe(false);
+    expect(registerSchema.safeParse({ ...reg, slug: 'console' }).success).toBe(false);
   });
-  it('needs a street and city for the location', () => {
-    const r = onboardingSchema.shape.location.safeParse({ name: 'Yard', code: 'YRD', address: { country: 'US' } });
+  it('scores passwords on the 4-segment meter', () => {
+    expect(passwordScore('')).toBe(0);
+    expect(passwordScore('abcdefgh')).toBe(1);
+    expect(passwordScore('Abcdefg1!')).toBe(4);
+  });
+  it('step 1 needs the business phone and a real time zone', () => {
+    const ok = profileStepSchema.safeParse({
+      profile: { name: 'Lakeside Party Rentals', phone: '512-555-0100', address: { country: 'US' } },
+      timezone: 'America/Chicago', currency: 'USD', dateFormat: 'MM/DD/YYYY', weekStartsOn: 'sunday',
+    });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.profile.phone).toBe('+15125550100');
+    expect(profileStepSchema.safeParse({ profile: { name: 'X Y', address: {} }, timezone: 'America/Chicago', currency: 'USD', dateFormat: 'MM/DD/YYYY', weekStartsOn: 'sunday' }).success).toBe(false);
+  });
+  it('step 2 refuses an unreadable brand colour', () => {
+    expect(brandStepSchema.safeParse({ branding: { brandColor: '#b0306a' }, brand: {} }).success).toBe(true);
+    expect(brandStepSchema.safeParse({ branding: { brandColor: '#7a7a7a' }, brand: {} }).success).toBe(checkAccent('#7A7A7A').level !== 'fail');
+  });
+  it('step 3 needs a street and city for the warehouse', () => {
+    const r = warehouseStepSchema.shape.location.safeParse({ name: 'Yard', code: 'YRD', address: { country: 'US' } });
     expect(r.success).toBe(false);
+    const ok = warehouseStepSchema.shape.location.safeParse({ name: 'Austin', code: 'aus', address: { line1: '1 Main', city: 'Austin', country: 'US' } });
+    expect(ok.success && ok.data.code).toBe('AUS');
+  });
+  it('renders document numbers per location and year', () => {
+    const n = documentNumberingSchema.parse({});
+    expect(exampleNumber(n, 'quote', 'aus')).toBe('Q-AUS-01042');
+    expect(exampleNumber(n, 'invoice', 'AUS', 1)).toBe(`INV-${new Date().getUTCFullYear()}-0001`);
+    expect(sequenceScope('quote', renderPrefix(n.quotePrefix, { loc: 'DAL' }))).toBe('quote:Q-DAL-');
+  });
+  it('parses ZIP lists', () => {
+    expect(parseZipList('78701, 78702 78701;x')).toEqual(['78701', '78702']);
+  });
+  it('reports onboarding progress', () => {
+    expect(onboardingPercent({ done: ['profile', 'brand'], skipped: ['connect'], current: 3 }, false)).toBe(50);
+    expect(onboardingPercent({ done: [], skipped: [], current: 0 }, true)).toBe(100);
+  });
+});
+
+describe('permissions', () => {
+  it('follows the design matrix', () => {
+    expect(can('sales', 'orders.create')).toBe(true);
+    expect(can('sales', 'orders.override_price')).toBe(false);
+    expect(can('manager', 'orders.override_price')).toBe(true);
+    expect(can('accountant', 'payments.refund')).toBe(true);
+    expect(can('admin', 'billing.manage')).toBe(false);
+    expect(can('coach', 'coach.portal')).toBe(true);
+    expect(can('viewer', 'orders.create')).toBe(false);
+  });
+  it('allows extra grants for grantable permissions only', () => {
+    expect(can('sales', 'orders.override_price', ['orders.override_price'])).toBe(true);
+    expect(can('sales', 'settings.manage', ['settings.manage'])).toBe(false);
   });
 });
 
