@@ -66,7 +66,7 @@ export const ORG_NAV: NavGroup[] = [
   {
     label: 'Money',
     items: [
-      { id: 'invoices', label: 'Invoices & payments', icon: 'invoices', phase: 2 },
+      { id: 'invoices', label: 'Invoices & payments', icon: 'invoices', href: '/invoices', permission: 'orders.view' },
       { id: 'reports', label: 'Reports', icon: 'reports', phase: 3 },
     ],
   },

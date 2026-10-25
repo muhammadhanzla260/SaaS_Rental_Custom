@@ -111,6 +111,10 @@ Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, des
 | 20 | Reminder timings | Pre-event 3 d, quality text 2 d, day-before 1 d, charge on event day, review +1 d, thank-you +2 d, survey +7 d | Same days (America/Chicago crons) | Same defaults; each editable; computed in each location's time zone instead of a fixed Chicago clock. |
 | 21 | When automations run | Live once setup is done | Always on | A new workspace starts with automations **off** (no surprise customer email); staff-pressed sends (Send quote, Email invoice, Resend) always go. |
 | 22 | Delivery in development | n/a | n/a | `MESSAGING_DELIVERY=outbox` writes every email/text to `.data/outbox`; `live` sends through the workspace's SMTP / Twilio / Quo. Production defaults to live. |
+| 23 | Rental agreement | Versioned agreement + 4 policy ticks on the quote page | Printable contract with "Lessee initial" boxes; fixed Freedom Fun text | Each workspace edits its own agreement and policies (Settings → Workspace & brand → Agreement). A signature stores the exact text, version, typed name, ticks with times, waiver choice, IP and browser; signatures can't be edited or deleted. The demo uses Freedom Fun's Terms of Lease; its initial boxes became policy ticks. |
+| 24 | Invoices | Deposit, balance, tip | One sale order, payments against it | Invoices are derived from the order (deposit + balance, or one full invoice when there is no deposit) and re-synced on every change. The balance is due on the event day and auto-charged when a card is saved. |
+| 25 | Card gateway | Stripe hosted fields | iPOS Pay | Stripe first (Payment Element; card numbers never touch our servers). Keys are checked against Stripe before saving, and test and live keys can't be mixed. iPOS Pay follows with the same flow once sandbox credentials exist. |
+| 26 | Printable documents | PDF attachments | wkhtmltopdf reports | Print pages (invoice, receipt, signed agreement) styled for paper; "Print or save as PDF" uses the browser, so there is no PDF service to run. Emails link to them instead of attaching. |
 
 ## 10. Environments and secrets
 

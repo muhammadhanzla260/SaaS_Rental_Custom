@@ -154,3 +154,22 @@ export function saveConnectStep(db: Db, tenantId: string, actor: Actor, input: {
     await upsertPaymentTx(tx, tenantId, actor, null, input.payments);
   });
 }
+
+/**
+ * Card gateway for a sale at a location: the location's own account if it has
+ * one, else the workspace's. The secret is decrypted for server use only.
+ */
+export function getPaymentCredentials(db: Db, tenantId: string, locationId: string | null) {
+  return withTenant(db, tenantId, async (tx) => {
+    const own = locationId
+      ? (await tx.select().from(paymentAccounts).where(and(eq(paymentAccounts.tenantId, tenantId), eq(paymentAccounts.locationId, locationId))).limit(1))[0]
+      : undefined;
+    const org = (await tx.select().from(paymentAccounts).where(and(eq(paymentAccounts.tenantId, tenantId), isNull(paymentAccounts.locationId))).limit(1))[0];
+    const acc = own && own.provider !== 'manual' ? own : org;
+    if (!acc || acc.provider === 'manual') return null;
+    return {
+      id: acc.id, provider: acc.provider as 'stripe' | 'ipos', publishableKey: acc.publishableKey, merchantId: acc.merchantId, keyMode: acc.keyMode,
+      secret: acc.secretEnc ? decryptSecret(acc.secretEnc) : null,
+    };
+  });
+}

@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound } from 'next/navigation';
 import { parseLocationSettings, type ServiceMode } from '@rental/core';
 import {
-  getCustomer, getOrder, listCategories, listLocations, listProducts, listSalespeople, pricingOf, travelRules, usableCredits,
+  getCustomer, getOrder, listCategories, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
 } from '@rental/db';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -32,11 +32,12 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
   const order = orderId ? await getOrder(db, ctx.tenant.id, orderId) : null;
   if (orderId && !order) notFound();
 
-  const [locations, products, categories, salespeople] = await Promise.all([
+  const [locations, products, categories, salespeople, invoices] = await Promise.all([
     listLocations(db, ctx.tenant.id),
     listProducts(db, ctx.tenant.id, { includeArchived: !!order }),
     listCategories(db, ctx.tenant.id),
     listSalespeople(db, ctx.tenant.id),
+    order ? orderInvoices(db, ctx.tenant.id, order.id) : Promise.resolve([]),
   ]);
   const customerId = order?.customerId ?? (opts.customerId && UUID.test(opts.customerId) ? opts.customerId : null);
   const [customer, credits] = customerId
@@ -121,7 +122,8 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
             unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface,
           })),
           credits: order.creditApplications.map((a) => ({ creditId: a.creditId, amountCents: a.amountCents })),
-          payments: order.payments.map((p) => ({ id: p.id, number: p.number, method: p.method, amountCents: p.amountCents, reference: p.reference, receivedAt: p.receivedAt.toISOString(), status: p.status })),
+          payments: order.payments.map((p) => ({ id: p.id, number: p.number, method: p.method, amountCents: p.amountCents, reference: p.reference, receivedAt: p.receivedAt.toISOString(), status: p.status, cardLast4: p.cardLast4 })),
+          invoices: invoices.map((i) => ({ id: i.id, number: i.number, kind: i.kind, amountCents: i.amountCents, paidCents: i.paidCents, status: i.status, dueOn: i.dueOn, autoCharge: i.autoCharge })),
           versions: order.versions.map((v) => ({
             version: v.version, action: v.action, diff: v.diff as Record<string, { from: string; to: string }>, totals: v.totals as { totalCents?: number },
             actorName: v.actorName, reason: v.reason, at: v.createdAt.toISOString(),

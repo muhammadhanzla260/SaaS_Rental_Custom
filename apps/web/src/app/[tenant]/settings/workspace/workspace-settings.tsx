@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  bookingDefaultsSchema, brandStepSchema, checkAccent, connectStepSchema, CURRENCIES, profileStepSchema, themeStyle,
-  type BookingDefaults, type BrandSettings, type Corners,
+  agreementSchema, agreementSections, bookingDefaultsSchema, brandStepSchema, checkAccent, connectStepSchema, CURRENCIES, profileStepSchema, themeStyle,
+  type Agreement, type BookingDefaults, type BrandSettings, type Corners,
 } from '@rental/core';
 import {
-  AffixInput, Button, Card, cx, Field, Input, PageTitle, Pill, SaveBar, Segmented, Select, Slider, Tabs, Textarea, Toggle, useToast,
+  AffixInput, Button, Card, cx, Field, Input, Notice, PageTitle, Pill, SaveBar, Segmented, Select, Slider, Tabs, Textarea, Toggle, useToast,
 } from '@/components/kit';
 import { LogoEditor, type LogoValue } from '@/components/brand/logo-editor';
 import { logoImgStyle } from '@/components/brand/logo-mark';
@@ -21,9 +21,9 @@ import { connectPayload, MailFields, PaymentFields, SmsFields, type ConnectDraft
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { useForm } from '@/lib/form';
 import { zodFieldErrors } from '@/lib/result';
-import { saveBrandAction, saveBusinessProfileAction, saveIntegrationsAction, saveRentalRulesAction } from '@/server/actions/settings';
+import { saveAgreementAction, saveBrandAction, saveBusinessProfileAction, saveIntegrationsAction, saveRentalRulesAction } from '@/server/actions/settings';
 
-type Tab = 'brand' | 'profile' | 'warehouses' | 'connect' | 'rules';
+type Tab = 'brand' | 'profile' | 'warehouses' | 'connect' | 'rules' | 'agreement';
 
 export type WorkspaceInitial = {
   brand: { branding: { brandColor: string; themeMode: 'light' | 'dark' | 'system'; radius: Corners }; brand: BrandSettings };
@@ -33,6 +33,7 @@ export type WorkspaceInitial = {
   };
   connect: ConnectDraft;
   rules: BookingDefaults;
+  agreement: Agreement;
   warehouses: { id: string; name: string; code: string; city: string; isPrimary: boolean; isActive: boolean; pinned: boolean; freeMiles: number; timezone: string }[];
 };
 
@@ -46,6 +47,7 @@ export function WorkspaceSettings(props: Props) {
     { value: 'warehouses', label: 'Warehouses' },
     { value: 'connect', label: 'Email & payments' },
     { value: 'rules', label: 'Rental rules' },
+    { value: 'agreement', label: 'Agreement' },
   ] as const;
   return (
     <>
@@ -62,6 +64,7 @@ export function WorkspaceSettings(props: Props) {
           {tab === 'warehouses' && <WarehousesTab {...props} />}
           {tab === 'connect' && <ConnectTab {...props} />}
           {tab === 'rules' && <RulesTab {...props} />}
+          {tab === 'agreement' && <AgreementTab {...props} />}
         </div>
       </PageBody>
     </>
@@ -419,6 +422,90 @@ function RulesTab({ slug, initial, currency, readOnly }: Props) {
       </Card>
       {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
       <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial.rules)} readOnly={readOnly} />
+    </div>
+  );
+}
+
+// --- Agreement & policies ------------------------------------------------------------------
+
+function AgreementTab({ slug, initial, readOnly }: Props) {
+  const saved = useSaved();
+  const form = useForm(initial.agreement);
+  const v = form.values;
+  const start = initial.agreement;
+  const reworded = v.title !== start.title || v.body !== start.body || JSON.stringify(v.policies) !== JSON.stringify(start.policies);
+  const sections = useMemo(() => agreementSections(v.body).length, [v.body]);
+  const save = () => {
+    const p = agreementSchema.safeParse(v);
+    if (!p.success) { form.setErrors(zodFieldErrors(p.error)); form.setStatus({ kind: 'error', text: 'A few fields need attention.' }); return; }
+    form.submit(() => saveAgreementAction(slug, v), (r) => saved(r.message));
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const addPolicy = () => {
+    const used = new Set(v.policies.map((p) => p.key));
+    let n = 1;
+    while (used.has(`custom_${String.fromCharCode(96 + n)}`)) n++;
+    form.set('policies', [...v.policies, { key: `custom_${String.fromCharCode(96 + n)}`, title: 'New policy', text: 'Describe what the customer agrees to.' }]);
+  };
+  return (
+    <div className="flex max-w-4xl flex-col gap-5">
+      <Card className="flex flex-col gap-6 p-5 sm:p-6">
+        <div>
+          <h2 className="text-base font-bold text-fg">Rental agreement</h2>
+          <p className="mt-1 text-[13px] text-fg-2">Customers read and sign this on the quote page. Each signature keeps the exact wording and version it was signed with.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_180px_170px]">
+          <Field label="Title" htmlFor="ag-title" error={form.error('title')}>
+            <Input id="ag-title" value={v.title} onChange={(e) => form.set('title', e.target.value)} disabled={readOnly} />
+          </Field>
+          <Field label="Version" htmlFor="ag-version" error={form.error('version')}>
+            <Input id="ag-version" className="mono" value={v.version} onChange={(e) => form.set('version', e.target.value)} disabled={readOnly} />
+          </Field>
+          <Field label="Rain checks valid for" htmlFor="ag-rain" error={form.error('rainCheckMonths')}>
+            <AffixInput id="ag-rain" mono inputMode="numeric" suffix="months" value={String(v.rainCheckMonths)} onChange={(e) => form.set('rainCheckMonths', Math.min(60, Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1)))} disabled={readOnly} />
+          </Field>
+        </div>
+        {reworded && v.version === start.version && (
+          <Notice kind="warning">
+            The wording changed but the version did not.{' '}
+            <button type="button" className="font-semibold underline" onClick={() => form.set('version', today)}>Use {today}</button> so new signatures show which wording they agreed to.
+          </Notice>
+        )}
+        <Field label="Agreement text" htmlFor="ag-body" error={form.error('body')} hint={`Start a line with "## " to make a heading · ${sections} section${sections === 1 ? '' : 's'}`}>
+          <Textarea id="ag-body" rows={16} value={v.body} onChange={(e) => form.set('body', e.target.value)} disabled={readOnly} />
+        </Field>
+      </Card>
+
+      <Card className="flex flex-col gap-5 p-5 sm:p-6">
+        <div>
+          <h2 className="text-base font-bold text-fg">Policies to accept</h2>
+          <p className="mt-1 text-[13px] text-fg-2">
+            Each one is ticked before signing. The damage waiver is answered accept or decline, and the price updates. <span className="mono">{'{months}'}</span> becomes the rain-check months.
+          </p>
+        </div>
+        <ul className="flex flex-col gap-4">
+          {v.policies.map((p, i) => (
+            <li key={p.key} className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-subtle p-4">
+              <div className="flex items-end gap-2">
+                <Field label={p.key === 'waiver' ? 'Title · accept or decline' : 'Title'} htmlFor={`ag-p-${i}`} error={form.error(`policies.${i}.title`)} className="min-w-0 flex-1">
+                  <Input id={`ag-p-${i}`} value={p.title} onChange={(e) => form.set(`policies.${i}.title`, e.target.value)} disabled={readOnly} />
+                </Field>
+                <Button variant="ghost" aria-label={`Remove ${p.title}`} onClick={() => form.set('policies', v.policies.filter((_, j) => j !== i))} disabled={readOnly || v.policies.length <= 1}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+              <Field label="What the customer agrees to" htmlFor={`ag-pt-${i}`} error={form.error(`policies.${i}.text`)}>
+                <Textarea id={`ag-pt-${i}`} rows={2} value={p.text} onChange={(e) => form.set(`policies.${i}.text`, e.target.value)} disabled={readOnly} />
+              </Field>
+            </li>
+          ))}
+        </ul>
+        {v.policies.length < 10 && !readOnly && (
+          <Button variant="secondary" size="sm" className="self-start" icon={<Plus className="size-4" />} onClick={addPolicy}>Add policy</Button>
+        )}
+      </Card>
+      {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
+      <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial.agreement)} readOnly={readOnly} />
     </div>
   );
 }

@@ -490,6 +490,16 @@ export const payments = pgTable(
     orderId: uuid('order_id').notNull(),
     method: text('method').notNull(),
     amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+    /** Tip on top of the amount (not part of the order total). */
+    tipCents: bigint('tip_cents', { mode: 'number' }).notNull().default(0),
+    invoiceId: uuid('invoice_id'),
+    /** manual, stripe or ipos; gatewayRef is the PaymentIntent / transaction id (unique per workspace). */
+    gateway: text('gateway').notNull().default('manual'),
+    gatewayRef: text('gateway_ref'),
+    cardBrand: text('card_brand'),
+    cardLast4: text('card_last4'),
+    /** Gateway steps: { authorizedAt, capturedAt, fundedAt }. */
+    steps: jsonb('steps').notNull().default({}),
     reference: text('reference'),
     note: text('note'),
     status: text('status').notNull().default('received'),
@@ -504,6 +514,99 @@ export const payments = pgTable(
     check('payments_method', sql`${t.method} in ('cash','check','zelle','venmo','ach','card','link','other')`),
     check('payments_status', sql`${t.status} in ('received','refunded','void')`),
     check('payments_amount', sql`${t.amountCents} > 0`),
+    check('payments_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),
+    unique('payments_gateway_ref').on(t.tenantId, t.gatewayRef),
     index('payments_order_idx').on(t.tenantId, t.orderId),
+  ],
+);
+
+/**
+ * What an order is billed in: the deposit to book, then the balance (charged on
+ * the event day when a card is saved), or one full invoice when there is no
+ * deposit. Payments are applied oldest open invoice first.
+ */
+export const invoices = pgTable(
+  'invoices',
+  {
+    tenantId: tenantId(),
+    id: id(),
+    number: text('number').notNull(),
+    orderId: uuid('order_id').notNull(),
+    kind: text('kind').notNull(),
+    amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+    paidCents: bigint('paid_cents', { mode: 'number' }).notNull().default(0),
+    dueOn: date('due_on').notNull(),
+    autoCharge: boolean('auto_charge').notNull().default(false),
+    status: text('status').notNull().default('open'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    lastChargeAt: timestamp('last_charge_at', { withTimezone: true }),
+    lastChargeError: text('last_charge_error'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.id] }),
+    unique('invoices_number').on(t.tenantId, t.number),
+    foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
+    check('invoices_kind', sql`${t.kind} in ('deposit','balance','full','tip')`),
+    check('invoices_status', sql`${t.status} in ('open','paid','overdue','void')`),
+    check('invoices_amount', sql`${t.amountCents} >= 0`),
+    index('invoices_order_idx').on(t.tenantId, t.orderId),
+    index('invoices_due_idx').on(t.tenantId, t.status, t.dueOn),
+  ],
+);
+
+/** A card saved at the gateway for the event-day balance (only the gateway's ids and the last 4 digits). */
+export const paymentMethods = pgTable(
+  'payment_methods',
+  {
+    tenantId: tenantId(),
+    id: id(),
+    customerId: uuid('customer_id').notNull(),
+    gateway: text('gateway').notNull(),
+    gatewayCustomerId: text('gateway_customer_id'),
+    gatewayMethodId: text('gateway_method_id').notNull(),
+    brand: text('brand'),
+    last4: text('last4'),
+    expMonth: integer('exp_month'),
+    expYear: integer('exp_year'),
+    /** The customer agreed to the event-day charge (quote page consent). */
+    consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.id] }),
+    unique('payment_methods_gateway').on(t.tenantId, t.gateway, t.gatewayMethodId),
+    foreignKey({ columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }).onDelete('cascade'),
+    check('payment_methods_gateway_kind', sql`${t.gateway} in ('stripe','ipos')`),
+    index('payment_methods_customer_idx').on(t.tenantId, t.customerId),
+  ],
+);
+
+/** The customer's signature on the rental agreement, with the exact text they signed. */
+export const signatures = pgTable(
+  'signatures',
+  {
+    tenantId: tenantId(),
+    id: id(),
+    orderId: uuid('order_id').notNull(),
+    agreementVersion: text('agreement_version').notNull(),
+    agreementText: text('agreement_text').notNull(),
+    typedName: text('typed_name').notNull(),
+    /** Policies ticked on the quote page: { key: ISO time }; waiver: accepted or declined. */
+    policies: jsonb('policies').notNull().default({}),
+    waiverAccepted: boolean('waiver_accepted'),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    channel: text('channel').notNull().default('quote_page'),
+    signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.id] }),
+    foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
+    check('signatures_channel', sql`${t.channel} in ('quote_page','on_site','staff')`),
+    index('signatures_order_idx').on(t.tenantId, t.orderId),
   ],
 );

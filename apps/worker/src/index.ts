@@ -1,7 +1,8 @@
 /**
  * Background worker (runs on Railway). Jobs live in Postgres via graphile-worker.
  *
- *   dispatch_due      every minute: send queued emails/texts that are due (exactly once)
+ *   dispatch_due      every minute: send queued emails/texts that are due (exactly once) and
+ *                     charge saved cards for balances due today
  *   daily_digest      every 15 min: tomorrow's events to the office at each workspace's digest time
  *   ensure_partitions nightly: next month's audit_log partition
  *
@@ -16,6 +17,7 @@ import { sql } from 'drizzle-orm';
 import { parsePreferences, resolveMessaging, utcToWallTime } from '@rental/core';
 import { createDb, enqueueMessage, tomorrowsEvents, withTenant } from '@rental/db';
 import { dispatchDue } from '@rental/messaging';
+import { balanceCharger } from '@rental/payments';
 
 config({ path: resolve(import.meta.dirname, '../../../.env'), quiet: true });
 
@@ -23,6 +25,8 @@ const connectionString = process.env.DATABASE_URL_OWNER;
 if (!connectionString) throw new Error('DATABASE_URL_OWNER is not set. Copy .env.example to .env.');
 const owner = createDb(connectionString, { max: 3 });
 const app = createDb(process.env.DATABASE_URL!, { max: 5 });
+/** Event-day balance charge: the saved card is charged when its charge_balance message comes due. */
+const hooks = { chargeBalance: balanceCharger(app.db) };
 
 const tasks: Record<string, Task> = {
   /** Creates next month's audit_log partition before it is needed. */
@@ -38,7 +42,7 @@ const tasks: Record<string, Task> = {
   dispatch_due: async (_payload, { logger }) => {
     // Loop until the backlog is empty (20 per claim), so a burst at 09:00 clears in one run.
     for (let i = 0; i < 25; i++) {
-      const results = await dispatchDue(owner.db, app.db);
+      const results = await dispatchDue(owner.db, app.db, hooks);
       for (const r of results) logger.info(`message ${r.id} (${r.tenantId}): ${r.result}`);
       if (results.length < 20) break;
     }

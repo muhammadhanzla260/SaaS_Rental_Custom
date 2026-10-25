@@ -13,6 +13,7 @@ import { invalid, type ActionResult } from '@/lib/result';
 import { requirePermission } from '../context';
 import { db } from '../db';
 import { sendInviteEmail } from '../invite-mail';
+import { checkStripeKeys } from '../stripe-check';
 import { readUpload, run } from './run';
 
 const done = (slug: string) => revalidatePath(`/onboarding/${slug}`);
@@ -63,6 +64,8 @@ export async function saveConnectStepAction(slug: string, input: unknown): Promi
     const ctx = await requirePermission(slug, 'settings.manage');
     const parsed = connectStepSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    const stripe = await checkStripeKeys(parsed.data.payments);
+    if (!stripe.ok) return stripe.result;
     await saveConnectStep(db, ctx.tenant.id, ctx.actor, parsed.data);
     await markOnboarding(db, ctx.tenant.id, 'connect', 'done', 4);
     done(slug);

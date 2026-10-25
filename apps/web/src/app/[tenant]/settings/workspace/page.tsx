@@ -1,5 +1,5 @@
 import { getIntegrations, lastChange, listLocations } from '@rental/db';
-import { formatPhone, parseLocationSettings } from '@rental/core';
+import { formatPhone, parseLocationSettings, resolveAgreement } from '@rental/core';
 import { timeAgo } from '@/lib/audit-text';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -8,7 +8,7 @@ import { WorkspaceSettings, type WorkspaceInitial } from './workspace-settings';
 
 export const metadata = { title: 'Workspace & brand' };
 
-const TABS = ['brand', 'profile', 'warehouses', 'connect', 'rules'] as const;
+const TABS = ['brand', 'profile', 'warehouses', 'connect', 'rules', 'agreement'] as const;
 
 export default async function WorkspacePage({ params, searchParams }: { params: Promise<{ tenant: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { tenant: slug } = await params;
@@ -55,6 +55,7 @@ export default async function WorkspacePage({ params, searchParams }: { params: 
       },
     },
     rules: prefs.booking,
+    agreement: resolveAgreement(prefs.agreement),
     warehouses: locs.map((l) => ({
       id: l.id, name: l.name, code: l.code, city: [l.city, l.region].filter(Boolean).join(', '), isPrimary: l.isPrimary, isActive: l.isActive,
       pinned: l.lat != null, freeMiles: parseLocationSettings(l.settings).freeTravelMiles ?? prefs.booking.freeTravelDistance, timezone: l.timezone,

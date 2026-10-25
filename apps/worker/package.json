@@ -16,7 +16,8 @@
     "@rental/core": "workspace:*",
     "@rental/db": "workspace:*",
     "@rental/messaging": "workspace:*",
-    "drizzle-orm": "0.45.4"
+    "drizzle-orm": "0.45.4",
+    "@rental/payments": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

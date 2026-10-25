@@ -148,6 +148,20 @@
       "when": 1792935262774,
       "tag": "0020_order_token_enc",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792941397229,
+      "tag": "0021_money",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792941405852,
+      "tag": "0022_money_security",
+      "breakpoints": true
     }
   ]
 }

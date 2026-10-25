@@ -1,3 +1,4 @@
+import { agreementSchema } from './agreement';
 import { messagingSettingsSchema } from './messaging';
 import { z } from 'zod';
 import { CORNERS, HEX_RE, checkAccent } from './theme';
@@ -29,7 +30,7 @@ export const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 export const RESERVED_SLUGS = new Set([
   'api', 'app', 'admin', 'auth', 'invite', 'onboarding', 'sign-in', 'sign-up', 'register', 'settings', 'www',
   'help', 'support', 'status', 'billing', 'static', 'assets', 'files', 'l', 'crew', 'coach', 'public', 'docs',
-  'console', 'platform', 'orgs', 'mail', 'blog', 'pricing', 'terms', 'privacy', 'quote', 'pay', 'q',
+  'console', 'platform', 'orgs', 'mail', 'blog', 'pricing', 'terms', 'privacy', 'quote', 'pay', 'q', 'print',
 ]);
 
 export function slugify(name: string): string {
@@ -355,6 +356,8 @@ export const tenantPreferencesSchema = z.object({
   setupDone: z.array(z.string()).default([]),
   /** Phase 2: automations, schedules, recipients and quiet hours. */
   messaging: messagingSettingsSchema.default(messagingSettingsSchema.parse({})),
+  /** Phase 2b: the rental agreement and quote-page policies. Empty body/policies = the defaults. */
+  agreement: agreementSchema.default(agreementSchema.parse({})),
 });
 export type TenantPreferences = z.infer<typeof tenantPreferencesSchema>;
 

@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 config({ path: resolve(process.cwd(), '../../.env'), quiet: true });
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@rental/core', '@rental/db', '@rental/messaging'],
+  transpilePackages: ['@rental/core', '@rental/db', '@rental/messaging', '@rental/payments'],
   serverExternalPackages: ['postgres'],
   experimental: {
     serverActions: { bodySizeLimit: '6mb' },

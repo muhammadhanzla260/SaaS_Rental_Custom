@@ -10,7 +10,7 @@ import {
 import { invalid, type ActionResult } from '@/lib/result';
 import { getSession, requirePlatformAdmin } from '../context';
 import { db } from '../db';
-import { appUrl, platformEmail, sendPlatformEmail } from '../mailer';
+import { appUrl, platformEmail, sendPlatformEmailOrLink } from '../mailer';
 import { run } from './run';
 
 const orgFields = {
@@ -54,7 +54,7 @@ export async function createOrgAction(input: unknown): Promise<ActionResult<{ sl
         lines: [`Hi ${v.ownerName.split(' ')[0]}, a Tentpole workspace has been created for ${v.name}.`, 'Set your password and you will land in a short setup.'],
         cta: { label: 'Set up my workspace', url: inviteUrl },
       });
-      emailed = (await sendPlatformEmail({ to: v.ownerEmail, subject: `Your ${v.name} workspace on Tentpole`, ...mail })).delivered;
+      emailed = (await sendPlatformEmailOrLink({ to: v.ownerEmail, subject: `Your ${v.name} workspace on Tentpole`, ...mail })).delivered;
     }
     revalidatePath('/console');
     return { ok: true, data: { slug: tenant.slug, inviteUrl, emailed }, message: `${v.name} created.` };

@@ -5,7 +5,7 @@ import {
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import {
-  coupons, creditApplications, credits, customers, locations, memberships, orderLines, orderVersions, orders, payments, productLocationPrices,
+  coupons, creditApplications, credits, customers, invoices, locations, memberships, orderLines, orderVersions, orders, payments, productLocationPrices,
   products, reservations, taxRates, users,
 } from '../schema';
 import { audit, type Actor } from './audit';
@@ -13,6 +13,7 @@ import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
 import { OrgError } from './errors';
 import { enqueueOfficeAlert, enqueueOrderMessage, ensureOrderToken, planOrderMessages } from './messaging';
+import { billingOrder, syncInvoices } from './money';
 
 export type Order = typeof orders.$inferSelect;
 export type OrderLine = typeof orderLines.$inferSelect;
@@ -446,6 +447,7 @@ export function updateOrder(
     const changes = snapshotDiff(snapshot(before, beforeLines), snapshot(order!, lines));
     await recordVersion(tx, tenantId, actor, order!, 'updated', changes, reason);
     if (order!.status === 'booked') await planOrderMessages(tx, tenantId, id);
+    await syncInvoices(tx, tenantId, id);
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.updated', {
       number: order!.number,
       version: order!.version,
@@ -484,6 +486,7 @@ export function resolveOverpayment(db: Db, tenantId: string, actor: Actor, id: s
       .returning();
     await recordVersion(tx, tenantId, actor, after!, choice === 'wallet' ? 'overpayment_to_wallet' : 'refund_owed', { Overpaid: { from: money(over), to: '' } });
     await audit(tx, tenantId, actor, { type: 'order', id }, `order.overpayment_${choice}`, { cents: over });
+    await syncInvoices(tx, tenantId, id);
     return after!;
   });
 }
@@ -502,12 +505,26 @@ const ALLOWED: Record<OrderAction, OrderStatus[]> = {
 
 async function recordPaymentTx(
   tx: Tx, tenantId: string, actor: Actor, order: Order, prefs: TenantPreferences,
-  p: { method: string; amountCents: number; reference?: string | null; note?: string | null },
+  p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null },
 ) {
   const number = await nextDocumentNumber(tx, 'receipt', prefs, order.locationId);
+  // Pays the named invoice, else the first open one in billing order.
+  let invoiceId = p.invoiceId ?? null;
+  if (!invoiceId) {
+    const [open] = await tx
+      .select({ id: invoices.id })
+      .from(invoices)
+      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, order.id), inArray(invoices.status, ['open', 'overdue'])))
+      .orderBy(billingOrder, asc(invoices.createdAt))
+      .limit(1);
+    invoiceId = open?.id ?? null;
+  }
   const [pay] = await tx
     .insert(payments)
-    .values({ tenantId, number, orderId: order.id, method: p.method, amountCents: p.amountCents, reference: p.reference ?? null, note: p.note ?? null, createdByUserId: actor.userId ?? null })
+    .values({
+      tenantId, number, orderId: order.id, method: p.method, amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId, reference: p.reference ?? null,
+      note: p.note ?? null, createdByUserId: actor.userId ?? null,
+    })
     .returning();
   return pay!;
 }
@@ -577,6 +594,7 @@ export function transitionOrder(
       await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: opts.reason ?? '' } });
     }
     if (action === 'book' || action === 'cancel' || action === 'reopen') await planOrderMessages(tx, tenantId, id);
+    await syncInvoices(tx, tenantId, id);
     return { order: after!, payment };
   });
 }
@@ -584,7 +602,7 @@ export function transitionOrder(
 /** Record money received outside a gateway (cash, check, Zelle...). */
 export function recordPayment(
   db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences,
-  p: { method: string; amount: number; reference?: string | null; note?: string | null },
+  p: { method: string; amount: number; tip?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; receipt?: boolean },
 ) {
   return withTenant(db, tenantId, async (tx) => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
@@ -592,7 +610,9 @@ export function recordPayment(
     if (order.status === 'cancelled') throw new OrgError('This order is cancelled.', 'invalid');
     const cents = toCents(p.amount);
     if (cents <= 0) throw new OrgError('Enter the amount received.', 'invalid');
-    const pay = await recordPaymentTx(tx, tenantId, actor, order, prefs, { method: p.method, amountCents: cents, reference: p.reference, note: p.note });
+    const pay = await recordPaymentTx(tx, tenantId, actor, order, prefs, {
+      method: p.method, amountCents: cents, tipCents: p.tip ? toCents(p.tip) : 0, invoiceId: p.invoiceId, reference: p.reference, note: p.note,
+    });
     const [after] = await tx
       .update(orders)
       .set({ paidCents: order.paidCents + cents, version: order.version + 1 })
@@ -600,12 +620,76 @@ export function recordPayment(
       .returning();
     await recordVersion(tx, tenantId, actor, after!, 'payment', { Payment: { from: '', to: `${pay.number} · ${pay.method} · ${money(cents)}` } });
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.payment', { number: order.number, payment: pay.number, cents });
-    await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${pay.id}:receipt`, { automatic: true, meta: { paymentId: pay.id } });
+    // Staff ticking "Send receipt" always sends; otherwise the automation decides.
+    if (p.receipt !== false) await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${pay.id}:receipt`, { automatic: p.receipt !== true, meta: { paymentId: pay.id } });
+    await syncInvoices(tx, tenantId, id);
     return { order: after!, payment: pay };
   });
 }
 
 // --- reads ----------------------------------------------------------------------------------------
+
+/**
+ * A saved order as an OrderInput again (the inverse of orderValues), so changes made
+ * outside the builder — the customer declining the waiver on the quote page — go
+ * through updateOrder with the same pricing, versions and checks as staff edits.
+ */
+export function orderInputFrom(
+  o: Order,
+  lines: OrderLine[],
+  applied: { creditId: string; amountCents: number }[],
+  patch: Partial<OrderInput> = {},
+): OrderInput {
+  const dollars = (c: number) => c / 100;
+  const base: OrderInput = {
+    customerId: o.customerId,
+    locationId: o.locationId,
+    eventType: o.eventType ?? undefined,
+    startsAt: o.eventStartsAt,
+    endsAt: o.eventEndsAt,
+    multiDay: o.multiDay,
+    eventSameAsBilling: o.eventSameAsBilling,
+    eventLocationName: o.eventLocationName ?? undefined,
+    eventAddress: {
+      line1: o.eventLine1 ?? undefined, line2: o.eventLine2 ?? undefined, city: o.eventCity ?? undefined, region: o.eventRegion ?? undefined,
+      postalCode: o.eventPostalCode ?? undefined, country: o.eventCountry, lat: o.eventLat ?? undefined, lng: o.eventLng ?? undefined,
+    },
+    eventContactName: o.eventContactName ?? undefined,
+    eventContactMobile: o.eventContactMobile ?? undefined,
+    eventContactEmail: o.eventContactEmail ?? undefined,
+    contactConfirmed: o.contactConfirmed,
+    customerAddressId: o.customerAddressId,
+    eventMiles: o.eventMiles,
+    milesOverridden: o.milesOverridden,
+    setupSurface: o.setupSurface,
+    eventLocationFee: o.eventLocationFee,
+    eventLocationFeeAmount: dollars(o.eventLocationFeeCents),
+    billing: (o.billing ?? {}) as OrderInput['billing'],
+    salespersonUserId: o.salespersonUserId,
+    referredByCustomerId: o.referredByCustomerId,
+    lines: lines.map((l) => ({
+      productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
+      flatRate: l.flatRate, overridePrice: !l.productId || l.priceOverridden ? dollars(l.unitCents) : null, taxable: l.taxable, setupSurface: l.setupSurface,
+    })),
+    damageWaiver: o.damageWaiver,
+    damageWaiverPercent: Number(o.damageWaiverPercent),
+    travelFee: dollars(o.travelFeeCents),
+    travelFeeOverridden: o.travelFeeOverridden,
+    travelInfo: (o.travelInfo ?? null) as OrderInput['travelInfo'],
+    miscFees: dollars(o.miscFeesCents),
+    discount: o.discountKind ? { kind: o.discountKind as 'percent' | 'amount', value: Number(o.discountValue ?? 0), afterTax: o.discountAfterTax } : null,
+    couponCode: o.couponCode ?? undefined,
+    coupon: o.couponId ? 0 : dollars(o.couponCents),
+    credits: applied.map((a) => ({ creditId: a.creditId, amount: dollars(a.amountCents) })),
+    taxPercent: Number(o.taxPercent),
+    taxOverridden: o.taxOverridden,
+    deposit: { kind: o.depositKind as 'percent' | 'amount' | 'none', value: Number(o.depositValue) },
+    source: o.source ?? undefined,
+    internalNotes: o.internalNotes ?? undefined,
+    customerNotes: o.customerNotes ?? undefined,
+  };
+  return { ...base, ...patch };
+}
 
 export function getOrder(db: Db, tenantId: string, id: string) {
   return withTenant(db, tenantId, async (tx) => {

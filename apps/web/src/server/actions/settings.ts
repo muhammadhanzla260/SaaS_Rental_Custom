@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
-  bookingDefaultsSchema, brandStepSchema, connectStepSchema, documentNumberingSchema, GRANTABLE, INVITABLE_ROLES, locationSchema,
+  agreementSchema, bookingDefaultsSchema, brandStepSchema, connectStepSchema, documentNumberingSchema, GRANTABLE, INVITABLE_ROLES, locationSchema,
   mailAccountSchema, paymentAccountSchema, profileStepSchema, renderPrefix, ROLES, type DocumentKind, type Role,
 } from '@rental/core';
 import {
@@ -15,6 +15,7 @@ import { invalid, type ActionResult } from '@/lib/result';
 import { getTenantContext, requirePermission, requireSettingsAccess } from '../context';
 import { db } from '../db';
 import { sendInviteEmail } from '../invite-mail';
+import { checkStripeKeys } from '../stripe-check';
 import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 
@@ -61,14 +62,29 @@ export async function saveRentalRulesAction(slug: string, input: unknown): Promi
   });
 }
 
+export async function saveAgreementAction(slug: string, input: unknown): Promise<ActionResult> {
+  return run(async () => {
+    const ctx = await requireSettingsAccess(slug);
+    const parsed = agreementSchema.safeParse(input);
+    if (!parsed.success) return invalid(parsed.error);
+    const keys = parsed.data.policies.map((p) => p.key);
+    if (new Set(keys).size !== keys.length) return { ok: false, error: 'Two policies share the same key. Remove one and try again.' };
+    await updatePreferences(db, ctx.tenant.id, ctx.actor, 'agreement', parsed.data);
+    refresh(slug);
+    return { ok: true, message: 'Agreement saved. New signatures use this wording; signed copies keep theirs.' };
+  });
+}
+
 export async function saveIntegrationsAction(slug: string, input: unknown): Promise<ActionResult> {
   return run(async () => {
     const ctx = await requireSettingsAccess(slug);
     const parsed = connectStepSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    const stripe = await checkStripeKeys(parsed.data.payments);
+    if (!stripe.ok) return stripe.result;
     await saveConnectStep(db, ctx.tenant.id, ctx.actor, parsed.data);
     refresh(slug);
-    return { ok: true, message: 'Email, SMS and payment settings saved.' };
+    return { ok: true, message: stripe.account ? `Saved. Stripe is connected to ${stripe.account}.` : 'Email, SMS and payment settings saved.' };
   });
 }
 
@@ -146,10 +162,12 @@ export async function saveLocationPaymentsAction(slug: string, locationId: strin
     const ctx = await requireSettingsAccess(slug);
     const parsed = locPay.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    const stripe = await checkStripeKeys(parsed.data.own ? parsed.data.payments : undefined);
+    if (!stripe.ok) return stripe.result;
     if (parsed.data.own && parsed.data.payments) await savePaymentAccount(db, ctx.tenant.id, ctx.actor, locationId, parsed.data.payments);
     if (!parsed.data.own) await removeLocationPaymentAccount(db, ctx.tenant.id, ctx.actor, locationId);
     refresh(slug);
-    return { ok: true, message: 'Payment gateway saved for this location.' };
+    return { ok: true, message: stripe.account ? `Saved. This location's Stripe is ${stripe.account}.` : 'Payment gateway saved for this location.' };
   });
 }
 

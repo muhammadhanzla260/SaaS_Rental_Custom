@@ -385,7 +385,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
 
         {data.order && meta.id && (
           <div className="mt-8">
-            <OrderHistory order={data.order} money={money} tz={tz} locationName={(id) => locationOf(data, id)?.name ?? id} customerName={d.customer?.name ?? ''} />
+            <OrderHistory slug={data.slug} order={data.order} money={money} tz={tz} locationName={(id) => locationOf(data, id)?.name ?? id} customerName={d.customer?.name ?? ''} />
           </div>
         )}
       </PageBody>
