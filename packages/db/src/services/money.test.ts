@@ -135,9 +135,11 @@ describe('signatures', () => {
     const o = await createOrder(db, tenantId, actor, input(day(36)), prefs);
     const base = { typedName: 'Maria Gonzalez', consent: true as const, waiverAccepted: true };
     await expect(signAgreement(db, tenantId, o.id, { ...base, policies: { weather: true } }, { ip: '1.2.3.4', userAgent: 'test' })).rejects.toThrow(/Setup & electricity/);
-    await signAgreement(db, tenantId, o.id, { ...base, policies: { weather: true, setup: true, supervise: true } }, { ip: '1.2.3.4', userAgent: 'test' });
+    // The quote page also sends its own marker (__waiverChosen); only real policies are recorded.
+    await signAgreement(db, tenantId, o.id, { ...base, policies: { weather: true, setup: true, supervise: true, __waiverChosen: true } }, { ip: '1.2.3.4', userAgent: 'test' });
     const s = await latestSignature(db, tenantId, o.id);
     expect(s).toMatchObject({ typedName: 'Maria Gonzalez', agreementVersion: '2026-10', ip: '1.2.3.4', waiverAccepted: true });
     expect(s!.agreementText).toContain('Terms of rental');
+    expect(Object.keys(s!.policies as object).sort()).toEqual(['setup', 'supervise', 'weather']);
   });
 });

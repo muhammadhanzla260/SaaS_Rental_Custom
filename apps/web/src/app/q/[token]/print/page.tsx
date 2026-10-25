@@ -119,7 +119,8 @@ function Agreement({ q, at }: { q: QuoteContext; at: (d: Date) => string }) {
   const [title, ...rest] = s.agreementText.split('\n\n');
   const sections = agreementSections(rest.join('\n\n'));
   const titles = Object.fromEntries(resolveAgreement(q.prefs.agreement).policies.map((p) => [p.key, p.title]));
-  const accepted = Object.entries((s.policies ?? {}) as Record<string, string>);
+  // Signatures are never edited, so older ones may still hold the page's own markers (__…).
+  const accepted = Object.entries((s.policies ?? {}) as Record<string, string>).filter(([k]) => !k.startsWith('__'));
   return (
     <article className="flex flex-col gap-5" aria-label="Signed rental agreement">
       <Letterhead q={q} kind="Rental agreement" number={q.order.number} />

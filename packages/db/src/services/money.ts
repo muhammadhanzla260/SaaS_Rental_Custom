@@ -352,11 +352,13 @@ export function signAgreement(db: Db, tenantId: string, orderId: string, input: 
     const missing = a.policies.filter((p) => p.key !== 'waiver' && !input.policies[p.key]);
     if (missing.length) throw new OrgError(`Please accept: ${missing.map((p) => p.title).join(', ')}.`, 'invalid');
     const now = new Date().toISOString();
+    // Only this agreement's policies go on the record (the page also sends its own markers).
+    const keys = new Set(a.policies.map((p) => p.key));
     const [s] = await tx
       .insert(signatures)
       .values({
         tenantId, orderId, agreementVersion: a.version, agreementText: `${a.title}\n\n${a.body}`, typedName: input.typedName,
-        policies: Object.fromEntries(Object.entries(input.policies).filter(([, v]) => v).map(([k]) => [k, now])),
+        policies: Object.fromEntries(Object.entries(input.policies).filter(([k, v]) => v && keys.has(k)).map(([k]) => [k, now])),
         waiverAccepted: input.waiverAccepted, ip: meta.ip, userAgent: meta.userAgent?.slice(0, 400) ?? null,
       })
       .returning();
