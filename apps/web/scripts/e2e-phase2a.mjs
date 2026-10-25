@@ -145,7 +145,7 @@ try {
     check(/\/q\/[A-Za-z0-9_-]{20,}/.test(html) && html.includes('Review, sign &amp; pay'), 'carries the review, sign & pay link');
   }
   await go(`${S}/settings/messaging?tab=log`);
-  await waitText('is ready, Priya');
+  await waitText('priya@example.com');
   await click('View message');
   await page.waitForSelector('iframe[title="Message as received"]', { timeout: 15000 });
   check(true, 'the log opens the email exactly as received');

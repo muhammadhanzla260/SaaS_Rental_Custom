@@ -4,13 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { z } from 'zod';
 import {
-  bookingSchema, categorySchema, creditSchema, customerAddressSchema, customerSchema, orderSchema, productSchema, unitSchema,
-  type OrderInput,
+  bookingRequirements, bookingSchema, categorySchema, creditSchema, customerAddressSchema, customerSchema, orderSchema, productSchema, resolveAgreement,
+  unitSchema, type OrderInput,
 } from '@rental/core';
 import {
   addUnit, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateProduct, findDuplicateCustomers,
-  getCustomer, getOrder, importCustomers, listCustomers, productAvailability, recordPayment, removeCustomerAddress, removeUnit, renameCategory,
-  resolveOverpayment, saveCustomerAddress, saveImage, setCustomerMessaging, setProductStatus, setUnitStatus, transitionOrder, updateCustomer,
+  getCustomer, getOrder, importCustomers, latestSignature, listCustomers, productAvailability, recordPayment, removeCustomerAddress, removeUnit, renameCategory,
+  resolveOverpayment, saveCustomerAddress, saveDocument, saveImage, setCustomerMessaging, setProductStatus, setUnitStatus, transitionOrder, updateCustomer,
   updateOrder, updateProduct, usableCredits, validateCoupon, voidCredit,
   type Availability, type CustomerCredit, type CustomerProfile, type OrderAction,
 } from '@rental/db';
@@ -296,6 +296,29 @@ const ACTION_DONE: Record<OrderAction, string> = {
   reopen: 'Reopened as a draft.',
 };
 
+/**
+ * Staff booking checks (Odoo POS "Still required to continue"): the contact and
+ * billing details, and — unless the customer signed online — the policies the
+ * customer agreed to, confirmed by staff.
+ */
+async function bookingBlocked(tenantId: string, orderId: string, prefs: Parameters<typeof transitionOrder>[5], acks: Record<string, boolean>) {
+  const o = await getOrder(db, tenantId, orderId);
+  if (!o) return 'Order not found.';
+  const c = await getCustomer(db, tenantId, o.customerId);
+  const b = (o.billing ?? {}) as { name?: string; email?: string; phone?: string; address?: { line1?: string; city?: string; region?: string; postalCode?: string } };
+  const missing = bookingRequirements({
+    billing: {
+      name: b.name || c?.displayName, email: b.email || c?.email, phone: b.phone || c?.phone,
+      address: b.address?.line1 ? b.address : { line1: c?.line1, city: c?.city, region: c?.region, postalCode: c?.postalCode },
+    },
+    eventStreet: o.eventLine1, contactName: o.eventContactName, contactMobile: o.eventContactMobile, contactConfirmed: o.contactConfirmed,
+  });
+  if (missing.length) return `Still required to book: ${missing.join(', ')}.`;
+  if (await latestSignature(db, tenantId, orderId)) return null;
+  const need = resolveAgreement(prefs.agreement).policies.filter((p) => p.key !== 'waiver' && !acks[p.key]);
+  return need.length ? `Confirm the customer agreed to: ${need.map((p) => p.title).join(', ')}.` : null;
+}
+
 export async function transitionOrderAction(
   slug: string,
   id: string,
@@ -311,6 +334,10 @@ export async function transitionOrderAction(
       const b = bookingSchema.safeParse(opts.booking);
       if (!b.success) return invalid(b.error);
       booking = b.data;
+    }
+    if (a.data === 'book') {
+      const blocked = await bookingBlocked(ctx.tenant.id, uuid.parse(id), ctx.prefs, booking?.policies ?? {});
+      if (blocked) return { ok: false, error: blocked };
     }
     const r = await transitionOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), a.data, ctx.prefs, { reason: opts.reason?.slice(0, 500), booking });
     refresh(slug);
@@ -421,5 +448,16 @@ export async function quickCustomerAction(slug: string, input: unknown): Promise
       data: { id: c.id, name: c.displayName ?? '', email: c.email, phone: c.phone, city: c.city, kind: c.kind, taxExempt: c.taxExempt, orderCount: 0, tags: c.tags },
       message: `${c.displayName} added.`,
     };
+  });
+}
+
+/** Setup map for the crew (image or PDF), attached to the order on its next save. */
+export async function uploadSetupMapAction(slug: string, formData: FormData): Promise<ActionResult<{ id: string; name: string; url: string }>> {
+  return run<{ id: string; name: string; url: string }>(async () => {
+    const ctx = await requirePermission(slug, 'orders.create');
+    const file = await readUpload(formData.get('file'));
+    if (!file) return { ok: false, error: 'Choose an image or PDF.' };
+    const id = await saveDocument(db, ctx.tenant.id, ctx.user.id, file, 'setup_map');
+    return { ok: true, data: { id, name: file.filename, url: `/api/files/${ctx.tenant.id}/${id}` } };
   });
 }

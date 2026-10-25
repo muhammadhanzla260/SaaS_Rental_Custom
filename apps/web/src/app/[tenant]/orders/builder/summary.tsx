@@ -3,6 +3,7 @@
 import { Check } from 'lucide-react';
 import type { OrderSummary } from '@rental/core';
 import { cx } from '@/components/kit';
+import { num } from './draft';
 import type { BuilderCredit, Draft, DepositRule } from './types';
 
 type SetDraft = (patch: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void;
@@ -86,6 +87,10 @@ export function SummaryPanel({
           </span>
           <Cell label="Discount value" value={d.discountValue} onChange={(v) => set({ discountValue: v })} placeholder="0" width="w-16" />
         </Row>
+        {num(d.discountValue) > 0 && (
+          <input aria-label="Discount description" value={d.discountNote} maxLength={120} placeholder="Discount description (optional)" onChange={(e) => set({ discountNote: e.target.value })}
+            className="anim-fade mb-1 h-8 w-full rounded-[8px] border border-white/10 bg-white/[0.06] px-2 text-[13px] text-white placeholder:text-white/35 focus:border-volt focus:outline-none" />
+        )}
         <Row label="Coupon" sub={couponMsg?.text} amount={s.couponCents ? `−${money(s.couponCents)}` : undefined} tone="mint">
           <form className="flex" onSubmit={(e) => { e.preventDefault(); onApplyCoupon(); }}>
             <input

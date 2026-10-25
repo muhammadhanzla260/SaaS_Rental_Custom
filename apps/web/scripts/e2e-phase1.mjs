@@ -130,11 +130,24 @@ try {
   await setValue('#ob-date', satFree);
   await page.waitForFunction(() => !document.body.innerText.includes('free for this time'), { timeout: 15000 });
 
-  // --- Book with a manual payment ----------------------------------------------------------
+  // --- Book with a manual payment (Odoo POS: required info, policies, tip) ------------------
+  check(await hasText('Still required to book') && await hasText('Confirm the event day point of contact'), 'booking lists what is still required (contact not confirmed yet)');
+  await click('I confirmed the event day point of contact', 'label');
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].find((b) => b.innerText.includes('Book order'))?.disabled, { timeout: 10000 });
+  check(!(await hasText('Still required to book')), 'confirming the contact clears the checklist and enables booking');
   await click('Book order');
   await waitText('Book & take the deposit');
   await click('Cash, check, Zelle');
   await setValue('#bk-ref', `QA ${run}`);
+  await click('10% |', '[role="radio"]');
+  check(await page.$eval('dialog[open]', (e) => /Total payment to record\s*\$235\.43/.test(e.innerText)), 'a 10% coach tip ($50.00 on $500 of rentals) is added to the deposit');
+  await click('Confirm booking');
+  await waitText('Confirm the customer agreed to');
+  check(true, 'booking needs the customer’s policy agreements first');
+  await page.evaluate(() => {
+    const box = [...document.querySelectorAll('dialog[open] p')].find((p) => p.innerText.includes('The customer agreed to')).parentElement;
+    for (const i of box.querySelectorAll('input[type="checkbox"]')) if (!i.checked) i.click();
+  });
   await click('Confirm booking');
   await page.waitForFunction(() => [...document.querySelectorAll('h2')].some((h) => h.innerText.trim() === 'Booked'), { timeout: 30000 });
   check(true, 'booked with a manual payment (steps ran, success state shown)');

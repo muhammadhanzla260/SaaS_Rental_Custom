@@ -169,6 +169,13 @@
       "when": 1792953964025,
       "tag": "0023_payment_confirmations",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792955603705,
+      "tag": "0024_pos_inputs",
+      "breakpoints": true
     }
   ]
 }

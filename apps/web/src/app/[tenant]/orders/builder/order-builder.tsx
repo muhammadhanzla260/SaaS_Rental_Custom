@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatEventTime, formatMoney, ORDER_STATUS, type OrderStatus } from '@rental/core';
+import { bookingRequirements, formatEventTime, formatMoney, ORDER_STATUS, type OrderStatus } from '@rental/core';
 import type { Availability } from '@rental/db';
 import { CustomerFormDrawer } from '@/components/customers/customer-form';
 import { Button, cx, Notice, Pill, SaveBar, Select, useToast } from '@/components/kit';
@@ -250,8 +250,8 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
     if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
     const booking = c.method === 'manual'
-      ? { method: 'manual', payMethod: c.payMethod, amount: c.amount, reference: c.reference || undefined }
-      : { method: 'none', reason: c.reason, expectedOn: c.expectedOn, notes: c.notes || undefined };
+      ? { method: 'manual', payMethod: c.payMethod, amount: c.amount, tip: c.tip || 0, reference: c.reference || undefined, receipt: c.receipt, policies: c.policies }
+      : { method: 'none', reason: c.reason, expectedOn: c.expectedOn, notes: c.notes || undefined, policies: c.policies };
     const t = await transitionOrderAction(data.slug, r.id, 'book', { booking });
     if (!t.ok) {
       markRefused(t.error);
@@ -302,7 +302,12 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   const bufferLabel = timeLabel(addMinutes(d.start, d.durationMin + data.booking.cleanupMinutes));
   const st = ORDER_STATUS[status];
   const canBook = !booked && !cancelled && !readOnly;
-  const bookBlocked = d.lines.length === 0 || short.size > 0;
+  // Odoo POS "Still required to continue": the server checks the same list when booking.
+  const missing = bookingRequirements({
+    billing: { name: d.billing.name || d.customer?.name, email: d.billing.email, phone: d.billing.phone, address: d.billing.address },
+    eventStreet: d.eventAddress.line1, contactName: d.contact.name, contactMobile: d.contact.mobile, contactConfirmed: d.contact.confirmed,
+  });
+  const bookBlocked = d.lines.length === 0 || short.size > 0 || missing.length > 0;
   const balance = s.totalCents - meta.paidCents;
 
   const actions = (
@@ -315,9 +320,17 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <Button variant="secondary" size="lg" onClick={sendQuote} pending={busy === 'quote'} disabled={d.lines.length === 0}>{status === 'quote_sent' ? 'Resend quote' : 'Send quote'}</Button>
           </div>
           <Button size="lg" className="w-full text-[15px]" disabled={bookBlocked} onClick={() => { setError(null); setBookOpen(true); }}>Book order →</Button>
-          <p className="text-center text-[12px] text-fg-2">
-            {short.size ? 'Some lines are not free for this time.' : 'Booking re-checks availability inside the database, so two people can’t book the last unit at once.'}
-          </p>
+          {d.lines.length > 0 && missing.length > 0 ? (
+            <div role="status" className="rounded-[var(--radius-card)] border border-warning-mark/40 bg-warning-bg p-3 text-[13px] text-warning-fg">
+              <p className="font-semibold">Still required to book:</p>
+              <ul className="mt-1 list-disc pl-5">{missing.map((m) => <li key={m}>{m}</li>)}</ul>
+              <p className="mt-1.5 text-[12px] opacity-80">You can still save a draft or send the quote.</p>
+            </div>
+          ) : (
+            <p className="text-center text-[12px] text-fg-2">
+              {short.size ? 'Some lines are not free for this time.' : 'Booking re-checks availability inside the database, so two people can’t book the last unit at once.'}
+            </p>
+          )}
         </>
       )}
       {booked && !readOnly && (
@@ -370,7 +383,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <LinesSection data={data} d={d} quoted={priced.quote.lines} refused={refused} short={short} setLine={setLine}
               removeLine={(k) => set((x) => ({ lines: x.lines.filter((l) => l.key !== k) }))} addCustom={() => set((x) => ({ lines: [...x.lines, newLine(null)] }))}
               canOverride={data.perms.overridePrice} money={money} />
-            <NotesSection d={d} set={set} />
+            <NotesSection d={d} set={set} slug={data.slug} />
           </fieldset>
 
           <aside className="flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
@@ -421,7 +434,12 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         onClose={closeBook}
         depositLabel={money(s.depositCents)}
         depositCents={s.depositCents}
+        totalCents={s.totalCents}
         totalLabel={money(s.totalCents)}
+        tipBaseCents={s.merchandiseCents}
+        money={money}
+        policies={data.policies}
+        signedOnline={data.signedOnline}
         bufferLabel={bufferLabel}
         number={meta.number}
         onConfirm={confirmBooking}

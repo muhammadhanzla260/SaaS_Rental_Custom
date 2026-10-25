@@ -257,6 +257,8 @@ export const orderSchema = z
       .object({ kind: z.enum(['percent', 'amount']), value: z.coerce.number().min(0), afterTax: z.boolean().default(false) })
       .nullable()
       .optional(),
+    /** Shown next to the discount (e.g. "Repeat customer"). */
+    discountNote: optional(120),
     couponCode: optional(40),
     coupon: money.default(0),
     /** Rain checks and credits to apply: [{ creditId, amount }] (dollars). */
@@ -267,6 +269,8 @@ export const orderSchema = z
     source: optional(60),
     internalNotes: optional(4000),
     customerNotes: optional(4000),
+    /** Setup map (image or PDF) for the crew. */
+    setupMapFileId: z.string().uuid().nullable().optional(),
   })
   .refine((o) => o.endsAt.getTime() !== o.startsAt.getTime(), { message: 'The event must end after it starts.', path: ['endsAt'] })
   .refine((o) => !o.multiDay || o.endsAt > o.startsAt, { message: 'The end date must be after the start.', path: ['endsAt'] })
@@ -285,22 +289,60 @@ export const MANUAL_METHODS = [
 
 export const UNPAID_REASONS = ['Mailed check expected', 'External invoice sent', 'Purchase order pending', 'Management approval', 'Other'] as const;
 
+/** Policies staff confirm the customer agreed to when booking for them (Odoo POS "Additional information"). */
+const policyAcks = z.record(z.string().regex(/^[a-z_]{2,30}$/), z.boolean()).default({});
+
 /** How the deposit is handled when booking. Card and pay link need a connected gateway (Phase 2). */
 export const bookingSchema = z.discriminatedUnion('method', [
   z.object({
     method: z.literal('manual'),
     payMethod: z.enum(['cash', 'check', 'zelle', 'venmo', 'ach', 'other']),
     amount: money.refine((v) => v > 0, 'Enter the amount received.'),
+    /** Tip for the party coach, on top of the amount. */
+    tip: money.default(0),
     reference: optional(80),
+    /** Email the payment confirmation (on by default, like Odoo). */
+    receipt: z.boolean().default(true),
+    policies: policyAcks,
   }),
   z.object({
     method: z.literal('none'),
     reason: z.enum(UNPAID_REASONS, 'Choose a reason.'),
     expectedOn: z.iso.date('Pick the date you expect payment.'),
     notes: optional(1000),
+    policies: policyAcks,
   }),
 ]);
-export type BookingInput = z.infer<typeof bookingSchema>;
+export type BookingInput = z.input<typeof bookingSchema>;
+
+/**
+ * What must be filled in before staff can book an order (Odoo POS "Still required
+ * to continue"): who pays and how to reach them, where the event is, and who will
+ * be on site with a phone. Returns the missing items, in form order.
+ */
+export function bookingRequirements(o: {
+  billing: { name?: string | null; email?: string | null; phone?: string | null; address?: { line1?: string | null; city?: string | null; region?: string | null; postalCode?: string | null } | null };
+  eventStreet?: string | null;
+  contactName?: string | null;
+  contactMobile?: string | null;
+  contactConfirmed: boolean;
+}): string[] {
+  const blank = (v: string | null | undefined) => !v || !String(v).trim();
+  const a = o.billing.address ?? {};
+  return [
+    blank(o.billing.name) && 'Customer name',
+    blank(o.billing.email) && 'Email',
+    blank(o.billing.phone) && 'Primary phone',
+    blank(a.line1) && 'Billing address',
+    blank(a.city) && 'City',
+    blank(a.region) && 'State',
+    blank(a.postalCode) && 'ZIP code',
+    blank(o.eventStreet) && 'Event street address',
+    blank(o.contactName) && 'Event day contact name',
+    blank(o.contactMobile) && 'Event day mobile phone',
+    !o.contactConfirmed && 'Confirm the event day point of contact',
+  ].filter((x): x is string => !!x);
+}
 
 export const ORDER_STATUS = {
   draft: { label: 'Draft', tone: 'neutral' },

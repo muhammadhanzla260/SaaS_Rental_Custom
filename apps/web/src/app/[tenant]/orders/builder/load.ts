@@ -1,8 +1,8 @@
 import 'server-only';
 import { notFound } from 'next/navigation';
-import { parseLocationSettings, type ServiceMode } from '@rental/core';
+import { policyText, parseLocationSettings, resolveAgreement, type ServiceMode } from '@rental/core';
 import {
-  getCustomer, getOrder, listCategories, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
+  getCustomer, getFile, getOrder, latestSignature, listCategories, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
 } from '@rental/db';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -44,6 +44,11 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     ? await Promise.all([customerFor(ctx.tenant.id, customerId), usableCredits(db, ctx.tenant.id, customerId, order?.id ?? null)])
     : [null, []];
   const prefs = ctx.prefs;
+  const [map, signature] = await Promise.all([
+    order?.setupMapFileId ? getFile(db, ctx.tenant.id, order.setupMapFileId) : Promise.resolve(null),
+    order ? latestSignature(db, ctx.tenant.id, order.id) : Promise.resolve(null),
+  ]);
+  const agreement = resolveAgreement(prefs.agreement);
   const usedIds = new Set(order?.lines.map((l) => l.productId) ?? []);
 
   return {
@@ -58,6 +63,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
         taxPercent: l.taxRate ? Number(l.taxRate.rate) : prefs.booking.defaultTaxPercent,
         rules: travelRules(prefs, l.settings),
         paused: parseLocationSettings(l.settings).paused,
+        servedZips: parseLocationSettings(l.settings).servedZips ?? [],
       })),
     defaultLocationId: (opts.locationId && locations.some((l) => l.id === opts.locationId) ? opts.locationId : null)
       ?? locations.find((l) => l.isPrimary)?.id ?? locations[0]?.id ?? null,
@@ -90,12 +96,17 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
       editCustomers: ctx.can('customers.manage'),
     },
     readOnly: ctx.readOnly,
+    policies: agreement.policies.filter((p) => p.key !== 'waiver').map((p) => ({ key: p.key, title: p.title, text: policyText(p, agreement) })),
+    signedOnline: !!signature,
     customer,
     credits: credits.map((c) => ({ id: c.id, code: c.code, kind: c.kind, label: c.label, balanceCents: c.balanceCents, validUntil: c.validUntil, reason: c.reason })),
     order: order
       ? {
           id: order.id, number: order.number, status: order.status, version: order.version, locationId: order.locationId, customerId: order.customerId,
           eventType: order.eventType, startsAt: order.eventStartsAt.toISOString(), endsAt: order.eventEndsAt.toISOString(),
+          multiDay: order.multiDay, discountNote: order.discountNote,
+          setupMap: map ? { id: map.id, name: map.filename, url: `/api/files/${ctx.tenant.id}/${map.id}` } : null,
+          policyAcks: (order.policyAcks ?? {}) as Record<string, { at: string; by: string | null }>,
           eventLocationName: order.eventLocationName,
           eventAddress: {
             line1: order.eventLine1 ?? '', line2: order.eventLine2 ?? '', city: order.eventCity ?? '', region: order.eventRegion ?? '', postalCode: order.eventPostalCode ?? '',

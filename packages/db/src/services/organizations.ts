@@ -383,6 +383,16 @@ export const IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp'] as const;
 export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Product photos and other public images (PNG, JPG, WebP up to 4 MB). */
+export const DOCUMENT_MIME = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'] as const;
+export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+/** A private document for the team (setup map): image or PDF, members only. Returns the file id. */
+export async function saveDocument(db: Db, tenantId: string, userId: string, file: UploadedFile, purpose: string) {
+  if (!(DOCUMENT_MIME as readonly string[]).includes(file.mime)) throw new OrgError('Upload an image (PNG, JPG, WebP) or a PDF.', 'invalid');
+  if (file.bytes.length > DOCUMENT_MAX_BYTES) throw new OrgError('The file must be 10 MB or smaller.', 'invalid');
+  return withTenant(db, tenantId, (tx) => storeFile(tx, tenantId, userId, file, purpose, false));
+}
+
 export async function saveImage(db: Db, tenantId: string, userId: string, file: UploadedFile, purpose: string) {
   if (!(IMAGE_MIME as readonly string[]).includes(file.mime)) throw new OrgError('Upload a PNG, JPG or WebP photo.', 'invalid');
   if (file.bytes.length > IMAGE_MAX_BYTES) throw new OrgError('The photo must be 4 MB or smaller.', 'invalid');

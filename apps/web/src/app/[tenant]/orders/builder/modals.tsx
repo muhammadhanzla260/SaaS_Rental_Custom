@@ -3,17 +3,21 @@
 import { Check, CreditCard, Link2, Wallet, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MANUAL_METHODS, UNPAID_REASONS } from '@rental/core';
-import { Button, cx, Field, Input, LinkButton, Modal, Notice, Select, Spinner, Textarea } from '@/components/kit';
+import { Button, Checkbox, cx, Field, Input, LinkButton, Modal, Notice, Select, Spinner, Textarea } from '@/components/kit';
 
-export type BookChoice =
-  | { method: 'manual'; payMethod: string; amount: string; reference: string }
-  | { method: 'none'; reason: string; expectedOn: string; notes: string };
+export type BookChoice = (
+  | { method: 'manual'; payMethod: string; amount: string; tip: string; reference: string; receipt: boolean }
+  | { method: 'none'; reason: string; expectedOn: string; notes: string }
+) & { policies: Record<string, boolean> };
+
+type Plan = 'deposit' | 'full' | 'custom';
+const TIPS = [0, 10, 15, 20] as const;
 
 type Phase = { kind: 'choose' } | { kind: 'running'; step: number } | { kind: 'done'; number: string } | { kind: 'error'; message: string };
 
 const METHODS = [
-  { id: 'card', label: 'Charge a saved card', sub: 'Through your payment gateway · arrives with Phase 2', icon: CreditCard, enabled: false },
-  { id: 'link', label: 'Send a pay link', sub: 'Customer signs and pays on the quote page · Phase 2', icon: Link2, enabled: false },
+  { id: 'card', label: 'Charge a saved card', sub: 'After booking: Invoices → Record payment → Card on file', icon: CreditCard, enabled: false },
+  { id: 'link', label: 'Send a pay link', sub: 'Use Send quote: the customer signs and pays online', icon: Link2, enabled: false },
   { id: 'manual', label: 'Cash, check, Zelle, Venmo or ACH', sub: 'Recorded now with a receipt number', icon: Wallet, enabled: true },
   { id: 'none', label: 'Book without payment', sub: 'Needs a reason and an expected payment date', icon: X, enabled: true },
 ] as const;
@@ -23,23 +27,43 @@ const METHODS = [
  * and reserve (the steps are real; the bar only animates while it waits).
  */
 export function BookModal({
-  open, onClose, depositLabel, depositCents, totalLabel, bufferLabel, number, onConfirm, calendarHref, canRecordPayment, booked,
+  open, onClose, depositLabel, depositCents, totalCents, totalLabel, tipBaseCents, money, policies, signedOnline, bufferLabel, number, onConfirm, calendarHref, canRecordPayment, booked,
 }: {
-  open: boolean; onClose: () => void; depositLabel: string; depositCents: number; totalLabel: string; bufferLabel: string; number: string;
+  open: boolean; onClose: () => void; depositLabel: string; depositCents: number; totalCents: number; totalLabel: string;
+  /** Tips are a share of the rental items (Odoo: "10% | $82.90"). */
+  tipBaseCents: number; money: (c: number) => string;
+  policies: { key: string; title: string; text: string }[]; signedOnline: boolean; bufferLabel: string; number: string;
   onConfirm: (c: BookChoice) => Promise<{ ok: true; number: string } | { ok: false; error: string }>; calendarHref: string; canRecordPayment: boolean; booked: boolean;
 }) {
   const [method, setMethod] = useState<'manual' | 'none'>(canRecordPayment && depositCents > 0 ? 'manual' : 'none');
-  const [manual, setManual] = useState({ payMethod: 'check', amount: '', reference: '' });
+  const [manual, setManual] = useState({ payMethod: 'check', amount: '', tip: '', reference: '', receipt: true });
+  const [plan, setPlan] = useState<Plan>('deposit');
+  const [tipPct, setTipPct] = useState<number | 'custom'>(0);
   const [none, setNone] = useState({ reason: '', expectedOn: '', notes: '' });
+  const [agreed, setAgreed] = useState<Record<string, boolean>>({});
   const [phase, setPhase] = useState<Phase>({ kind: 'choose' });
   const [errs, setErrs] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
     setPhase({ kind: 'choose' });
     setErrs({});
-    setManual({ payMethod: 'check', amount: (depositCents / 100).toFixed(2), reference: '' });
+    setPlan(depositCents > 0 ? 'deposit' : 'full');
+    setTipPct(0);
+    setAgreed({});
+    setManual({ payMethod: 'check', amount: ((depositCents > 0 ? depositCents : totalCents) / 100).toFixed(2), tip: '', reference: '', receipt: true });
     setMethod(canRecordPayment && depositCents > 0 ? 'manual' : 'none');
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choosePlan = (p: Plan) => {
+    setPlan(p);
+    if (p !== 'custom') setManual((m) => ({ ...m, amount: ((p === 'deposit' ? depositCents : totalCents) / 100).toFixed(2) }));
+  };
+  const chooseTip = (t: number | 'custom') => {
+    setTipPct(t);
+    if (t !== 'custom') setManual((m) => ({ ...m, tip: t ? ((Math.round((tipBaseCents * t) / 100)) / 100).toFixed(2) : '' }));
+  };
+  // Staff confirm the policies for the customer, unless the customer already signed online.
+  const needPolicies = !signedOnline ? policies.filter((p) => !agreed[p.key]) : [];
+  const recordTotal = (parseFloat(manual.amount) || 0) + (parseFloat(manual.tip) || 0);
 
   const payStep = method === 'manual' ? 'Recording the payment and receipt number' : 'Noting why it was booked without payment';
   const steps = ['Locking the order and re-checking availability', 'Reserving stock with the cleanup buffer', payStep, 'Recording the booking in order history'];
@@ -49,6 +73,7 @@ export function BookModal({
     if (method === 'manual' && !(parseFloat(manual.amount) > 0)) e.amount = 'Enter the amount received.';
     if (method === 'none' && !none.reason) e.reason = 'Choose a reason.';
     if (method === 'none' && !none.expectedOn) e.expectedOn = 'Pick the date you expect payment.';
+    if (needPolicies.length) e.policies = `Confirm the customer agreed to: ${needPolicies.map((p) => p.title).join(', ')}.`;
     setErrs(e);
     if (Object.keys(e).length) return;
     setPhase({ kind: 'running', step: 0 });
@@ -57,7 +82,7 @@ export function BookModal({
       step = Math.min(step + 1, steps.length - 1);
       setPhase((p) => (p.kind === 'running' ? { kind: 'running', step } : p));
     }, 450);
-    const r = await onConfirm(method === 'manual' ? { method, ...manual } : { method, ...none });
+    const r = await onConfirm(method === 'manual' ? { method, ...manual, policies: agreed } : { method, ...none, policies: agreed });
     clearInterval(tick);
     if (!r.ok) return setPhase({ kind: 'error', message: r.error });
     setPhase({ kind: 'running', step: steps.length });
@@ -114,18 +139,43 @@ export function BookModal({
             })}
           </div>
           {method === 'manual' && (
-            <div className="anim-fade grid grid-cols-1 gap-3 rounded-[var(--radius-card)] bg-sunken/60 p-3.5 sm:grid-cols-3">
-              <Field label="Method" htmlFor="bk-method">
-                <Select id="bk-method" value={manual.payMethod} onChange={(e) => setManual({ ...manual, payMethod: e.target.value })}>
-                  {MANUAL_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </Select>
-              </Field>
-              <Field label="Amount received" htmlFor="bk-amount" error={errs.amount}>
-                <Input id="bk-amount" mono inputMode="decimal" value={manual.amount} onChange={(e) => setManual({ ...manual, amount: e.target.value })} invalid={!!errs.amount} />
-              </Field>
-              <Field label="Reference" htmlFor="bk-ref" optional>
-                <Input id="bk-ref" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} placeholder="Check #1043" />
-              </Field>
+            <div className="anim-fade flex flex-col gap-3 rounded-[var(--radius-card)] bg-sunken/60 p-3.5">
+              <div role="radiogroup" aria-label="Amount to collect" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {([['full', 'Full balance', money(totalCents)], ...(depositCents > 0 ? [['deposit', 'Deposit', depositLabel]] : []), ['custom', 'Custom amount', 'Enter it']] as [Plan, string, string][]).map(([key, label, amount]) => (
+                  <button key={key} type="button" role="radio" aria-checked={plan === key} onClick={() => choosePlan(key)}
+                    className={cx('press flex flex-col rounded-[var(--radius-control)] border bg-surface px-3 py-2 text-left', plan === key ? 'border-accent shadow-[0_0_0_1px_var(--accent)]' : 'border-subtle hover:border-control')}>
+                    <span className="text-[13px] font-semibold text-fg">Collect {label.toLowerCase()}</span>
+                    <span className="mono text-[13px] text-fg-2">{amount}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Method" htmlFor="bk-method">
+                  <Select id="bk-method" value={manual.payMethod} onChange={(e) => setManual({ ...manual, payMethod: e.target.value })}>
+                    {MANUAL_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Amount received" htmlFor="bk-amount" error={errs.amount}>
+                  <Input id="bk-amount" mono inputMode="decimal" value={manual.amount} onChange={(e) => { setPlan('custom'); setManual({ ...manual, amount: e.target.value }); }} invalid={!!errs.amount} />
+                </Field>
+                <Field label="Reference" htmlFor="bk-ref" optional>
+                  <Input id="bk-ref" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} placeholder="Check #1043" />
+                </Field>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[13px] font-semibold text-fg">Tip for the party coach</p>
+                <div role="radiogroup" aria-label="Tip" className="flex flex-wrap gap-1.5">
+                  {[...TIPS, 'custom' as const].map((t) => (
+                    <button key={String(t)} type="button" role="radio" aria-checked={tipPct === t} onClick={() => chooseTip(t)}
+                      className={cx('press h-8 rounded-[var(--radius-control)] border px-2.5 text-[12px] font-semibold', tipPct === t ? 'border-accent bg-accent text-on-accent' : 'border-control bg-surface text-fg hover:bg-hover')}>
+                      {t === 0 ? 'No tip' : t === 'custom' ? 'Custom' : `${t}% | ${money(Math.round((tipBaseCents * t) / 100))}`}
+                    </button>
+                  ))}
+                </div>
+                {tipPct === 'custom' && <Input aria-label="Tip amount" mono inputMode="decimal" value={manual.tip} onChange={(e) => setManual({ ...manual, tip: e.target.value })} placeholder="0.00" className="anim-fade mt-2 w-32" />}
+              </div>
+              <Checkbox checked={manual.receipt} onChange={(x) => setManual({ ...manual, receipt: x })}>Email the payment receipt to the customer</Checkbox>
+              <p className="flex justify-between text-sm"><span className="text-fg-2">Total payment to record</span><span className="mono font-bold text-fg">{money(Math.round(recordTotal * 100))}</span></p>
             </div>
           )}
           {method === 'none' && (
@@ -144,6 +194,19 @@ export function BookModal({
               </Field>
             </div>
           )}
+          {policies.length > 0 && (signedOnline ? (
+            <Notice kind="success">The customer signed the agreement and accepted the policies online.</Notice>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-subtle p-3.5">
+              <p className="text-[13px] font-semibold text-fg">The customer agreed to</p>
+              {policies.map((p) => (
+                <Checkbox key={p.key} checked={!!agreed[p.key]} onChange={(x) => setAgreed((a) => ({ ...a, [p.key]: x }))} invalid={!!errs.policies && !agreed[p.key]}>
+                  <span className="font-semibold text-fg">{p.title}.</span> {p.text}
+                </Checkbox>
+              ))}
+              {errs.policies && <p role="alert" className="text-[13px] font-medium text-danger">{errs.policies}</p>}
+            </div>
+          ))}
         </div>
       )}
       {(running || phase.kind === 'error') && (

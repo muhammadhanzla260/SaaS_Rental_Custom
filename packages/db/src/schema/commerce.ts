@@ -320,6 +320,7 @@ export const orders = pgTable(
     discountKind: text('discount_kind'),
     discountValue: numeric('discount_value', { precision: 12, scale: 3, mode: 'number' }),
     discountAfterTax: boolean('discount_after_tax').notNull().default(false),
+    discountNote: text('discount_note'),
     couponCode: text('coupon_code'),
     couponId: uuid('coupon_id'),
     couponCents: bigint('coupon_cents', { mode: 'number' }).notNull().default(0),
@@ -341,6 +342,10 @@ export const orders = pgTable(
     source: text('source'),
     internalNotes: text('internal_notes'),
     customerNotes: text('customer_notes'),
+    /** Setup map (image or PDF, files table) shared with the crew. */
+    setupMapFileId: uuid('setup_map_file_id'),
+    /** Policies staff confirmed the customer agreed to when booking for them: { key: { at, by } }. */
+    policyAcks: jsonb('policy_acks').notNull().default({}),
     quoteSentAt: timestamp('quote_sent_at', { withTimezone: true }),
     /** sha256 of the customer's quote-page token (the token itself is only ever in the link). */
     accessTokenHash: text('access_token_hash'),

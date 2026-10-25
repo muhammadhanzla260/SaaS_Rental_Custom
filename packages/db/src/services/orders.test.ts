@@ -152,6 +152,22 @@ describe('orders (acceptance tests)', () => {
     await expect(updateOrder(db, tenantId, actor, o.id, orderInput(t(21, 13), t(21, 19), [{ productId: castleId }]), prefs, booked.version)).rejects.toThrow(/changed this order/);
   });
 
+  it('booking at the counter: tip on top, policies confirmed by staff, multi-day billed for the real time', async () => {
+    const o = await createOrder(db, tenantId, actor, orderInput(t(28, 9), t(30, 9), [{ productId: castleId }], { multiDay: true }), prefs);
+    expect(o.multiDay).toBe(true);
+    const { order, payment } = await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, {
+      booking: { method: 'manual', payMethod: 'cash', amount: o.totalCents / 100, tip: 25, receipt: false, policies: { weather: true, setup: true, supervise: false } },
+    });
+    // The tip is recorded with the payment but is not part of what the order is paid against.
+    expect(payment).toMatchObject({ amountCents: o.totalCents, tipCents: 2500 });
+    expect(order.paidCents).toBe(o.totalCents);
+    const acks = order.policyAcks as Record<string, { at: string; by: string | null }>;
+    expect(Object.keys(acks).sort()).toEqual(['setup', 'weather']);
+    expect(acks.weather!.by).toBeTruthy();
+    const full = await getOrder(db, tenantId, o.id);
+    expect(full!.versions[0]!.diff).toMatchObject({ Tip: { to: '$25.00' }, 'Policies confirmed for the customer': { to: 'weather, setup' } });
+  });
+
   it('4 · rain check + $20 wallet credit → due after credits $412.68; deposit on that amount', async () => {
     const rc = await createCredit(db, tenantId, actor, customerId, creditSchema.parse({ kind: 'rain_check', amount: 185.43, reason: 'Rained out' }));
     const wc = await createCredit(db, tenantId, actor, customerId, creditSchema.parse({ kind: 'wallet', amount: 20 }));

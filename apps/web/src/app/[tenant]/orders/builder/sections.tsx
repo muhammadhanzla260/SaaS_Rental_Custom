@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Lock, MapPin, Minus, Plus, Sparkles, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { FileText, Lock, MapPin, Minus, Plus, Sparkles, Trash2, Upload } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import {
-  describeTrace, EVENT_TYPES, formatMoney, formatPhone, HOW_HEARD, SERVICE_MODES, type QuotedLine, type ServiceMode,
+  addDays, describeTrace, EVENT_TYPES, formatMoney, formatPhone, HOW_HEARD, SERVICE_MODES, type QuotedLine, type ServiceMode,
 } from '@rental/core';
 import type { Availability } from '@rental/db';
 import { CustomerSearch } from '@/components/customers/customer-form';
@@ -12,8 +12,9 @@ import { initialsOf } from '@/components/customers/customer-profile';
 import { ProductArt } from '@/components/catalog/product-art';
 import { AddressBlock } from '@/components/fields/address';
 import { scope } from '@/components/fields/scope';
-import { AffixInput, Button, Card, Checkbox, cx, Field, FilterChips, Input, Notice, Select, Textarea, Toggle } from '@/components/kit';
-import { addMinutes, durationLabel, num, timeLabel } from './draft';
+import { AffixInput, Button, Card, Checkbox, cx, Field, FilterChips, Input, Notice, Select, Textarea, Toggle, useToast } from '@/components/kit';
+import { uploadSetupMapAction } from '@/server/actions/commerce';
+import { addMinutes, durationLabel, locationOf, num, timeLabel } from './draft';
 import type { BuilderData, BuilderProduct, Draft, DraftLine } from './types';
 
 type SetDraft = (patch: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void;
@@ -156,6 +157,15 @@ export function EventSection({
     set({ durationMin: Math.max(30, mins) });
   };
   const dur = d.durationMin;
+  // Multi-day: the end is a date and a time; duration follows from them (wall-clock arithmetic, no time zone).
+  const endDate = addDays(d.date, Math.floor((sh * 60 + sm + dur) / 1440));
+  const setEndAt = (date: string, time: string) => {
+    const mins = Math.round((Date.parse(`${date}T${time}:00Z`) - Date.parse(`${d.date}T${d.start}:00Z`)) / 60_000);
+    if (mins > 0) set({ durationMin: mins });
+  };
+  const loc = locationOf(data, d.locationId);
+  const zip = d.eventAddress.postalCode?.trim();
+  const outsideArea = !!zip && !!loc?.servedZips.length && !loc.servedZips.some((z) => z.replace(/\s/g, '') === zip.replace(/\s/g, ''));
   return (
     <Section title="Event" id="sec-event">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -171,11 +181,31 @@ export function EventSection({
         <Field label="Start" htmlFor="ob-start">
           <Input id="ob-start" type="time" mono step={900} value={d.start} onChange={(e) => e.target.value && set({ start: e.target.value })} />
         </Field>
-        <Field label="End" htmlFor="ob-end">
-          <Input id="ob-end" type="time" mono step={900} value={end} onChange={(e) => e.target.value && setEnd(e.target.value)} />
-        </Field>
+        {!d.multiDay && (
+          <Field label="End" htmlFor="ob-end">
+            <Input id="ob-end" type="time" mono step={900} value={end} onChange={(e) => e.target.value && setEnd(e.target.value)} />
+          </Field>
+        )}
       </div>
-      <div className="mt-5">
+      <div className="mt-3">
+        <Checkbox checked={d.multiDay} onChange={(on) => set({ multiDay: on, ...(on ? {} : { durationMin: Math.min(dur, 1440) }) })}>
+          Rental spans multiple calendar days (start date &amp; time → end date &amp; time)
+        </Checkbox>
+      </div>
+      {d.multiDay && (
+        <div className="anim-fade mt-3 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Field label="End date" htmlFor="ob-end-date" className="col-span-2 lg:col-span-1">
+            <Input id="ob-end-date" type="date" mono min={d.date} value={endDate} onChange={(e) => e.target.value && setEndAt(e.target.value, end)} />
+          </Field>
+          <Field label="End time" htmlFor="ob-end-time">
+            <Input id="ob-end-time" type="time" mono step={900} value={end} onChange={(e) => e.target.value && setEndAt(endDate, e.target.value)} />
+          </Field>
+          <p className="col-span-2 self-end pb-2 text-[13px] text-fg-2">
+            {durationLabel(dur)}{dur >= 1440 ? ` · ${Math.floor(dur / 1440)} day${dur >= 2880 ? 's' : ''}` : ''} · billed for the real time
+          </p>
+        </div>
+      )}
+      <div className={cx('mt-5', d.multiDay && 'hidden')}>
         <div className="mb-2 flex items-center justify-between">
           <label htmlFor="ob-dur" className="text-[13px] font-semibold text-fg">Duration · <span className="mono">{durationLabel(dur)}</span></label>
         </div>
@@ -217,6 +247,9 @@ export function EventSection({
               onChange={(e) => set({ miles: e.target.value, milesOverridden: true })} />
             {d.milesOverridden && d.eventAddress.lat != null && <button type="button" onClick={onRecomputeMiles} className="font-semibold text-accent-text hover:underline">Recalculate</button>}
           </div>
+          {outsideArea && (
+            <Notice kind="warning">ZIP {zip} is not in {loc!.name}’s service area. Check the territory map or ask the office before continuing; the order is not blocked.</Notice>
+          )}
           {d.milesNote && <p className="text-[12px] text-fg-2">{d.milesNote}</p>}
           {travelTrace && <p className="mono text-[12px] text-fg-2">Travel: {travelTrace}</p>}
         </div>
@@ -241,14 +274,23 @@ export function EventSection({
         </div>
       </div>
 
-      <p className="eyebrow mb-3 mt-6">On-site contact</p>
+      <div className="mb-3 mt-6 flex flex-wrap items-center justify-between gap-2">
+        <p className="eyebrow">Event day point of contact</p>
+        <Checkbox
+          checked={!!d.contact.name && d.contact.name === (d.billing.name || c?.name) && d.contact.mobile === (d.billing.phone2 || d.billing.phone) && d.contact.email === d.billing.email}
+          onChange={(on) => on && set((x) => ({ contact: { ...x.contact, name: x.billing.name || c?.name || '', mobile: x.billing.phone2 || x.billing.phone, email: x.billing.email } }))}
+        >
+          Same as billing contact
+        </Checkbox>
+      </div>
+      <p className="mb-3 text-[12px] text-fg-2">The person on site with a mobile phone during delivery, the event and pickup. Use a mobile number, not a desk phone.</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Name" htmlFor="ob-cname"><Input id="ob-cname" value={d.contact.name} onChange={(e) => set((x) => ({ contact: { ...x.contact, name: e.target.value } }))} /></Field>
         <Field label="Mobile" htmlFor="ob-cmobile"><Input id="ob-cmobile" type="tel" inputMode="tel" value={d.contact.mobile} onChange={(e) => set((x) => ({ contact: { ...x.contact, mobile: e.target.value } }))} /></Field>
         <Field label="Email" htmlFor="ob-cemail" optional><Input id="ob-cemail" type="email" value={d.contact.email} onChange={(e) => set((x) => ({ contact: { ...x.contact, email: e.target.value } }))} /></Field>
       </div>
       <div className="mt-3">
-        <Checkbox checked={d.contact.confirmed} onChange={(x) => set((p) => ({ contact: { ...p.contact, confirmed: x } }))}>Contact confirmed</Checkbox>
+        <Checkbox checked={d.contact.confirmed} onChange={(x) => set((p) => ({ contact: { ...p.contact, confirmed: x } }))}>I confirmed the event day point of contact</Checkbox>
       </div>
     </Section>
   );
@@ -403,6 +445,7 @@ export function LinesSection({
                     )}
                   </div>
                   <Checkbox checked={l.taxable} onChange={(x) => setLine(l.key, { taxable: x })}>Taxable</Checkbox>
+                  {p && <span title="Charge the base package only, with no additional time"><Checkbox checked={l.flatRate} onChange={(x) => setLine(l.key, { flatRate: x })}>Flat rate</Checkbox></span>}
                   <span className="mono ml-auto text-[15px] font-bold text-fg">{money(q?.lineTotalCents ?? 0)}</span>
                 </div>
                 <p className="mono mt-2 text-[12px] text-fg-2">
@@ -420,11 +463,41 @@ export function LinesSection({
   );
 }
 
-export function NotesSection({ d, set }: { d: Draft; set: SetDraft }) {
+export function NotesSection({ d, set, slug }: { d: Draft; set: SetDraft; slug: string }) {
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  async function upload(f: File) {
+    setUploading(true);
+    const fd = new FormData();
+    fd.set('file', f);
+    const r = await uploadSetupMapAction(slug, fd);
+    setUploading(false);
+    if (!r.ok) return toast(r.error, 'error');
+    set({ setupMap: r.data! });
+  }
   return (
     <Section title="Notes" id="sec-notes">
+      <div className="mb-4 flex flex-col gap-2">
+        <p className="text-[13px] font-semibold text-fg">Setup map <span className="font-normal text-fg-3">· optional, shared with the crew</span></p>
+        {d.setupMap ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-subtle p-3">
+            <FileText className="size-5 text-fg-2" aria-hidden />
+            <a href={d.setupMap.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-accent-text hover:underline">{d.setupMap.name}</a>
+            <Button size="sm" variant="ghost" onClick={() => fileRef.current?.click()} pending={uploading}>Replace</Button>
+            <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => set({ setupMap: null })}>Remove</Button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="press flex items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-control px-4 py-4 text-sm font-semibold text-accent-text hover:bg-hover disabled:opacity-60">
+            <Upload className="size-4" /> {uploading ? 'Uploading…' : 'Upload image or PDF'}
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="sr-only" aria-label="Setup map file"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Internal notes" htmlFor="ob-int" hint="Only your team and coaches see these.">
+        <Field label="Setup instructions & internal notes" htmlFor="ob-int" hint="Only your team and coaches see these.">
           <Textarea id="ob-int" rows={3} value={d.internalNotes} onChange={(e) => set({ internalNotes: e.target.value })} />
         </Field>
         <Field label="Note to customer" htmlFor="ob-cust" hint="Printed on the quote.">

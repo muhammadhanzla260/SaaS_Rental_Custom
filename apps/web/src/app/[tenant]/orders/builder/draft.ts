@@ -48,7 +48,7 @@ export function initialDraft(data: BuilderData): Draft {
         address: { ...blankAddr(data.country), ...(c?.billingAddress ?? {}), ...(o.billing.address ?? {}) },
       },
       salespersonUserId: o.salespersonUserId ?? '', source: o.source ?? '', referredBy: o.referredByCustomerId ? { id: o.referredByCustomerId, name: 'Referring customer' } : null,
-      eventType: o.eventType ?? '', date: s.date, start: s.time, durationMin: dur,
+      eventType: o.eventType ?? '', date: s.date, start: s.time, durationMin: dur, multiDay: o.multiDay || dur > 1440,
       addressChoice: o.customerAddressId ? `saved:${o.customerAddressId}` : 'other',
       eventAddress: { ...o.eventAddress }, saveAddress: false, eventLocationName: o.eventLocationName ?? '',
       miles: o.eventMiles == null ? '' : String(o.eventMiles), milesOverridden: o.milesOverridden,
@@ -63,7 +63,8 @@ export function initialDraft(data: BuilderData): Draft {
       internalNotes: o.internalNotes, customerNotes: o.customerNotes,
       damageWaiver: o.damageWaiver, waiverPercent: String(o.damageWaiverPercent),
       travelOverride: o.travelFeeOverridden ? dollars(o.travelFeeCents) : null,
-      discountKind: o.discountKind ?? 'percent', discountValue: o.discountValue == null ? '' : String(o.discountValue),
+      discountKind: o.discountKind ?? 'percent', discountValue: o.discountValue == null ? '' : String(o.discountValue), discountNote: o.discountNote ?? '',
+      setupMap: o.setupMap,
       couponCode: o.couponCode ?? '',
       coupon: null,
       taxPercent: String(o.taxPercent), taxOverridden: o.taxOverridden,
@@ -81,7 +82,7 @@ export function initialDraft(data: BuilderData): Draft {
     },
     salespersonUserId: data.salespeople.some((s) => s.userId === data.me.userId) ? data.me.userId : '',
     source: c ? (c.orderCount > 0 ? 'Repeat customer' : c.source ?? '') : '', referredBy: null,
-    eventType: '', date: data.defaultDate ?? addDays(today, 7), start: '13:00', durationMin: 300,
+    eventType: '', date: data.defaultDate ?? addDays(today, 7), start: '13:00', durationMin: 300, multiDay: false,
     addressChoice: c?.addresses.find((a) => a.kind === 'event') ? `saved:${c.addresses.find((a) => a.kind === 'event')!.id}` : c?.billingAddress.line1 ? 'billing' : 'other',
     eventAddress: c?.addresses.find((a) => a.kind === 'event')?.address ?? (c?.billingAddress.line1 ? c.billingAddress : blankAddr(data.country)),
     saveAddress: false, eventLocationName: '',
@@ -90,7 +91,7 @@ export function initialDraft(data: BuilderData): Draft {
     contact: { name: c?.name ?? '', mobile: formatPhone(c?.phone, data.country), email: c?.email ?? '', confirmed: false },
     lines: [], internalNotes: '', customerNotes: '',
     damageWaiver: data.booking.waiverDefaultOn, waiverPercent: String(data.booking.waiverPercent),
-    travelOverride: null, discountKind: 'percent', discountValue: '', couponCode: '', coupon: null,
+    travelOverride: null, discountKind: 'percent', discountValue: '', discountNote: '', setupMap: null, couponCode: '', coupon: null,
     taxPercent: String(loc?.taxPercent ?? 0), taxOverridden: false,
     credits: Object.fromEntries(data.credits.map((x) => [x.id, { on: false, amount: dollars(x.balanceCents) }])),
     depositRule: data.booking.depositPercent === 50 ? '50' : '30', depositCustomKind: 'percent', depositCustomValue: '',
@@ -139,7 +140,7 @@ export function priceDraft(d: Draft, data: BuilderData) {
   const usedCredits = data.credits.filter((c) => d.credits[c.id]?.on).map((c) => ({ id: c.id, cents: Math.min(cents(d.credits[c.id]!.amount), c.balanceCents) }));
   const taxPercent = d.taxOverridden ? num(d.taxPercent) : d.customer?.taxExempt ? 0 : (loc?.taxPercent ?? 0);
   const quote = quoteOrder({
-    startsAt, endsAt, multiDay: false,
+    startsAt, endsAt, multiDay: d.multiDay,
     lines: d.lines.map((l) => {
       const p = l.productId ? byId.get(l.productId) : undefined;
       if (!p) {
@@ -178,7 +179,7 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
     customerId: d.customer?.id ?? '',
     locationId: d.locationId,
     eventType: d.eventType,
-    startsAt, endsAt, multiDay: false,
+    startsAt, endsAt, multiDay: d.multiDay,
     eventSameAsBilling: d.addressChoice === 'billing',
     eventLocationName: d.eventLocationName,
     eventAddress: d.eventAddress,
@@ -204,6 +205,7 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
     travelInfo: d.depotId ? { depotId: d.depotId } : null,
     miscFees: 0,
     discount: num(d.discountValue) > 0 ? { kind: d.discountKind, value: num(d.discountValue), afterTax: false } : null,
+    discountNote: num(d.discountValue) > 0 ? d.discountNote : '',
     couponCode: d.coupon?.code ?? '',
     coupon: 0,
     credits: data.credits.filter((c) => d.credits[c.id]?.on).map((c) => ({ creditId: c.id, amount: Math.min(num(d.credits[c.id]!.amount), c.balanceCents / 100) })),
@@ -213,6 +215,7 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
     source: d.source,
     internalNotes: d.internalNotes,
     customerNotes: d.customerNotes,
+    setupMapFileId: d.setupMap?.id ?? null,
   } as OrderFormValues;
 }
 

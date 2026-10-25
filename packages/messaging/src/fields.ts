@@ -110,7 +110,7 @@ export function emailData(ctx: MessageContext, extra: Extra = {}): EmailData {
     ...(s.eventLocationCents ? [{ label: 'Non-Residential Location Fee', cents: s.eventLocationCents }] : []),
     ...(s.setupSurfaceCents ? [{ label: `Setup Surface Fee${surface ? ` (${surface.label})` : ''}`, cents: s.setupSurfaceCents }] : []),
     ...(o.travelFeeCents ? [{ label: `Travel Fee${travel.billable ? ` (${Number(travel.billable).toFixed(1)} mi)` : ''}`, cents: o.travelFeeCents }] : []),
-    ...(s.preTaxDiscountCents ? [{ label: o.discountKind === 'percent' ? `Discount (${pct(o.discountValue)})` : 'Discount', cents: s.preTaxDiscountCents, credit: true }] : []),
+    ...(s.preTaxDiscountCents ? [{ label: `${o.discountKind === 'percent' ? `Discount (${pct(o.discountValue)})` : 'Discount'}${o.discountNote ? ` · ${o.discountNote}` : ''}`, cents: s.preTaxDiscountCents, credit: true }] : []),
     ...(s.couponCents ? [{ label: `Coupon ${o.couponCode ?? ''}`.trim(), cents: s.couponCents, credit: true }] : []),
     ...(o.taxCents ? [{ label: `Tax (${pct(o.taxPercent)})`, cents: o.taxCents }] : []),
     ...(o.creditCents ? [{ label: 'Rain Checks & Credits', cents: o.creditCents, credit: true }] : []),

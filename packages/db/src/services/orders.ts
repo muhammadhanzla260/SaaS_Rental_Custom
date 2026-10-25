@@ -237,6 +237,7 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
     discountKind: input.discount && input.discount.value > 0 ? input.discount.kind : null,
     discountValue: input.discount && input.discount.value > 0 ? input.discount.value : null,
     discountAfterTax: !!input.discount?.afterTax,
+    discountNote: input.discountNote ?? null,
     couponCode: priced.coupon?.code ?? input.couponCode ?? null,
     couponId: priced.coupon?.id ?? null,
     couponCents: s.couponCents,
@@ -255,6 +256,7 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
     source: input.source ?? null,
     internalNotes: input.internalNotes ?? null,
     customerNotes: input.customerNotes ?? null,
+    setupMapFileId: input.setupMapFileId ?? null,
   };
 }
 
@@ -555,12 +557,20 @@ export function transitionOrder(
       set = { status: 'booked', bookedAt: now };
       const b = opts.booking;
       if (b?.method === 'manual') {
-        const cents = toCents(b.amount);
-        if (cents > order.totalCents) throw new OrgError('That is more than the order total.', 'invalid');
-        payment = await recordPaymentTx(tx, tenantId, actor, order, prefs, { method: b.payMethod, amountCents: cents, reference: b.reference });
+        const cents = toCents(Number(b.amount));
+        if (cents > order.totalCents - order.paidCents) throw new OrgError('That is more than the order total.', 'invalid');
+        payment = await recordPaymentTx(tx, tenantId, actor, order, prefs, {
+          method: b.payMethod, amountCents: cents, tipCents: b.tip ? toCents(Number(b.tip)) : 0, reference: b.reference,
+        });
         set = { ...set, paidCents: order.paidCents + cents, unpaidReason: null, expectedPaymentOn: null, followUpNotes: null };
       } else if (b?.method === 'none') {
         set = { ...set, unpaidReason: b.reason, expectedPaymentOn: b.expectedOn, followUpNotes: b.notes ?? null };
+      }
+      // Staff confirmed, for the customer, the policies they agreed to (Odoo POS "Additional information").
+      const acks = Object.entries(b?.policies ?? {}).filter(([, on]) => on);
+      if (acks.length) {
+        const by = actor.userId ? (await tx.select({ name: users.name }).from(users).where(eq(users.id, actor.userId)).limit(1))[0]?.name ?? null : null;
+        set = { ...set, policyAcks: Object.fromEntries(acks.map(([k]) => [k, { at: now.toISOString(), by }])) };
       }
     }
     if (action === 'complete') set = { status: 'completed' };
@@ -577,6 +587,9 @@ export function transitionOrder(
     const diff: Record<string, { from: string; to: string }> = { Status: { from: order.status, to: after!.status } };
     if (payment) diff.Payment = { from: '', to: `${payment.number} · ${payment.method} · ${money(payment.amountCents)}` };
     if (opts.booking?.method === 'none') diff['Booked without payment'] = { from: '', to: `${opts.booking.reason} · expected ${opts.booking.expectedOn}` };
+    const confirmed = Object.entries(opts.booking?.policies ?? {}).filter(([, on]) => on).map(([k]) => k);
+    if (confirmed.length) diff['Policies confirmed for the customer'] = { from: '', to: confirmed.join(', ') };
+    if (payment?.tipCents) diff.Tip = { from: '', to: money(payment.tipCents) };
     await recordVersion(tx, tenantId, actor, after!, action === 'book' ? 'booked' : action, diff, opts.reason);
     await audit(tx, tenantId, actor, { type: 'order', id }, `order.${action}`, {
       number: order.number, from: order.status, to: after!.status, ...(opts.reason ? { reason: opts.reason } : {}), ...(payment ? { payment: payment.number } : {}),
@@ -585,7 +598,10 @@ export function transitionOrder(
     if (action === 'send_quote') await enqueueOrderMessage(tx, tenantId, id, 'quote', `${id}:quote:v${after!.version}`, { automatic: false });
     if (action === 'book') {
       // Like Odoo: a paid booking gets one email, the payment confirmation (which says it is booked).
-      if (payment) await enqueuePaymentConfirmation(tx, tenantId, after!, payment.id);
+      // "Email payment receipt to the customer" ticked: always sent (staff asked); unticked: none.
+      if (payment) {
+        if (opts.booking?.method !== 'manual' || opts.booking.receipt !== false) await enqueuePaymentConfirmation(tx, tenantId, after!, payment.id, opts.booking?.method !== 'manual');
+      }
       else if (!opts.paymentFollows) await enqueueOrderMessage(tx, tenantId, id, 'booking_confirmation', `${id}:booking_confirmation`, { automatic: true });
       const m = prefs.messaging;
       if (order.eventStartsAt.getTime() - now.getTime() < (m.lastMinuteHours ?? 24) * 3_600_000) {
@@ -689,6 +705,8 @@ export function orderInputFrom(
     source: o.source ?? undefined,
     internalNotes: o.internalNotes ?? undefined,
     customerNotes: o.customerNotes ?? undefined,
+    discountNote: o.discountNote ?? undefined,
+    setupMapFileId: o.setupMapFileId,
   };
   return { ...base, ...patch };
 }

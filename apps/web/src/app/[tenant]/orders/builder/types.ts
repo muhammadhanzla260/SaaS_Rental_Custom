@@ -5,6 +5,8 @@ export type Addr = { line1: string; line2: string; city: string; region: string;
 export type BuilderLocation = {
   id: string; name: string; code: string; timezone: string; lat: number | null; lng: number | null; isPrimary: boolean; taxPercent: number;
   rules: { unit: 'mi' | 'km'; freeDistance: number; rateStaffed: number; rateDropoff: number }; paused: boolean;
+  /** ZIP codes this location serves (empty = no list). Orders outside are flagged, not blocked. */
+  servedZips: string[];
 };
 
 export type BuilderProduct = {
@@ -25,7 +27,7 @@ export type Billing = { name?: string; email?: string; phone?: string; phone2?: 
 
 export type BuilderOrder = {
   id: string; number: string; status: string; version: number; locationId: string; customerId: string; eventType: string | null;
-  startsAt: string; endsAt: string; eventLocationName: string | null; eventAddress: Addr; customerAddressId: string | null;
+  startsAt: string; endsAt: string; multiDay: boolean; discountNote: string | null; setupMap: SetupMap | null; policyAcks: Record<string, { at: string; by: string | null }>; eventLocationName: string | null; eventAddress: Addr; customerAddressId: string | null;
   contact: { name: string; mobile: string; email: string; confirmed: boolean };
   eventMiles: number | null; milesOverridden: boolean; travelInfo: Record<string, unknown> | null;
   setupSurface: string | null; eventLocationFee: boolean; eventLocationFeeCents: number; billing: Billing;
@@ -42,6 +44,8 @@ export type BuilderOrder = {
   versions: { version: number; action: string; diff: Record<string, { from: string; to: string }>; totals: { totalCents?: number }; actorName: string | null; reason: string | null; at: string }[];
 };
 
+export type SetupMap = { id: string; name: string; url: string };
+
 export type BuilderData = {
   slug: string; currency: string; country: string; orgTimezone: string;
   locations: BuilderLocation[]; defaultLocationId: string | null; defaultDate: string | null;
@@ -53,6 +57,10 @@ export type BuilderData = {
   me: { userId: string; role: Role };
   perms: { create: boolean; overridePrice: boolean; overrideTax: boolean; recordPayment: boolean; refund: boolean; editCustomers: boolean };
   readOnly: boolean;
+  /** Policies staff confirm for the customer when booking (the agreement's, without the waiver). */
+  policies: { key: string; title: string; text: string }[];
+  /** The customer already signed the agreement online (then no staff confirmation is needed). */
+  signedOnline: boolean;
   customer: BuilderCustomer | null;
   credits: BuilderCredit[];
   order: BuilderOrder | null;
@@ -72,6 +80,8 @@ export type Draft = {
   billing: { name: string; email: string; phone: string; phone2: string; address: Addr };
   salespersonUserId: string; source: string; referredBy: { id: string; name: string } | null;
   eventType: string; date: string; start: string; durationMin: number;
+  /** Rental spans several calendar days (start date & time → end date & time). */
+  multiDay: boolean;
   addressChoice: string; // 'saved:<id>' | 'billing' | 'other'
   eventAddress: Addr; saveAddress: boolean; eventLocationName: string;
   miles: string; milesOverridden: boolean; depotId: string | null; milesNote: string | null;
@@ -81,7 +91,8 @@ export type Draft = {
   internalNotes: string; customerNotes: string;
   damageWaiver: boolean; waiverPercent: string;
   travelOverride: string | null;
-  discountKind: 'percent' | 'amount'; discountValue: string;
+  discountKind: 'percent' | 'amount'; discountValue: string; discountNote: string;
+  setupMap: SetupMap | null;
   couponCode: string; coupon: { code: string; kind: 'percent' | 'amount'; value: number; label: string } | null;
   taxPercent: string; taxOverridden: boolean;
   credits: Record<string, { on: boolean; amount: string }>;

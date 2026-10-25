@@ -24,8 +24,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ tenantId
       // File ids are immutable: a new upload gets a new id.
       'Cache-Control': file.isPublic ? 'public, max-age=31536000, immutable' : 'private, max-age=300',
       'X-Content-Type-Options': 'nosniff',
-      // SVGs must never run scripts when opened directly.
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      // SVGs must never run scripts when opened directly. (A sandboxed page cannot show a PDF, so PDFs open as downloads-in-place.)
+      ...(file.mime === 'application/pdf'
+        ? { 'Content-Disposition': `inline; filename="${file.filename.replace(/[^\w. -]/g, '_')}"` }
+        : { 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox" }),
     },
   });
 }
