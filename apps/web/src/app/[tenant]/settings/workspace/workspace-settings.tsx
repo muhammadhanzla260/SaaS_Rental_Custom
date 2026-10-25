@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { z } from 'zod';
 import {
-  agreementSchema, agreementSections, bookingDefaultsSchema, brandStepSchema, checkAccent, connectStepSchema, CURRENCIES, profileStepSchema, themeStyle,
+  agreementSchema, agreementSections, bookingDefaultsSchema, brandStepSchema, checkAccent, paymentAccountSchema, CURRENCIES, profileStepSchema, themeStyle,
   type Agreement, type BookingDefaults, type BrandSettings, type Corners,
 } from '@rental/core';
 import {
@@ -17,13 +18,13 @@ import { ThemePicker } from '@/components/brand/theme-picker';
 import { AddressBlock } from '@/components/fields/address';
 import { scope } from '@/components/fields/scope';
 import { localTime, TimezoneSelect } from '@/components/fields/timezone-select';
-import { connectPayload, MailFields, PaymentFields, SmsFields, type ConnectDraft } from '@/components/settings/connect-fields';
+import { PaymentFields, type ConnectDraft } from '@/components/settings/connect-fields';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { useForm } from '@/lib/form';
 import { zodFieldErrors } from '@/lib/result';
-import { saveAgreementAction, saveBrandAction, saveBusinessProfileAction, saveIntegrationsAction, saveRentalRulesAction } from '@/server/actions/settings';
+import { saveAgreementAction, saveBrandAction, saveBusinessProfileAction, savePaymentsAction, saveRentalRulesAction } from '@/server/actions/settings';
 
-type Tab = 'brand' | 'profile' | 'warehouses' | 'connect' | 'rules' | 'agreement';
+type Tab = 'brand' | 'profile' | 'warehouses' | 'payments' | 'rules' | 'agreement';
 
 export type WorkspaceInitial = {
   brand: { branding: { brandColor: string; themeMode: 'light' | 'dark' | 'system'; radius: Corners }; brand: BrandSettings };
@@ -31,7 +32,9 @@ export type WorkspaceInitial = {
     profile: { name: string; legalName: string; phone: string; email: string; website: string; taxId: string; address: Record<string, unknown> };
     timezone: string; currency: string; dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY'; weekStartsOn: 'sunday' | 'monday';
   };
-  connect: ConnectDraft;
+  payments: ConnectDraft['payments'];
+  mailReady: 'verified' | 'untested' | 'platform';
+  smsReady: boolean;
   rules: BookingDefaults;
   agreement: Agreement;
   warehouses: { id: string; name: string; code: string; city: string; isPrimary: boolean; isActive: boolean; pinned: boolean; freeMiles: number; timezone: string }[];
@@ -45,7 +48,7 @@ export function WorkspaceSettings(props: Props) {
     { value: 'brand', label: 'Brand & theme' },
     { value: 'profile', label: 'Business profile' },
     { value: 'warehouses', label: 'Warehouses' },
-    { value: 'connect', label: 'Email & payments' },
+    { value: 'payments', label: 'Payments' },
     { value: 'rules', label: 'Rental rules' },
     { value: 'agreement', label: 'Agreement' },
   ] as const;
@@ -62,7 +65,7 @@ export function WorkspaceSettings(props: Props) {
           {tab === 'brand' && <BrandTab {...props} />}
           {tab === 'profile' && <ProfileTab {...props} />}
           {tab === 'warehouses' && <WarehousesTab {...props} />}
-          {tab === 'connect' && <ConnectTab {...props} />}
+          {tab === 'payments' && <PaymentsTab {...props} />}
           {tab === 'rules' && <RulesTab {...props} />}
           {tab === 'agreement' && <AgreementTab {...props} />}
         </div>
@@ -298,42 +301,42 @@ function WarehousesTab({ slug, initial }: Props) {
   );
 }
 
-// --- Email & payments ----------------------------------------------------------------------
+// --- Payments --------------------------------------------------------------------------------
 
-function ConnectTab({ slug, initial, orgName, readOnly }: Props) {
+function PaymentsTab({ slug, initial, readOnly }: Props) {
   const saved = useSaved();
-  const form = useForm(initial.connect);
+  const form = useForm({ payments: initial.payments });
   const save = () => {
-    const body = connectPayload(form.values);
-    const p = connectStepSchema.safeParse(body);
+    // A blank secret keeps the saved one.
+    const body = { payments: { ...form.values.payments, secretKey: form.values.payments.secretKey || undefined } };
+    const p = z.object({ payments: paymentAccountSchema }).safeParse(body);
     if (!p.success) { form.setErrors(zodFieldErrors(p.error)); form.setStatus({ kind: 'error', text: 'A few fields need attention.' }); return; }
-    form.submit(() => saveIntegrationsAction(slug, body), (r) => saved(r.message));
+    form.submit(() => savePaymentsAction(slug, body), (r) => saved(r.message));
   };
+  const mail = initial.mailReady === 'verified' ? 'Mail server verified' : initial.mailReady === 'untested' ? 'Mail server not tested yet' : 'Sending from Tentpole for now';
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <Card className="flex flex-col gap-5 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-bold text-fg">Email sending</h2>
-          {initial.connect.mail.mode === 'smtp' && (initial.connect.mail.verifiedAt ? <Pill tone="success">Verified</Pill> : <Pill tone="warning">Not tested yet</Pill>)}
+        <div>
+          <h2 className="text-base font-bold text-fg">Card payments</h2>
+          <p className="mt-1 text-[13px] text-fg-2">Deposits and balances on the quote page, saved cards and the event-day charge. Each location can use its own account: Settings → Locations.</p>
         </div>
-        <MailFields s={scope(form, 'mail')} orgName={orgName} />
-        <p className="text-[13px] text-fg-2">Each location can use its own mail server: Settings → Locations → Email (SMTP).</p>
+        <fieldset disabled={readOnly} className="min-w-0"><PaymentFields s={scope(form, 'payments')} /></fieldset>
       </Card>
-      <Card className="flex flex-col gap-5 p-5 sm:p-6">
-        <h2 className="text-base font-bold text-fg">Text messages</h2>
-        <SmsFields s={scope(form, 'sms')} />
-      </Card>
-      <Card className="flex flex-col gap-5 p-5 sm:p-6">
-        <h2 className="text-base font-bold text-fg">Card payments</h2>
-        <PaymentFields s={scope(form, 'payments')} />
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6">
+        <div>
+          <h2 className="text-base font-bold text-fg">Email and text messages</h2>
+          <p className="mt-1 text-[13px] text-fg-2">{mail} · {initial.smsReady ? 'texts connected' : 'texts not set up'}. The mail server and text provider are set up in one place.</p>
+        </div>
+        <Link href={`/${slug}/settings/messaging`} className="press inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-control)] border border-control bg-surface px-4 text-sm font-semibold text-fg hover:bg-hover">
+          Email &amp; SMS settings <ArrowRight className="size-4" />
+        </Link>
       </Card>
       {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
-      <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial.connect)} readOnly={readOnly} />
+      <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset({ payments: initial.payments })} readOnly={readOnly} />
     </div>
   );
 }
-
-// --- Rental rules --------------------------------------------------------------------------
 
 function MoneyField({ id, label, cents, onChange, hint, suffix, currency }: { id: string; label: ReactNode; cents: number; onChange: (c: number) => void; hint?: ReactNode; suffix?: string; currency: string }) {
   const [txt, setTxt] = useState((cents / 100).toFixed(2));

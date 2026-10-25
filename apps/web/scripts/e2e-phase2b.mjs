@@ -228,7 +228,7 @@ try {
   await o.shot('12-agreement-settings');
   await o.click('Discard');
 
-  await o.go(`${S}/settings/workspace?tab=connect`);
+  await o.go(`${S}/settings/workspace?tab=payments`);
   await o.waitText('Card payments');
   await o.click('Stripe', '[role="radio"], label, button');
   const pk = await o.idFor('Publishable key');

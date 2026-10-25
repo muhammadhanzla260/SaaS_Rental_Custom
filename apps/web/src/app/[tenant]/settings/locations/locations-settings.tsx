@@ -350,7 +350,7 @@ function LocationMail({ slug, row, orgName, readOnly }: Props & { row: LocationR
   };
   return (
     <div className="flex flex-col gap-6">
-      <Toggle checked={v.own} onChange={(x) => form.set('own', x)} label="Use this location's own mail server" sub="Off: emails for this location go through the organization's mail server (Workspace → Email & payments)." />
+      <Toggle checked={v.own} onChange={(x) => form.set('own', x)} label="Use this location's own mail server" sub="Off: emails for this location go through the organization's mail server (Settings → Email & SMS)." />
       {v.own && <MailFields s={scope(form, 'mail')} orgName={orgName} platformOption={false} />}
       {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
       <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial)} readOnly={readOnly} />

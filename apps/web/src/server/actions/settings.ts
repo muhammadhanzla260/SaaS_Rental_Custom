@@ -3,12 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
-  agreementSchema, bookingDefaultsSchema, brandStepSchema, connectStepSchema, documentNumberingSchema, GRANTABLE, INVITABLE_ROLES, locationSchema,
+  agreementSchema, bookingDefaultsSchema, brandStepSchema, documentNumberingSchema, GRANTABLE, INVITABLE_ROLES, locationSchema,
   mailAccountSchema, paymentAccountSchema, profileStepSchema, renderPrefix, ROLES, type DocumentKind, type Role,
 } from '@rental/core';
 import {
   createInvitation, createLocation, deleteLocation, getNextNumbers, removeLocationMailAccount, removeLocationPaymentAccount, resendInvitation, revokeInvitation,
-  saveConnectStep, saveLogo, saveMailAccount, savePaymentAccount, saveProfileStep, setNextNumber, setSetupItem, updateBrand, updateLocation,
+  saveLogo, saveMailAccount, savePaymentAccount, saveProfileStep, setNextNumber, setSetupItem, updateBrand, updateLocation,
   updateMember, updatePreferences,
 } from '@rental/db';
 import { invalid, type ActionResult } from '@/lib/result';
@@ -75,16 +75,17 @@ export async function saveAgreementAction(slug: string, input: unknown): Promise
   });
 }
 
-export async function saveIntegrationsAction(slug: string, input: unknown): Promise<ActionResult> {
+/** Card payments for the whole workspace (mail and texts live in Email & SMS). */
+export async function savePaymentsAction(slug: string, input: unknown): Promise<ActionResult> {
   return run(async () => {
     const ctx = await requireSettingsAccess(slug);
-    const parsed = connectStepSchema.safeParse(input);
+    const parsed = z.object({ payments: paymentAccountSchema }).safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
     const stripe = await checkStripeKeys(parsed.data.payments);
     if (!stripe.ok) return stripe.result;
-    await saveConnectStep(db, ctx.tenant.id, ctx.actor, parsed.data);
+    await savePaymentAccount(db, ctx.tenant.id, ctx.actor, null, parsed.data.payments);
     refresh(slug);
-    return { ok: true, message: stripe.account ? `Saved. Stripe is connected to ${stripe.account}.` : 'Email, SMS and payment settings saved.' };
+    return { ok: true, message: stripe.account ? `Saved. Stripe is connected to ${stripe.account}.` : 'Payment settings saved.' };
   });
 }
 
