@@ -12,6 +12,7 @@ import { audit, type Actor } from './audit';
 import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
 import { OrgError } from './errors';
+import { enqueueOfficeAlert, enqueueOrderMessage, ensureOrderToken, planOrderMessages } from './messaging';
 
 export type Order = typeof orders.$inferSelect;
 export type OrderLine = typeof orderLines.$inferSelect;
@@ -444,6 +445,7 @@ export function updateOrder(
     if (order!.status === 'booked') await reserveAll(tx, tenantId, order!, lines, prefs);
     const changes = snapshotDiff(snapshot(before, beforeLines), snapshot(order!, lines));
     await recordVersion(tx, tenantId, actor, order!, 'updated', changes, reason);
+    if (order!.status === 'booked') await planOrderMessages(tx, tenantId, id);
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.updated', {
       number: order!.number,
       version: order!.version,
@@ -523,7 +525,11 @@ export function transitionOrder(
     const now = new Date();
     let set: Partial<typeof orders.$inferInsert> = {};
     let payment: Payment | null = null;
-    if (action === 'send_quote') set = { status: 'quote_sent', quoteSentAt: now };
+    if (action === 'send_quote') {
+      await ensureOrderToken(tx, tenantId, id);
+      const days = prefs.booking.quoteValidDays;
+      set = { status: 'quote_sent', quoteSentAt: now, quoteExpiresOn: days ? new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10) : null };
+    }
     if (action === 'book') {
       const lines = await linesOf(tx, tenantId, id);
       if (!lines.length) throw new OrgError('Add at least one item before booking.', 'invalid');
@@ -557,6 +563,20 @@ export function transitionOrder(
     await audit(tx, tenantId, actor, { type: 'order', id }, `order.${action}`, {
       number: order.number, from: order.status, to: after!.status, ...(opts.reason ? { reason: opts.reason } : {}), ...(payment ? { payment: payment.number } : {}),
     });
+    // Messages, in the same transaction: one key per thing that happened, so nothing goes out twice.
+    if (action === 'send_quote') await enqueueOrderMessage(tx, tenantId, id, 'quote', `${id}:quote:v${after!.version}`, { automatic: false });
+    if (action === 'book') {
+      await enqueueOrderMessage(tx, tenantId, id, 'booking_confirmation', `${id}:booking_confirmation`, { automatic: true });
+      if (payment) await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${payment.id}:receipt`, { automatic: true, meta: { paymentId: payment.id } });
+      const m = prefs.messaging;
+      if (order.eventStartsAt.getTime() - now.getTime() < (m.lastMinuteHours ?? 24) * 3_600_000) {
+        await enqueueOfficeAlert(tx, tenantId, 'last_minute', `${id}:last_minute`, id);
+      }
+    }
+    if (action === 'cancel') {
+      await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: opts.reason ?? '' } });
+    }
+    if (action === 'book' || action === 'cancel' || action === 'reopen') await planOrderMessages(tx, tenantId, id);
     return { order: after!, payment };
   });
 }
@@ -580,6 +600,7 @@ export function recordPayment(
       .returning();
     await recordVersion(tx, tenantId, actor, after!, 'payment', { Payment: { from: '', to: `${pay.number} · ${pay.method} · ${money(cents)}` } });
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.payment', { number: order.number, payment: pay.number, cents });
+    await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${pay.id}:receipt`, { automatic: true, meta: { paymentId: pay.id } });
     return { order: after!, payment: pay };
   });
 }

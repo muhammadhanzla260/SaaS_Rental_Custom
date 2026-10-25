@@ -12,7 +12,11 @@
   "dependencies": {
     "dotenv": "18.0.6",
     "graphile-worker": "0.18.0",
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "@rental/core": "workspace:*",
+    "@rental/db": "workspace:*",
+    "@rental/messaging": "workspace:*",
+    "drizzle-orm": "0.45.4"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

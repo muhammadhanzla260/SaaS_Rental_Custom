@@ -83,7 +83,7 @@ export const ORG_NAV: NavGroup[] = [
       { id: 'workspace', label: 'Workspace & brand', icon: 'workspace', href: '/settings/workspace', permission: 'settings.manage' },
       { id: 'locations', label: 'Locations', icon: 'locations', href: '/settings/locations', permission: 'settings.manage' },
       { id: 'team', label: 'Team & roles', icon: 'team', href: '/settings/team', permission: 'members.manage' },
-      { id: 'messaging', label: 'Email & SMS', icon: 'messaging', phase: 2 },
+      { id: 'messaging', label: 'Email & SMS', icon: 'messaging', href: '/settings/messaging', permission: 'settings.manage', match: ['/settings/messaging/'] },
       { id: 'activity', label: 'Activity log', icon: 'activity', href: '/settings/activity', permission: 'settings.manage' },
     ],
   },

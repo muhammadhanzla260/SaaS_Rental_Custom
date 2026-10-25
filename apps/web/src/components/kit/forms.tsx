@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useId, useRef, type ComponentProps, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { cx } from './core';
 
 export const controlClass = cx(
@@ -37,7 +37,8 @@ export function Field({
   );
 }
 
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; mono?: boolean };
+// ComponentProps includes `ref` (a plain prop in React 19), so callers can focus or read the caret.
+type InputProps = ComponentProps<'input'> & { invalid?: boolean; mono?: boolean };
 
 export function Input({ className, invalid, mono, ...rest }: InputProps) {
   return <input aria-invalid={invalid || undefined} className={cx(sized(controlClass, className), mono && 'mono', className)} {...rest} />;
@@ -61,7 +62,7 @@ export function AffixInput({ prefix, suffix, className, invalid, mono, ...rest }
   );
 }
 
-export function Textarea({ className, invalid, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
+export function Textarea({ className, invalid, ...rest }: ComponentProps<'textarea'> & { invalid?: boolean }) {
   return <textarea aria-invalid={invalid || undefined} className={cx(controlClass, 'h-auto min-h-24 py-2.5 leading-relaxed', className)} {...rest} />;
 }
 

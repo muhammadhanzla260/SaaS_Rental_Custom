@@ -342,6 +342,11 @@ export const orders = pgTable(
     internalNotes: text('internal_notes'),
     customerNotes: text('customer_notes'),
     quoteSentAt: timestamp('quote_sent_at', { withTimezone: true }),
+    /** sha256 of the customer's quote-page token (the token itself is only ever in the link). */
+    accessTokenHash: text('access_token_hash'),
+    /** The same token, encrypted (APP_ENCRYPTION_KEY), so later emails can carry the same link. */
+    accessTokenEnc: text('access_token_enc'),
+    quoteExpiresOn: date('quote_expires_on'),
     bookedAt: timestamp('booked_at', { withTimezone: true }),
     /** Booked without payment: why, when the money is expected, and follow-up notes (feeds the Ops board). */
     unpaidReason: text('unpaid_reason'),

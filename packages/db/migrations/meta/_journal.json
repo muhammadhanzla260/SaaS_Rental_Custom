@@ -120,6 +120,34 @@
       "when": 1792862357134,
       "tag": "0016_deposit_none",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792935124546,
+      "tag": "0017_messaging",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792935172622,
+      "tag": "0018_messaging_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792935176815,
+      "tag": "0019_messaging_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792935262774,
+      "tag": "0020_order_token_enc",
+      "breakpoints": true
     }
   ]
 }

@@ -57,8 +57,12 @@ export function MailFields({ s, orgName, platformOption = true }: { s: Scope; or
       )}
       {m.mode === 'smtp' && (
         <div className="anim-rise flex flex-col gap-5">
-          <Field label="Provider">
-            <Segmented label="Mail provider" value={m.provider} onChange={preset} options={MAIL_PRESETS.map((p) => ({ value: p.key, label: p.label }))} />
+          <Field label="Provider" htmlFor={fid(s, 'provider')}>
+            {/* Four long names don't fit a phone: a dropdown there, buttons from tablet up. */}
+            <Select id={fid(s, 'provider')} value={m.provider} onChange={(e) => preset(e.target.value)} className="sm:hidden">
+              {MAIL_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </Select>
+            <div className="max-sm:hidden"><Segmented label="Mail provider" value={m.provider} onChange={preset} options={MAIL_PRESETS.map((p) => ({ value: p.key, label: p.label }))} /></div>
           </Field>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_110px_150px]">
             <T s={s} name="host" label="SMTP host" mono />
@@ -79,7 +83,6 @@ export function MailFields({ s, orgName, platformOption = true }: { s: Scope; or
             <T s={s} name="fromName" label="From name" optional placeholder={orgName} />
             <T s={s} name="fromEmail" label="From email" type="email" placeholder="bookings@yourbusiness.com" />
           </div>
-          <p className="text-[13px] text-fg-2">Send a test email (connect → authenticate → send → delivered) from Email &amp; SMS settings, which arrive in Phase 2.</p>
         </div>
       )}
     </div>

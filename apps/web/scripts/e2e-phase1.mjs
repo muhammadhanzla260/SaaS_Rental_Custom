@@ -70,7 +70,8 @@ const summary = () => page.evaluate(() => document.querySelector('[aria-label="O
 const nextSat = (() => { const d = new Date(); d.setDate(d.getDate() + (((6 - d.getDay() + 7) % 7) || 7)); return d; })();
 const iso = (d) => d.toISOString().slice(0, 10);
 const satBooked = iso(nextSat); // the seeded Saturday: both castles are taken
-const satFree = iso(new Date(nextSat.getTime() + 7 * 86_400_000));
+// A different Saturday each run (3-40 weeks out), so bookings from earlier runs never fill it.
+const satFree = iso(new Date(nextSat.getTime() + (3 + (parseInt(run, 36) % 38)) * 7 * 86_400_000));
 
 try {
   await signIn('jordan@demo.tentpole.test');
@@ -176,6 +177,10 @@ try {
   await waitText('Try a price');
   check(await hasText('$199.00 incl. 3 h'), 'new product saved; Try a price uses the same engine');
   await shot('05-product');
+  // Archive it again so test products never pile up in the demo catalog.
+  await click('Details', '[role="tab"]');
+  await click('Archived', '[role="radio"]');
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].some((e) => e.innerText.includes('Archived')), { timeout: 15000 });
 
   // --- Inventory: unit back from maintenance clears the clash --------------------------------
   await go(`${S}/inventory`);

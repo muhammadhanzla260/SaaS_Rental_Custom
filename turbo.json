@@ -10,7 +10,10 @@
     "APP_ENCRYPTION_KEY",
     "PLATFORM_OWNER_EMAIL",
     "PLATFORM_SMTP_URL",
-    "PLATFORM_MAIL_FROM"
+    "PLATFORM_MAIL_FROM",
+    "MESSAGING_DELIVERY",
+    "APP_URL",
+    "MESSAGING_OUTBOX_DIR"
   ],
   "tasks": {
     "build": {

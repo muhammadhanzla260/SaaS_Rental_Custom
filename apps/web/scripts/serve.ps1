@@ -13,6 +13,15 @@ if (-not $NoBuild) {
 }
 $log = Join-Path $web '../../.data/web-server.log'
 Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "npx next start --port 3000 > `"$log`" 2>&1" -WorkingDirectory $web -WindowStyle Hidden
+
+# Background worker (scheduled emails/texts, retries, digests): restart it too.
+$workerDir = Join-Path $web '../worker'
+$pidFile = Join-Path $web '../../.data/worker.pid'
+if (Test-Path $pidFile) { Stop-Process -Id (Get-Content $pidFile) -Force -ErrorAction SilentlyContinue }
+Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*worker*src*index.ts*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+$wlog = Join-Path $web '../../.data/worker.log'
+$w = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "npx tsx src/index.ts > `"$wlog`" 2>&1" -WorkingDirectory $workerDir -WindowStyle Hidden -PassThru
+Set-Content -Path $pidFile -Value $w.Id
 for ($i = 0; $i -lt 40; $i++) {
   Start-Sleep -Milliseconds 500
   try { if ((Invoke-WebRequest -Uri 'http://localhost:3000/sign-in' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { 'Server ready on http://localhost:3000'; exit 0 } } catch {}

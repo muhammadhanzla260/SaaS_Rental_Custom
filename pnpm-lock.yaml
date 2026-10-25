@@ -124,6 +124,9 @@ importers:
       '@rental/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rental/messaging':
+        specifier: workspace:*
+        version: link:../../packages/messaging
       better-auth:
         specifier: 1.7.7
         version: 1.7.7(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
@@ -188,9 +191,21 @@ importers:
 
   apps/worker:
     dependencies:
+      '@rental/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rental/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@rental/messaging':
+        specifier: workspace:*
+        version: link:../../packages/messaging
       dotenv:
         specifier: 18.0.6
         version: 18.0.6
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
       graphile-worker:
         specifier: 0.18.0
         version: 0.18.0(supports-color@7.2.0)(typescript@5.9.3)
@@ -257,6 +272,40 @@ importers:
       embedded-postgres:
         specifier: 17.10.0-beta.17
         version: 17.10.0-beta.17
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  packages/messaging:
+    dependencies:
+      '@rental/core':
+        specifier: workspace:*
+        version: link:../core
+      '@rental/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
+      nodemailer:
+        specifier: 7.0.9
+        version: 7.0.9
+    devDependencies:
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      '@types/nodemailer':
+        specifier: 7.0.2
+        version: 7.0.2
+      dotenv:
+        specifier: 18.0.6
+        version: 18.0.6
       tsx:
         specifier: 4.23.15
         version: 4.23.15

@@ -107,6 +107,10 @@ Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, des
 | 16 | Deposit "None" | Deposit chips include None | Zero override falls back to the default % | Explicit `none` deposit kind, so an order can be booked with nothing due up front. |
 | 17 | Travel fee | Client shows miles × rate | POS computed travel from the nearest depot | Miles are an input (Mapbox, or typed); the server always recomputes the fee from the depot's rules unless the fee itself is overridden. |
 | 18 | Stock tracking | Pooled / Serialized / Not tracked | `rental_quantity` per product, any booking blocks | Pooled (owned − out of service, no row = 1 like Odoo), serialized (units ready/cleaning), not tracked (never runs out); allow overbooking per location. |
+| 19 | Message idempotency key | `org:order:type:orderVersion` | `rental.email.log.send_key` unique + 60 s cooldown | `org + key` unique. Instant: per event (`order:quote:v7`, `payment:receipt`). Scheduled: `order:type:channel:dueTime`, so a moved event gets new rows and stale queued ones are cancelled; a rule changed and changed back revives the cancelled row; a sent row is never re-sent. |
+| 20 | Reminder timings | Pre-event 3 d, quality text 2 d, day-before 1 d, charge on event day, review +1 d, thank-you +2 d, survey +7 d | Same days (America/Chicago crons) | Same defaults; each editable; computed in each location's time zone instead of a fixed Chicago clock. |
+| 21 | When automations run | Live once setup is done | Always on | A new workspace starts with automations **off** (no surprise customer email); staff-pressed sends (Send quote, Email invoice, Resend) always go. |
+| 22 | Delivery in development | n/a | n/a | `MESSAGING_DELIVERY=outbox` writes every email/text to `.data/outbox`; `live` sends through the workspace's SMTP / Twilio / Quo. Production defaults to live. |
 
 ## 10. Environments and secrets
 

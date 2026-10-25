@@ -12,7 +12,7 @@ import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { hashPassword } from 'better-auth/crypto';
 import {
-  addDays, bookingDefaultsSchema, brandSettingsSchema, creditSchema, customerSchema, locationSchema, orderSchema, parsePreferences, productSchema,
+  addDays, bookingDefaultsSchema, brandSettingsSchema, creditSchema, customerSchema, locationSchema, messagingSettingsSchema, orderSchema, parsePreferences, productSchema,
   wallTimeToUtc,
 } from '@rental/core';
 import {
@@ -103,6 +103,10 @@ async function main() {
     payments: { provider: 'ipos', merchantId: '220614981234', secretKey: 'demo-ipos-token' },
   });
   await updatePreferences(db, ff.id, ffActor, 'setupDone', ['numbers', 'rules']);
+  // Automations live from the start, so the message log shows real queued reminders (delivered to .data/outbox in development).
+  await updatePreferences(db, ff.id, ffActor, 'messaging', messagingSettingsSchema.parse({
+    live: true, replyTo: 'office@freedomfunusa.test', alertsTo: ['office@freedomfunusa.test'], bcc: ['archive@freedomfunusa.test'],
+  }));
 
   const dal = await createLocation(db, ff.id, ffActor, loc('Dallas', 'DAL', '2200 Ross Ave', 'Dallas', 'TX', '75201', 32.7887, -96.7997, '#2C4FE0'), 8.25);
   const hou = await createLocation(db, ff.id, ffActor, loc('Houston', 'HOU', '1001 Avenida de las Americas', 'Houston', 'TX', '77010', 29.7522, -95.3586, '#0B7A55'), 8.25);

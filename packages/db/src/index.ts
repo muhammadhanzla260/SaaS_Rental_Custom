@@ -11,3 +11,4 @@ export { encryptSecret, decryptSecret, sha256Hex } from './crypto';
 export * from './services/catalog';
 export * from './services/customers';
 export * from './services/orders';
+export * from './services/messaging';

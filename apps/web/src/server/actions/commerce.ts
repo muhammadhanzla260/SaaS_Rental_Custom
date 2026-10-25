@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { z } from 'zod';
 import {
   bookingSchema, categorySchema, creditSchema, customerAddressSchema, customerSchema, orderSchema, productSchema, unitSchema,
@@ -18,6 +19,8 @@ import { ActionError, requirePermission, requireView } from '../context';
 import { db } from '../db';
 import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
+import { dispatchOrder } from '@rental/messaging';
+import { listMessages } from '@rental/db';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
 const uuid = z.string().uuid();
@@ -311,7 +314,16 @@ export async function transitionOrderAction(
     }
     const r = await transitionOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), a.data, ctx.prefs, { reason: opts.reason?.slice(0, 500), booking });
     refresh(slug);
-    return { ok: true, data: { status: r.order.status, version: r.order.version, payment: r.payment?.number ?? null }, message: ACTION_DONE[a.data] };
+    let message = ACTION_DONE[a.data];
+    if (a.data === 'send_quote') {
+      // Staff are waiting on this one: send now and say where it went.
+      await dispatchOrder(db, ctx.tenant.id, r.order.id);
+      const q = (await listMessages(db, ctx.tenant.id, { orderId: r.order.id, type: 'quote', limit: 1 })).rows[0];
+      message = q?.status === 'sent' ? `Quote emailed to ${q.toAddress}.` : q?.status === 'skipped' ? `Quote marked as sent, but not emailed: ${q.lastError}.` : `Quote marked as sent; email ${q?.status ?? 'queued'}${q?.lastError ? ` (${q.lastError})` : ''}.`;
+    } else {
+      after(() => dispatchOrder(db, ctx.tenant.id, r.order.id).catch((e) => console.error('[dispatch]', e)));
+    }
+    return { ok: true, data: { status: r.order.status, version: r.order.version, payment: r.payment?.number ?? null }, message };
   });
 }
 
@@ -329,6 +341,7 @@ export async function recordPaymentAction(slug: string, id: string, input: unkno
     if (!p.success) return invalid(p.error);
     const r = await recordPayment(db, ctx.tenant.id, ctx.actor, uuid.parse(id), ctx.prefs, p.data);
     refresh(slug);
+    after(() => dispatchOrder(db, ctx.tenant.id, r.order.id).catch((e) => console.error('[dispatch]', e)));
     return { ok: true, data: { number: r.payment.number }, message: `${r.payment.number} recorded.` };
   });
 }

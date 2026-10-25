@@ -1,3 +1,4 @@
+import { messagingSettingsSchema } from './messaging';
 import { z } from 'zod';
 import { CORNERS, HEX_RE, checkAccent } from './theme';
 import { isValidTimezone } from './regional';
@@ -352,6 +353,8 @@ export const tenantPreferencesSchema = z.object({
   onboarding: onboardingProgressSchema.default(onboardingProgressSchema.parse({})),
   /** Home setup items ticked by hand ("Click a circle to mark it done"). */
   setupDone: z.array(z.string()).default([]),
+  /** Phase 2: automations, schedules, recipients and quiet hours. */
+  messaging: messagingSettingsSchema.default(messagingSettingsSchema.parse({})),
 });
 export type TenantPreferences = z.infer<typeof tenantPreferencesSchema>;
 

@@ -9,3 +9,4 @@ export * from './travel';
 export * from './pricing';
 export * from './commerce';
 export * from './time';
+export * from './messaging';
