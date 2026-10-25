@@ -1,0 +1,247 @@
+'use client';
+
+import { Check, CreditCard, Link2, Wallet, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { MANUAL_METHODS, UNPAID_REASONS } from '@rental/core';
+import { Button, cx, Field, Input, LinkButton, Modal, Notice, Select, Spinner, Textarea } from '@/components/kit';
+
+export type BookChoice =
+  | { method: 'manual'; payMethod: string; amount: string; reference: string }
+  | { method: 'none'; reason: string; expectedOn: string; notes: string };
+
+type Phase = { kind: 'choose' } | { kind: 'running'; step: number } | { kind: 'done'; number: string } | { kind: 'error'; message: string };
+
+const METHODS = [
+  { id: 'card', label: 'Charge a saved card', sub: 'Through your payment gateway · arrives with Phase 2', icon: CreditCard, enabled: false },
+  { id: 'link', label: 'Send a pay link', sub: 'Customer signs and pays on the quote page · Phase 2', icon: Link2, enabled: false },
+  { id: 'manual', label: 'Cash, check, Zelle, Venmo or ACH', sub: 'Recorded now with a receipt number', icon: Wallet, enabled: true },
+  { id: 'none', label: 'Book without payment', sub: 'Needs a reason and an expected payment date', icon: X, enabled: true },
+] as const;
+
+/**
+ * Booking: pick how the deposit is handled, then watch the server lock, check
+ * and reserve (the steps are real; the bar only animates while it waits).
+ */
+export function BookModal({
+  open, onClose, depositLabel, depositCents, totalLabel, bufferLabel, number, onConfirm, calendarHref, canRecordPayment, booked,
+}: {
+  open: boolean; onClose: () => void; depositLabel: string; depositCents: number; totalLabel: string; bufferLabel: string; number: string;
+  onConfirm: (c: BookChoice) => Promise<{ ok: true; number: string } | { ok: false; error: string }>; calendarHref: string; canRecordPayment: boolean; booked: boolean;
+}) {
+  const [method, setMethod] = useState<'manual' | 'none'>(canRecordPayment && depositCents > 0 ? 'manual' : 'none');
+  const [manual, setManual] = useState({ payMethod: 'check', amount: '', reference: '' });
+  const [none, setNone] = useState({ reason: '', expectedOn: '', notes: '' });
+  const [phase, setPhase] = useState<Phase>({ kind: 'choose' });
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!open) return;
+    setPhase({ kind: 'choose' });
+    setErrs({});
+    setManual({ payMethod: 'check', amount: (depositCents / 100).toFixed(2), reference: '' });
+    setMethod(canRecordPayment && depositCents > 0 ? 'manual' : 'none');
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const payStep = method === 'manual' ? 'Recording the payment and receipt number' : 'Noting why it was booked without payment';
+  const steps = ['Locking the order and re-checking availability', 'Reserving stock with the cleanup buffer', payStep, 'Recording the booking in order history'];
+
+  async function confirm() {
+    const e: Record<string, string> = {};
+    if (method === 'manual' && !(parseFloat(manual.amount) > 0)) e.amount = 'Enter the amount received.';
+    if (method === 'none' && !none.reason) e.reason = 'Choose a reason.';
+    if (method === 'none' && !none.expectedOn) e.expectedOn = 'Pick the date you expect payment.';
+    setErrs(e);
+    if (Object.keys(e).length) return;
+    setPhase({ kind: 'running', step: 0 });
+    let step = 0;
+    const tick = setInterval(() => {
+      step = Math.min(step + 1, steps.length - 1);
+      setPhase((p) => (p.kind === 'running' ? { kind: 'running', step } : p));
+    }, 450);
+    const r = await onConfirm(method === 'manual' ? { method, ...manual } : { method, ...none });
+    clearInterval(tick);
+    if (!r.ok) return setPhase({ kind: 'error', message: r.error });
+    setPhase({ kind: 'running', step: steps.length });
+    setTimeout(() => setPhase({ kind: 'done', number: r.number }), 350);
+  }
+
+  const running = phase.kind === 'running';
+  return (
+    <Modal
+      open={open}
+      onClose={() => { if (!running) onClose(); }}
+      width={560}
+      title={phase.kind === 'done' ? 'Booked' : running ? `Booking ${number}` : `Book & take the deposit · ${depositLabel}`}
+      sub={phase.kind === 'choose' ? 'Booking re-checks availability inside the database, so two people can’t book the last unit at once.' : undefined}
+      footer={
+        phase.kind === 'done' ? (
+          <>
+            <LinkButton variant="secondary" href={calendarHref}>View on calendar</LinkButton>
+            <Button onClick={onClose}>Keep editing</Button>
+          </>
+        ) : phase.kind === 'error' ? (
+          <>
+            <Button variant="secondary" onClick={onClose}>Back to the order</Button>
+            <Button onClick={() => setPhase({ kind: 'choose' })}>Try again</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={onClose} disabled={running}>Cancel</Button>
+            <Button onClick={confirm} pending={running} disabled={booked}>Confirm booking</Button>
+          </>
+        )
+      }
+    >
+      {phase.kind === 'choose' && (
+        <div className="flex flex-col gap-4">
+          <div role="radiogroup" aria-label="Deposit method" className="flex flex-col gap-2">
+            {METHODS.map((m) => {
+              const enabled = m.enabled && (m.id !== 'manual' || canRecordPayment);
+              const on = method === m.id;
+              const Icon = m.icon;
+              return (
+                <button key={m.id} type="button" role="radio" aria-checked={on} disabled={!enabled}
+                  onClick={() => enabled && setMethod(m.id as 'manual' | 'none')}
+                  className={cx('press flex items-center gap-3 rounded-[var(--radius-card)] border p-3.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                    on ? 'border-accent bg-accent-soft/30 shadow-[0_0_0_1px_var(--accent)]' : 'border-subtle hover:border-control')}>
+                  <span className={cx('grid size-9 shrink-0 place-items-center rounded-full', on ? 'bg-accent text-on-accent' : 'bg-sunken text-fg-2')}><Icon className="size-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-fg">{m.label}</span>
+                    <span className="block text-[13px] text-fg-2">{m.id === 'manual' && !canRecordPayment ? 'Your role cannot record payments' : m.sub}</span>
+                  </span>
+                  <span className={cx('grid size-[18px] shrink-0 place-items-center rounded-full border', on ? 'border-accent bg-accent' : 'border-control')}>{on && <span className="size-1.5 rounded-full bg-on-accent" />}</span>
+                </button>
+              );
+            })}
+          </div>
+          {method === 'manual' && (
+            <div className="anim-fade grid grid-cols-1 gap-3 rounded-[var(--radius-card)] bg-sunken/60 p-3.5 sm:grid-cols-3">
+              <Field label="Method" htmlFor="bk-method">
+                <Select id="bk-method" value={manual.payMethod} onChange={(e) => setManual({ ...manual, payMethod: e.target.value })}>
+                  {MANUAL_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Amount received" htmlFor="bk-amount" error={errs.amount}>
+                <Input id="bk-amount" mono inputMode="decimal" value={manual.amount} onChange={(e) => setManual({ ...manual, amount: e.target.value })} invalid={!!errs.amount} />
+              </Field>
+              <Field label="Reference" htmlFor="bk-ref" optional>
+                <Input id="bk-ref" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} placeholder="Check #1043" />
+              </Field>
+            </div>
+          )}
+          {method === 'none' && (
+            <div className="anim-fade grid grid-cols-1 gap-3 rounded-[var(--radius-card)] bg-sunken/60 p-3.5 sm:grid-cols-2">
+              <Field label="Reason" htmlFor="bk-reason" error={errs.reason}>
+                <Select id="bk-reason" value={none.reason} onChange={(e) => setNone({ ...none, reason: e.target.value })} invalid={!!errs.reason}>
+                  <option value="">Choose…</option>
+                  {UNPAID_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </Select>
+              </Field>
+              <Field label="Expected payment" htmlFor="bk-date" error={errs.expectedOn}>
+                <Input id="bk-date" type="date" value={none.expectedOn} onChange={(e) => setNone({ ...none, expectedOn: e.target.value })} invalid={!!errs.expectedOn} />
+              </Field>
+              <Field label="Follow-up notes" htmlFor="bk-notes" optional className="sm:col-span-2">
+                <Textarea id="bk-notes" rows={2} value={none.notes} onChange={(e) => setNone({ ...none, notes: e.target.value })} placeholder="Shows on the Ops board until it is paid." />
+              </Field>
+            </div>
+          )}
+        </div>
+      )}
+      {(running || phase.kind === 'error') && (
+        <ol className="flex flex-col gap-3 py-2" aria-live="polite">
+          {steps.map((label, i) => {
+            const done = running && phase.step > i;
+            const doing = running && phase.step === i;
+            const failed = phase.kind === 'error' && i === 0;
+            return (
+              <li key={label} className="flex items-center gap-3">
+                <span className={cx('grid size-7 shrink-0 place-items-center rounded-full transition-colors', done ? 'bg-success text-white' : failed ? 'bg-danger text-white' : doing ? 'bg-accent-soft text-accent-text' : 'bg-sunken text-fg-3')}>
+                  {done ? <Check className="size-4 anim-pop" strokeWidth={3} /> : failed ? <X className="size-4" /> : doing ? <Spinner className="size-3.5" /> : <span className="size-1.5 rounded-full bg-current" />}
+                </span>
+                <span className={cx('text-sm', done || doing ? 'text-fg' : 'text-fg-3')}>{label}</span>
+              </li>
+            );
+          })}
+          {phase.kind === 'error' && <Notice kind="danger" className="mt-2">{phase.message}</Notice>}
+        </ol>
+      )}
+      {phase.kind === 'done' && (
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <span className="anim-pop grid size-16 place-items-center rounded-full bg-success text-white"><Check className="size-8" strokeWidth={3} /></span>
+          <p className="text-[15px] text-fg">
+            <span className="mono font-semibold">{phase.number}</span> · {totalLabel} · deposit {depositLabel}.
+            <br />Items are reserved until {bufferLabel}. You can keep editing this order.
+          </p>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+export function OverpaidModal({ open, amountLabel, onChoose, canRefund }: { open: boolean; amountLabel: string; onChoose: (c: 'refund' | 'wallet' | 'keep') => void; canRefund: boolean }) {
+  return (
+    <Modal open={open} onClose={() => onChoose('keep')} title={`The customer has paid ${amountLabel} more than the new total`} sub="What should happen to the difference?">
+      <div className="flex flex-col gap-2">
+        <Button variant="secondary" disabled={!canRefund} onClick={() => onChoose('wallet')} className="h-auto justify-start py-3 text-left">Move it to their wallet credit (used on a later order)</Button>
+        <Button variant="secondary" disabled={!canRefund} onClick={() => onChoose('refund')} className="h-auto justify-start py-3 text-left">Refund the difference (record it as owed back)</Button>
+        <Button variant="ghost" onClick={() => onChoose('keep')} className="h-auto justify-start py-3 text-left">Keep it as an overpayment for now</Button>
+        {!canRefund && <p className="text-[13px] text-fg-2">Your role cannot refund or issue credit; a manager can sort it out later.</p>}
+      </div>
+    </Modal>
+  );
+}
+
+export function CancelModal({ open, onClose, onConfirm, number, booked }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => Promise<void>; number: string; booked: boolean }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) setReason(''); }, [open]);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Cancel ${number}?`}
+      sub={booked ? 'The equipment is released straight away. Refunds, rain checks and the full cancel flow arrive in Phase 3.' : 'The quote is kept in history and can be reopened.'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Keep the order</Button>
+          <Button variant="danger" pending={busy} onClick={async () => { setBusy(true); await onConfirm(reason); setBusy(false); }}>Cancel order</Button>
+        </>
+      }
+    >
+      <Field label="Reason" htmlFor="cx-reason" optional>
+        <Textarea id="cx-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Customer changed plans" />
+      </Field>
+    </Modal>
+  );
+}
+
+export function PaymentModal({ open, onClose, onSave, balanceCents }: { open: boolean; onClose: () => void; onSave: (p: { method: string; amount: string; reference: string }) => Promise<string | null>; balanceCents: number }) {
+  const [p, setP] = useState({ method: 'cash', amount: '', reference: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { if (open) { setP({ method: 'cash', amount: (Math.max(0, balanceCents) / 100).toFixed(2), reference: '' }); setErr(null); } }, [open, balanceCents]);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Record a payment"
+      sub="Cash, check and transfers. Card payments arrive with Phase 2."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button pending={busy} onClick={async () => { setBusy(true); setErr(await onSave(p)); setBusy(false); }}>Record payment</Button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Field label="Method" htmlFor="pm-method">
+          <Select id="pm-method" value={p.method} onChange={(e) => setP({ ...p, method: e.target.value })}>
+            {MANUAL_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Amount" htmlFor="pm-amount"><Input id="pm-amount" mono inputMode="decimal" value={p.amount} onChange={(e) => setP({ ...p, amount: e.target.value })} /></Field>
+        <Field label="Reference" htmlFor="pm-ref" optional><Input id="pm-ref" value={p.reference} onChange={(e) => setP({ ...p, reference: e.target.value })} /></Field>
+      </div>
+      {err && <Notice kind="danger" className="mt-3">{err}</Notice>}
+    </Modal>
+  );
+}

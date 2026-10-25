@@ -362,7 +362,7 @@ export const orders = pgTable(
     check('orders_status', sql`${t.status} in ('draft','quote_sent','booked','completed','cancelled')`),
     check('orders_period', sql`${t.eventEndsAt} > ${t.eventStartsAt}`),
     check('orders_discount_kind', sql`${t.discountKind} is null or ${t.discountKind} in ('percent','amount')`),
-    check('orders_deposit_kind', sql`${t.depositKind} in ('percent','amount')`),
+    check('orders_deposit_kind', sql`${t.depositKind} in ('percent','amount','none')`),
     index('orders_calendar_idx').on(t.tenantId, t.eventStartsAt),
     index('orders_customer_idx').on(t.tenantId, t.customerId),
     index('orders_status_idx').on(t.tenantId, t.status, t.eventStartsAt),

@@ -50,17 +50,17 @@ export const ORG_NAV: NavGroup[] = [
     items: [
       { id: 'home', label: 'Home', icon: 'home', href: '' },
       { id: 'ops', label: 'Action needed', icon: 'ops', phase: 3 },
-      { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar' },
-      { id: 'orders', label: 'Orders', icon: 'orders', href: '/orders', match: ['/orders/'] },
+      { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar', permission: 'orders.view' },
+      { id: 'orders', label: 'Orders', icon: 'orders', href: '/orders', permission: 'orders.view' },
       { id: 'pos', label: 'New order', icon: 'pos', href: '/orders/new', permission: 'orders.create' },
-      { id: 'customers', label: 'Customers', icon: 'customers', href: '/customers' },
+      { id: 'customers', label: 'Customers', icon: 'customers', href: '/customers', permission: 'orders.view' },
     ],
   },
   {
     label: 'Catalog',
     items: [
-      { id: 'products', label: 'Products', icon: 'products', href: '/catalog' },
-      { id: 'inventory', label: 'Inventory', icon: 'inventory', phase: 1 },
+      { id: 'products', label: 'Products', icon: 'products', href: '/products', permission: 'orders.view', match: ['/products/'] },
+      { id: 'inventory', label: 'Inventory', icon: 'inventory', href: '/inventory', permission: 'orders.view' },
     ],
   },
   {

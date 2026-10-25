@@ -33,7 +33,7 @@ export default async function Home({ params }: { params: Promise<{ tenant: strin
     { id: 'email', title: 'Connect email sending', text: 'Quotes, invoices and reminders go out from your own mail server.', auto: integrations.orgMail?.mode === 'smtp' || integrations.mail.some((m) => m.locationId), cta: 'Connect', href: `${base}/workspace?tab=connect` },
     { id: 'numbers', title: 'Choose document numbers', text: 'Order and invoice prefixes, like Q-AUS-01042 and INV-2026-0001.', auto: false, cta: 'Choose', href: `${base}/locations?tab=tax` },
     { id: 'rules', title: 'Review rental rules', text: 'Deposit, cleanup buffer, overtime, damage waiver and surface fees.', auto: false, cta: 'Review', href: `${base}/workspace?tab=rules` },
-    { id: 'products', title: 'Add products and prices', text: 'Catalog, price rules and inventory for what you rent.', auto: products.length > 0, cta: 'Add', href: `/${slug}/catalog/new` },
+    { id: 'products', title: 'Add products and prices', text: 'Catalog, price rules and inventory for what you rent.', auto: products.length > 0, cta: 'Add', href: `/${slug}/products/new` },
   ].map((i) => ({ ...i, done: i.auto || manual.has(i.id) }));
   const done = items.filter((i) => i.done).length;
   const pct = Math.round((done / items.length) * 100);

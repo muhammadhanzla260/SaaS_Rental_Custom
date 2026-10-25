@@ -98,6 +98,15 @@ Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, des
 | 7 | Payment on arrival | "Due $x · the portal takes no payment" | Tick only, no payment | Same. |
 | 8 | Order statuses | draft, quote, booked, completed, cancelled, rained_out, rescheduled | draft, sent, sale, done, cancel (+ rain-check flows in custom_rental) | Internal codes follow Odoo; labels follow the design. Rain-check states arrive in Phase 3 with Odoo's semantics. |
 | 9 | Onboarding content | 6 steps incl. Email & payments (skippable) and Team | n/a (Odoo has no onboarding) | Follow the design; rental rules stay out of onboarding (also the earlier owner decision). |
+| 10 | Setup surface fee | Per rental line × surface fee | `sale_order_line.setup_surface_fee` per line (not × qty) | Same rule: per product line. The order picks one surface; a line may carry its own. |
+| 11 | Rain checks & wallet | Credits applied after tax, deposit on "due after credits" | Raincheck = after-tax discount; wallet outstanding applied after the total | One `credits` table (rain_check / wallet / goodwill) applied after tax; deposit and balance computed on what is left. |
+| 12 | Coupon | Coupon codes (FALL10 = 10%) | `coupon_discount` amount stored on the order, taken before tax | `coupons` table resolves the code to an amount, still taken before tax and capped at merchandise. |
+| 13 | $ discount cap | min(amount, merchandise) | Pre-tax cap = merchandise + extras − coupon | Odoo cap. |
+| 14 | Event types / how they heard | Design's lists | Odoo selections | Odoo lists (keeps reports and imports compatible). |
+| 15 | Orders list | No "Orders" item in the sidebar | Odoo has the order list | Kept as its own page (Upcoming, Drafts & quotes, Booked unpaid, Past, Cancelled). |
+| 16 | Deposit "None" | Deposit chips include None | Zero override falls back to the default % | Explicit `none` deposit kind, so an order can be booked with nothing due up front. |
+| 17 | Travel fee | Client shows miles × rate | POS computed travel from the nearest depot | Miles are an input (Mapbox, or typed); the server always recomputes the fee from the depot's rules unless the fee itself is overridden. |
+| 18 | Stock tracking | Pooled / Serialized / Not tracked | `rental_quantity` per product, any booking blocks | Pooled (owned − out of service, no row = 1 like Odoo), serialized (units ready/cleaning), not tracked (never runs out); allow overbooking per location. |
 
 ## 10. Environments and secrets
 

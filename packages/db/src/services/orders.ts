@@ -352,7 +352,7 @@ function snapshot(o: Order, lines: Pick<OrderLine, 'name' | 'quantity' | 'servic
     Discount: o.discountKind ? `${o.discountValue}${o.discountKind === 'percent' ? '%' : ' $'}` : '',
     Coupon: o.couponCode ?? '',
     'Sales tax': `${o.taxPercent}%`,
-    Deposit: `${o.depositValue}${o.depositKind === 'percent' ? '%' : ' $'}`,
+    Deposit: o.depositKind === 'none' ? 'None' : `${o.depositValue}${o.depositKind === 'percent' ? '%' : ' $'}`,
     Credits: money(o.creditCents),
     Total: money(o.totalCents),
     'Internal notes': o.internalNotes ?? '',
@@ -603,7 +603,7 @@ export function getOrder(db: Db, tenantId: string, id: string) {
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
 export type OrderListFilters = {
-  status?: OrderStatus | 'open' | 'all';
+  status?: OrderStatus | 'open' | 'quotes' | 'all';
   search?: string;
   from?: Date;
   to?: Date;
@@ -620,7 +620,9 @@ export function listOrders(db: Db, tenantId: string, f: OrderListFilters = {}) {
       f.status && f.status !== 'all'
         ? f.status === 'open'
           ? inArray(orders.status, ['draft', 'quote_sent', 'booked'])
-          : eq(orders.status, f.status)
+          : f.status === 'quotes'
+            ? inArray(orders.status, ['draft', 'quote_sent'])
+            : eq(orders.status, f.status)
         : undefined,
       f.from ? gte(orders.eventEndsAt, f.from) : undefined,
       f.to ? lt(orders.eventStartsAt, f.to) : undefined,

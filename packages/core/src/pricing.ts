@@ -153,7 +153,8 @@ export type SummaryInput = {
   taxPercent: number;
   /** Store credit (Odoo wallet), applied last and capped at the total. */
   creditCents?: number;
-  deposit?: { kind: 'percent' | 'amount'; value: number } | null;
+  /** 'none' = no deposit to book (everything is due on event day). */
+  deposit?: { kind: 'percent' | 'amount' | 'none'; value: number } | null;
   defaultDepositPercent?: number;
 };
 
@@ -254,7 +255,7 @@ export function orderSummary(input: SummaryInput): OrderSummary {
 
 /** Odoo _get_rental_deposit_due: override % or $ (capped at the total), else the default %. */
 export function depositDue(totalCents: number, deposit: SummaryInput['deposit'], defaultPercent = 30) {
-  if (totalCents <= 1) return { depositCents: 0, depositPercent: 0 };
+  if (totalCents <= 1 || deposit?.kind === 'none') return { depositCents: 0, depositPercent: 0 };
   if (deposit && deposit.value > 0.01) {
     if (deposit.kind === 'amount') {
       const cents = Math.min(roundCents(deposit.value * 100), totalCents);

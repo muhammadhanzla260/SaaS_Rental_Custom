@@ -53,7 +53,7 @@ export const TRACKING = [
 export type Tracking = (typeof TRACKING)[number]['value'];
 
 /** Tile icons and tints for products without a photo. */
-export const PRODUCT_ICONS = ['castle', 'slide', 'water', 'screen', 'popcorn', 'cotton', 'game', 'tent', 'table', 'chair', 'generator', 'service', 'box'] as const;
+export const PRODUCT_ICONS = ['bounce', 'slide', 'screen', 'food', 'game', 'tent', 'table', 'fee', 'box'] as const;
 export const PRODUCT_TINTS = ['cobalt', 'emerald', 'violet', 'sky', 'ink', 'navy', 'amber', 'rose', 'slate', 'mist'] as const;
 
 export const SERVICE_MODES = [
@@ -263,7 +263,7 @@ export const orderSchema = z
     credits: z.array(z.object({ creditId: z.string().uuid(), amount: money })).max(20).default([]),
     taxPercent: z.coerce.number().min(0).max(100).optional(),
     taxOverridden: z.boolean().default(false),
-    deposit: z.object({ kind: z.enum(['percent', 'amount']), value: z.coerce.number().min(0) }).default({ kind: 'percent', value: 30 }),
+    deposit: z.object({ kind: z.enum(['percent', 'amount', 'none']), value: z.coerce.number().min(0) }).default({ kind: 'percent', value: 30 }),
     source: optional(60),
     internalNotes: optional(4000),
     customerNotes: optional(4000),

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { can, ROLE_LABELS, themeCss, type Corners } from '@rental/core';
 import { listUserTenants } from '@rental/db';
-import { MotionProvider } from '@/components/motion';
 import { AppShell } from '@/components/shell/app-shell';
 import { ORG_NAV, type NavGroup } from '@/components/shell/nav';
 import { TenantCard } from '@/components/shell/tenant-card';
@@ -68,7 +67,7 @@ export default async function TenantLayout({ children, params }: { children: Rea
             This workspace is suspended. You can look around, but nothing can be changed and scheduled messages are paused. Contact support to reactivate it.
           </div>
         )}
-        <MotionProvider>{children}</MotionProvider>
+        {children}
       </AppShell>
     </>
   );

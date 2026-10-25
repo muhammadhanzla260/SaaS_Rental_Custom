@@ -1,0 +1,2 @@
+ALTER TABLE "orders" DROP CONSTRAINT "orders_deposit_kind";--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_deposit_kind" CHECK ("orders"."deposit_kind" in ('percent','amount','none'));
