@@ -174,7 +174,7 @@ export function CalendarView({
             <Link aria-label={view === 'day' ? 'Next day' : 'Next week'} href={href({ date: addDays(anchor, step) })} className="press grid size-10 place-items-center rounded-[var(--radius-control)] border border-control bg-surface text-fg hover:bg-hover"><ChevronRight className="size-5" /></Link>
           </div>
           <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-            <Segmented label="View" value={view} onChange={(v) => router.push(href({ view: v }))} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
+            <Segmented label="View" value={view as 'day' | 'week' | 'month'} onChange={(v) => router.push(href({ view: v }))} options={[{ value: 'month', label: 'Month' }, { value: 'week', label: 'Week' }, { value: 'day', label: 'Day' }]} />
             {locations.length > 1 && (
               <Select aria-label="Location" value={locationId} onChange={(e) => router.push(href({ loc: e.target.value, item: null }))} className="h-10 w-36">
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

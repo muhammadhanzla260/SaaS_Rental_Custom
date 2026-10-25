@@ -1,8 +1,9 @@
-import { addDays, utcToWallTime, wallTimeToUtc } from '@rental/core';
+import { addDays, calendarDayCounts, formatMoney, quoteFollowUps, utcToWallTime, wallTimeToUtc } from '@rental/core';
 import { listLocations, listOrders, listProducts } from '@rental/db';
 import { pageContext } from '@/server/guards';
 import { db } from '@/server/db';
 import { CalendarView, type CalOrder, type CalRow } from './calendar-view';
+import { MonthView, type MonthOrder } from './month-view';
 
 export const metadata = { title: 'Calendar' };
 
@@ -17,7 +18,9 @@ export default async function CalendarPage({
   const tz = location?.timezone || ctx.tenant.timezone;
   const today = utcToWallTime(new Date(), tz).date;
   const anchor = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
-  const view = sp.view === 'day' ? 'day' : 'week';
+  // Month (Odoo's count view) by default; week and day show equipment lanes.
+  const view = sp.view === 'day' ? 'day' : sp.view === 'week' ? 'week' : 'month';
+  if (view === 'month') return monthPage(slug, ctx, locations, sp.loc === 'all' ? 'all' : location?.id ?? 'all', anchor, today);
 
   // Week starts on the workspace's chosen day.
   const weekStart = (() => {
@@ -72,6 +75,72 @@ export default async function CalendarPage({
       itemId={rows.some((r) => r.productId === sp.item) ? sp.item! : ''}
       currency={ctx.tenant.currency}
       cleanupMinutes={cleanup}
+      canCreate={ctx.can('orders.create')}
+    />
+  );
+}
+
+type Ctx = Awaited<ReturnType<typeof pageContext>>;
+type Loc = Awaited<ReturnType<typeof listLocations>>[number];
+
+/** ISO week number of a yyyy-mm-dd day. */
+function isoWeek(day: string) {
+  const d = new Date(`${day}T12:00:00Z`);
+  const dow = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dow + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((d.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+}
+
+/** Month grid with Odoo's per-day counts, the legend and quote follow-ups. */
+async function monthPage(slug: string, ctx: Ctx, locations: Loc[], locationId: string, anchor: string, today: string) {
+  const first = `${anchor.slice(0, 7)}-01`;
+  const startsMonday = ctx.prefs.formats.weekStartsOn === 'monday';
+  const dow = new Date(`${first}T12:00:00Z`).getUTCDay();
+  const gridStart = addDays(first, -((dow - (startsMonday ? 1 : 0) + 7) % 7));
+  const nextMonth = (() => { const d = new Date(`${first}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10); })();
+  const prevMonth = (() => { const d = new Date(`${first}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 10); })();
+  const weeksCount = Math.ceil(((Date.parse(nextMonth) - Date.parse(gridStart)) / 86_400_000) / 7);
+  const days = Array.from({ length: weeksCount * 7 }, (_, i) => addDays(gridStart, i));
+  const gridEnd = addDays(days.at(-1)!, 1);
+
+  const zone = new Map(locations.map((l) => [l.id, l.timezone || ctx.tenant.timezone]));
+  const loc = locationId === 'all' ? undefined : locationId;
+  const [inRange, open] = await Promise.all([
+    // A day of slack each side: an event's local day can differ from its UTC day.
+    listOrders(db, ctx.tenant.id, { status: 'all', locationId: loc, from: wallTimeToUtc(addDays(gridStart, -1), '00:00', ctx.tenant.timezone), to: wallTimeToUtc(addDays(gridEnd, 1), '00:00', ctx.tenant.timezone), limit: 5000 }),
+    listOrders(db, ctx.tenant.id, { status: 'quotes', locationId: loc, limit: 2000 }),
+  ]);
+  const tzOf = (id: string) => zone.get(id) ?? ctx.tenant.timezone;
+  const counts = calendarDayCounts(inRange.map((o) => ({ id: o.id, status: o.status, startsAt: o.eventStartsAt, endsAt: o.eventEndsAt, timeZone: tzOf(o.locationId) })));
+  const money = (c: number) => formatMoney(c, ctx.tenant.currency);
+  const orders: Record<string, MonthOrder> = Object.fromEntries(inRange.map((o) => {
+    const z = tzOf(o.locationId);
+    const t = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: z, hour: 'numeric', minute: '2-digit' }).format(d);
+    const multi = utcToWallTime(o.eventStartsAt, z).date !== utcToWallTime(o.eventEndsAt, z).date;
+    const end = multi ? new Intl.DateTimeFormat('en-US', { timeZone: z, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(o.eventEndsAt) : t(o.eventEndsAt);
+    return [o.id, { id: o.id, number: o.number, status: o.status, customerName: o.customerName, when: `${t(o.eventStartsAt)} – ${end}`, items: o.items, location: o.locationName, total: money(o.totalCents) }];
+  }));
+  const followUps = quoteFollowUps(open.map((o) => ({
+    id: o.id, status: o.status, startsAt: o.eventStartsAt, timeZone: tzOf(o.locationId), sentAt: o.quoteSentAt ?? o.createdAt, label: o.customerName || o.number,
+  })));
+  const weekdays = Array.from({ length: 7 }, (_, i) => new Date(`${days[i]}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }));
+  const weeks = Array.from({ length: weeksCount }, (_, w) => ({
+    number: isoWeek(days[w * 7]!),
+    days: days.slice(w * 7, w * 7 + 7).map((d) => ({ date: d, inMonth: d.slice(0, 7) === first.slice(0, 7) })),
+  }));
+  return (
+    <MonthView
+      slug={slug}
+      month={{ date: first, title: new Date(`${first}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), prev: prevMonth, next: nextMonth }}
+      today={today}
+      weeks={weeks}
+      counts={counts}
+      orders={orders}
+      followUps={followUps}
+      locations={locations.map((l) => ({ id: l.id, name: l.name }))}
+      locationId={locationId}
+      weekdays={weekdays}
       canCreate={ctx.can('orders.create')}
     />
   );

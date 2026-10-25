@@ -12,7 +12,7 @@ import { sql } from 'drizzle-orm';
 import { customerSchema, orderSchema, parsePreferences, productSchema, wallTimeToUtc } from '@rental/core';
 import {
   createCustomer, createDb, createOrder, createProduct, listLocations, listMessages, replanAll, resolveOrderToken, saveMailAccount, schema,
-  setupOrganization, transitionOrder, updateOrder, updatePreferences,
+  recordGatewayPayment, recordPayment, setupOrganization, transitionOrder, updateOrder, updatePreferences,
 } from '@rental/db';
 import { dispatchMessage, dispatchOrder } from './dispatch';
 
@@ -82,7 +82,7 @@ describe('quote email', () => {
     expect(results).toEqual(['sent']);
     const quote = (await msgs(o.id)).filter((m) => m.type === 'quote');
     expect(quote).toHaveLength(1);
-    expect(quote[0]).toMatchObject({ status: 'sent', toAddress: `maria-${run}@example.test`, subject: expect.stringContaining('is ready, Maria') });
+    expect(quote[0]).toMatchObject({ status: 'sent', toAddress: `maria-${run}@example.test`, subject: expect.stringContaining('Quote #') });
     const file = quote[0]!.providerRef!.replace(/^outbox:/, '');
     const html = await readFile(file, 'utf8');
     expect(html).toContain('From: "P2 Rentals" <bookings@p2.test>');
@@ -93,14 +93,34 @@ describe('quote email', () => {
   });
 });
 
+describe('payment confirmations (Odoo triggers)', () => {
+  it('booked without payment → booking confirmation; card checkout → only the paid confirmation; balance → paid', async () => {
+    const day = (n: number) => new Date(new Date(`${sat}T12:00:00Z`).getTime() + n * 7 * 86_400_000).toISOString().slice(0, 10);
+    // 1. Booked with nothing paid: the booking confirmation is the only email.
+    const a = await createOrder(db, tenantId, actor, input(day(1)), prefs);
+    await transitionOrder(db, tenantId, actor, a.id, 'book', prefs, { booking: { method: 'none', reason: 'Mailed check expected', expectedOn: day(1) } });
+    expect((await msgs(a.id)).filter((m) => ['booking_confirmation', 'payment_partial', 'payment_paid'].includes(m.type)).map((m) => m.type)).toEqual(['booking_confirmation']);
+    // Paying the whole balance later sends "paid", not "partial".
+    await recordPayment(db, tenantId, actor, a.id, prefs, { method: 'cash', amount: a.totalCents / 100 });
+    expect((await msgs(a.id)).filter((m) => m.type.startsWith('payment_')).map((m) => m.type)).toEqual(['payment_paid']);
+
+    // 2. Quote page card checkout: book (payment follows) then the gateway payment — one email, the paid confirmation.
+    const b = await createOrder(db, tenantId, actor, input(day(2)), prefs);
+    await transitionOrder(db, tenantId, actor, b.id, 'book', prefs, { paymentFollows: true });
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, b.id, { gateway: 'stripe', ref: `pi_test_${run}`, amountCents: b.totalCents, brand: 'visa', last4: '4242' });
+    expect((await msgs(b.id)).filter((m) => ['booking_confirmation', 'payment_partial', 'payment_paid'].includes(m.type)).map((m) => m.type)).toEqual(['payment_paid']);
+  });
+});
+
 describe('booking and schedules', () => {
-  it('booking sends confirmation + receipt once and plans reminders in the location’s time zone', async () => {
+  it('a paid booking sends one payment confirmation (like Odoo) and plans reminders in the location’s time zone', async () => {
     const o = await createOrder(db, tenantId, actor, input(sat), prefs);
     await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'cash', amount: 50 } });
     await dispatchOrder(db, tenantId, o.id);
     const all = await msgs(o.id);
-    expect(all.filter((m) => m.type === 'booking_confirmation' && m.status === 'sent')).toHaveLength(1);
-    expect(all.filter((m) => m.type === 'receipt' && m.status === 'sent')).toHaveLength(1);
+    // $50 of the order: partial. No separate booking confirmation — the payment confirmation says it is booked.
+    expect(all.filter((m) => m.type === 'booking_confirmation')).toHaveLength(0);
+    expect(all.filter((m) => m.type === 'payment_partial' && m.status === 'sent')).toHaveLength(1);
     const pre = all.find((m) => m.type === 'pre_event')!;
     expect(pre.status).toBe('queued');
     expect(pre.scheduledFor.toISOString()).toBe(wallTimeToUtc(new Date(new Date(`${sat}T12:00:00Z`).getTime() - 3 * 86_400_000).toISOString().slice(0, 10), '09:00', 'America/Chicago').toISOString());

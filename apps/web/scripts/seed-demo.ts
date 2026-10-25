@@ -18,9 +18,10 @@ import {
 import {
   acceptInvitation, addUnit, createCategory, createCredit, createCustomer, createDb, createInvitation, createLocation, createOrder, createProduct,
   createWorkspace, launchWorkspace, listLocations, markOnboarding, platformCloseOrg, platformSetStatus, saveConnectStep, saveCustomerAddress,
-  setProductStatus, setUnitStatus, setupOrganization, transitionOrder, updateBrand, updateMember, updatePreferences, listTeam,
+  saveTemplate, setProductStatus, setUnitStatus, setupOrganization, transitionOrder, updateBrand, updateMember, updatePreferences, listTeam,
 } from '@rental/db';
 import { FREEDOM_FUN_AGREEMENT } from './freedomfun-agreement';
+import { freedomFunEmailTemplates } from './freedomfun-emails';
 
 config({ path: resolve(import.meta.dirname, '../../../.env'), quiet: true });
 if (process.env.NODE_ENV === 'production' || /neon\.tech/.test(process.env.DATABASE_URL_OWNER ?? '') && !process.env.ALLOW_DEMO_SEED) {
@@ -105,6 +106,7 @@ async function main() {
   });
   await updatePreferences(db, ff.id, ffActor, 'setupDone', ['numbers', 'rules']);
   await updatePreferences(db, ff.id, ffActor, 'agreement', FREEDOM_FUN_AGREEMENT);
+  for (const t of freedomFunEmailTemplates()) await saveTemplate(db, ff.id, ffActor, t.type, 'email', t.template);
   // Automations live from the start, so the message log shows real queued reminders (delivered to .data/outbox in development).
   await updatePreferences(db, ff.id, ffActor, 'messaging', messagingSettingsSchema.parse({
     live: true, replyTo: 'office@freedomfunusa.test', alertsTo: ['office@freedomfunusa.test'], bcc: ['archive@freedomfunusa.test'],

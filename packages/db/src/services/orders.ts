@@ -12,7 +12,7 @@ import { audit, type Actor } from './audit';
 import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
 import { OrgError } from './errors';
-import { enqueueOfficeAlert, enqueueOrderMessage, ensureOrderToken, planOrderMessages } from './messaging';
+import { enqueueOfficeAlert, enqueueOrderMessage, enqueuePaymentConfirmation, ensureOrderToken, planOrderMessages } from './messaging';
 import { billingOrder, syncInvoices } from './money';
 
 export type Order = typeof orders.$inferSelect;
@@ -531,7 +531,8 @@ async function recordPaymentTx(
 
 export function transitionOrder(
   db: Db, tenantId: string, actor: Actor, id: string, action: OrderAction, prefs: TenantPreferences,
-  opts: { reason?: string; booking?: BookingInput } = {},
+  /** paymentFollows: a card payment is recorded right after (its confirmation also confirms the booking). */
+  opts: { reason?: string; booking?: BookingInput; paymentFollows?: boolean } = {},
 ) {
   return withTenant(db, tenantId, async (tx) => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
@@ -583,8 +584,9 @@ export function transitionOrder(
     // Messages, in the same transaction: one key per thing that happened, so nothing goes out twice.
     if (action === 'send_quote') await enqueueOrderMessage(tx, tenantId, id, 'quote', `${id}:quote:v${after!.version}`, { automatic: false });
     if (action === 'book') {
-      await enqueueOrderMessage(tx, tenantId, id, 'booking_confirmation', `${id}:booking_confirmation`, { automatic: true });
-      if (payment) await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${payment.id}:receipt`, { automatic: true, meta: { paymentId: payment.id } });
+      // Like Odoo: a paid booking gets one email, the payment confirmation (which says it is booked).
+      if (payment) await enqueuePaymentConfirmation(tx, tenantId, after!, payment.id);
+      else if (!opts.paymentFollows) await enqueueOrderMessage(tx, tenantId, id, 'booking_confirmation', `${id}:booking_confirmation`, { automatic: true });
       const m = prefs.messaging;
       if (order.eventStartsAt.getTime() - now.getTime() < (m.lastMinuteHours ?? 24) * 3_600_000) {
         await enqueueOfficeAlert(tx, tenantId, 'last_minute', `${id}:last_minute`, id);
@@ -621,7 +623,7 @@ export function recordPayment(
     await recordVersion(tx, tenantId, actor, after!, 'payment', { Payment: { from: '', to: `${pay.number} · ${pay.method} · ${money(cents)}` } });
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.payment', { number: order.number, payment: pay.number, cents });
     // Staff ticking "Send receipt" always sends; otherwise the automation decides.
-    if (p.receipt !== false) await enqueueOrderMessage(tx, tenantId, id, 'receipt', `${pay.id}:receipt`, { automatic: p.receipt !== true, meta: { paymentId: pay.id } });
+    if (p.receipt !== false) await enqueuePaymentConfirmation(tx, tenantId, after!, pay.id, p.receipt !== true);
     await syncInvoices(tx, tenantId, id);
     return { order: after!, payment: pay };
   });

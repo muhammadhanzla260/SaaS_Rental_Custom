@@ -50,7 +50,8 @@ const pages = [
   ['orders', `${S}/orders`],
   ['order-maria', mariaOrder],
   ['order-new', `${S}/orders/new`],
-  ['calendar-week', `${S}/calendar?date=${sat}`],
+  ['calendar-month', `${S}/calendar?date=${sat}`],
+  ['calendar-week', `${S}/calendar?date=${sat}&view=week`],
   ['calendar-day', `${S}/calendar?date=${sat}&view=day`],
 ];
 for (const [name, path] of pages) {

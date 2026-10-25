@@ -118,6 +118,14 @@ try {
   await c.waitText('booked, Quinn');
   check(true, 'opening the link again goes straight to Done');
 
+  // --- Documents the quote email links to, before signing --------------------------------------
+  await c.go(`${fx.deposit.url}/print?doc=quote`);
+  await c.waitText('Print or save as PDF');
+  check(await c.has(fx.deposit.number) && await c.has('Deposit to book'), '"Download Quote (PDF)" opens the quote document');
+  await c.go(`${fx.deposit.url}/print?doc=agreement`);
+  await c.waitText('Not signed yet');
+  check(await c.has('Hold harmless') && await c.has('Policies to accept'), '"Download Contract (PDF)" opens the contract to sign');
+
   // --- Deposit quote: request changes, then sign and reach Pay ----------------------------------
   await c.go(fx.deposit.url);
   await c.waitText('Hi Quinn');
@@ -138,6 +146,14 @@ try {
   await c.waitText('Pay to book');
   const stripeOn = await c.has('Continue to card');
   check(stripeOn || await c.has('switched on card payments'), `Pay step ${stripeOn ? 'offers the card form (Stripe connected)' : 'explains card payments are not switched on yet'}`);
+  if (stripeOn) {
+    // Like the Odoo quote email: pay in full, or the deposit and the rest later.
+    check(await c.page.$$eval('[role="radio"]', (r) => r.map((e) => e.innerText).join('|')).then((t) => t.includes('Pay in full') && t.includes('Pay deposit')), 'Pay step offers Pay in full or Pay deposit');
+    await c.click('Pay in full', '[role="radio"]');
+    check(!(await c.has('Save my card')) && await c.has('booking is all set'), 'choosing Pay in full drops the save-card box (nothing left for the event day)');
+    await c.click('Pay deposit', '[role="radio"]');
+    check(await c.has('Save my card'), 'the deposit choice offers to save the card for the balance');
+  }
   await c.shot('06-pay-phone');
 
   // === Owner, desktop ==============================================================================
@@ -180,8 +196,9 @@ try {
   await o.shot('09-invoice-paid');
   // The receipt is queued for the customer (delivered to .data/outbox, or live when MESSAGING_DELIVERY=live).
   await o.go(`${S}/settings/messaging?tab=log&q=${fx.noDeposit.number}`);
-  await o.waitText('Payment receipt');
-  check(await o.has('Quinn'), 'the payment receipt email is in the message log for the customer');
+  await o.waitText('Payment confirmation (paid)');
+  check(await o.page.evaluate(() => [...document.querySelectorAll('li')].some((li) => li.innerText.includes('Payment confirmation (paid)') && li.innerText.includes('qa-quote@example.test'))),
+    'paying the whole balance logs a "Payment confirmation (paid)" email to the customer');
 
   // --- Printable invoice (staff) and receipt (customer) -------------------------------------------
   const invoiceId = new URL(invoiceHref).searchParams.get('id');
@@ -224,9 +241,27 @@ try {
   await o.shot('13-stripe-mismatch');
   await o.click('Discard');
 
+  // --- Month calendar (Odoo counts) ----------------------------------------------------------------
+  await o.go(`${S}/calendar?loc=all&date=${fx.day}`);
+  await o.waitText('Calendar counts');
+  const cell = await o.page.evaluate((d) => {
+    const label = new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    const el = [...document.querySelectorAll('[role="gridcell"]')].find((c) => c.getAttribute('aria-label') === label);
+    return el ? [...el.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')) : null;
+  }, fx.day);
+  check(!!cell && cell.some((l) => l.startsWith('Delivery:')) && cell.some((l) => l.startsWith('Quote:')), `month view counts the booked QA order as a delivery and the open one as a quote (${cell?.join(', ')})`);
+  await o.page.evaluate((d) => {
+    const label = new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    [...document.querySelectorAll('[role="gridcell"]')].find((c) => c.getAttribute('aria-label') === label).querySelector('button[aria-label^="Delivery"]').click();
+  }, fx.day);
+  await o.page.waitForSelector('dialog[open]', { visible: true });
+  check(await o.page.$eval('dialog[open]', (e) => e.innerText.includes('Quinn Tester') && e.innerText.includes('Booked')), 'clicking a count lists that day’s orders');
+  await o.shot('15-month-calendar');
+  await o.page.keyboard.press('Escape');
+
   // --- Phones: staff screens fit --------------------------------------------------------------------
   await o.page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-  for (const [path, name] of [[`${S}/invoices`, 'invoices'], [`${S}/orders/${fx.noDeposit.id}`, 'order'], [`${S}/settings/workspace?tab=agreement`, 'agreement settings']]) {
+  for (const [path, name] of [[`${S}/calendar?loc=all`, 'month calendar'], [`${S}/invoices`, 'invoices'], [`${S}/orders/${fx.noDeposit.id}`, 'order'], [`${S}/settings/workspace?tab=agreement`, 'agreement settings']]) {
     await o.go(path);
     await sleep(400);
     check(await o.noSideScroll(), `${name} fits a 390 px phone`);

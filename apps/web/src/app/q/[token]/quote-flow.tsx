@@ -19,7 +19,7 @@ export type QuoteView = {
     number: string; status: string; eventType: string; dateLong: string; dateShort: string; timeRange: string; setupFrom: string; where: string; address: string;
     surface: string | null; items: { name: string; quantity: number; total: string; icon: string | null; tint: string | null; kind: string; sub: string }[];
     summary: { label: string; value: string; tone?: 'credit' }[]; total: string; dueAfterCredits: string | null; deposit: string; depositCents: number; paid: string;
-    balance: string; validUntil: string | null; waiver: { on: boolean; percent: number; amount: string }; balanceDue: string | null; autoCharge: boolean;
+    balance: string; fullCents: number; full: string; validUntil: string | null; waiver: { on: boolean; percent: number; amount: string }; balanceDue: string | null; autoCharge: boolean;
   };
   state: 'quote' | 'balance' | 'done' | 'expired' | 'cancelled';
   due: { amountCents: number; label: string; amount: string };
@@ -300,6 +300,8 @@ function Sign({ view: v, onNext }: { view: QuoteView; onNext: () => void }) {
 function Pay({ view: v, onPaid }: { view: QuoteView; onPaid: (p: { number: string; last4: string | null; brand: string | null }) => void }) {
   const toast = useToast();
   const [saveCard, setSaveCard] = useState(true);
+  // Like the Odoo quote email: pay everything now, or the deposit and the rest later.
+  const [plan, setPlan] = useState<'deposit' | 'full'>('deposit');
   const [intent, setIntent] = useState<StartPayment | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -316,46 +318,66 @@ function Pay({ view: v, onPaid }: { view: QuoteView; onPaid: (p: { number: strin
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (v.order.depositCents <= 0 && !booked) {
-    return (
-      <>
-        <h1 className="font-display text-[28px] font-extrabold tracking-tight text-fg">Nothing to pay today</h1>
-        <p className="mt-2 text-fg-2">Your booking needs no deposit. The total of {v.order.total} is due {v.order.balanceDue ? `by ${v.order.balanceDue}` : 'on the event day'}.</p>
-        {err && <Notice kind="danger" className="mt-4">{err}</Notice>}
-        <Button size="lg" className="mt-6 !bg-[var(--qb)] !text-[var(--qon)]" pending={busy} onClick={async () => {
-          setBusy(true);
-          const r = await quoteBookAction(v.token);
-          setBusy(false);
-          if (!r.ok) return setErr(r.error);
-          onPaid({ number: '', last4: null, brand: null });
-        }}>Book it</Button>
-      </>
-    );
-  }
-  async function start() {
+  async function start(full = plan === 'full') {
     setErr(null);
     setBusy(true);
-    const r = await quoteStartPaymentAction(v.token, saveCard);
+    const r = await quoteStartPaymentAction(v.token, saveCard, full);
     setBusy(false);
     if (!r.ok) return setErr(r.error);
     setIntent(r.data!);
   }
+  if (v.order.depositCents <= 0 && !booked && !intent) {
+    return (
+      <>
+        <h1 className="font-display text-[28px] font-extrabold tracking-tight text-fg">Nothing to pay today</h1>
+        <p className="mt-2 text-fg-2">Your booking needs no deposit. The total of {v.order.full} is due {v.order.balanceDue ? `by ${v.order.balanceDue}` : 'on the event day'}.</p>
+        {err && <Notice kind="danger" className="mt-4">{err}</Notice>}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button size="lg" className="!bg-[var(--qb)] !text-[var(--qon)]" pending={busy} onClick={async () => {
+            setBusy(true);
+            const r = await quoteBookAction(v.token);
+            setBusy(false);
+            if (!r.ok) return setErr(r.error);
+            onPaid({ number: '', last4: null, brand: null });
+          }}>Book it</Button>
+          {v.gateway && v.order.fullCents > 0 && <Button size="lg" variant="secondary" icon={<Lock className="size-4" />} disabled={busy} onClick={() => start(true)}>Pay {v.order.full} now</Button>}
+        </div>
+      </>
+    );
+  }
+  const full = plan === 'full';
+  const choose = !booked && v.order.fullCents > v.order.depositCents && v.order.depositCents > 0;
   return (
     <>
       <h1 className="font-display text-[28px] font-extrabold tracking-tight text-fg sm:text-[34px]">{booked ? 'Pay the balance' : 'Pay to book'}</h1>
-      <p className="mt-2 text-fg-2">{booked ? `${v.due.amount} for ${v.order.number}.` : `The ${v.order.deposit} deposit reserves everything for ${v.order.dateShort}.`}</p>
+      <p className="mt-2 text-fg-2">
+        {booked ? `${v.due.amount} for ${v.order.number}.` : full || v.order.depositCents <= 0 ? `Pay ${v.order.full} now and your ${v.order.dateShort} booking is all set.` : `The ${v.order.deposit} deposit reserves everything for ${v.order.dateShort}.`}
+      </p>
+      {choose && !intent && (
+        <div role="radiogroup" aria-label="How much to pay" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {([['full', 'Pay in full', v.order.full, 'Pay once now. Then relax knowing your event balance is taken care of.', 'Easiest option'],
+            ['deposit', 'Pay deposit', v.order.deposit, `Reserve your date now. The balance of ${v.order.balance} is due ${v.order.balanceDue ? `by ${v.order.balanceDue}` : 'on the event day'}.`, 'Minimum payment']] as const).map(([key, title, amount, text, badge]) => (
+            <button key={key} type="button" role="radio" aria-checked={plan === key} onClick={() => setPlan(key)}
+              className={cx('press rounded-[var(--radius-card)] border-2 p-4 text-left transition-colors', plan === key ? 'border-[var(--qb)] bg-[color-mix(in_srgb,var(--qb)_6%,transparent)]' : 'border-subtle hover:border-control')}>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-2">{badge}</span>
+              <span className="mt-1 flex items-baseline justify-between gap-2"><span className="font-semibold text-fg">{title}</span><span className="mono text-lg font-bold text-fg">{amount}</span></span>
+              <span className="mt-1 block text-[13px] text-fg-2">{text}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {v.signature && !booked && <p className="mt-2 flex items-center gap-1.5 text-[13px] text-success-fg"><Check className="size-4" /> Signed by {v.signature.name}</p>}
       {!v.gateway ? (
         <Notice className="mt-6">{v.brand.name} hasn’t switched on card payments yet. Please call {v.brand.phone ?? 'the office'} to pay and book.</Notice>
       ) : !intent ? (
         <div className="mt-6 flex flex-col gap-4">
-          {!booked && (
+          {!booked && !full && (
             <Checkbox checked={saveCard} onChange={setSaveCard}>
               Save my card so the balance of {v.order.balance} is charged on the event day{v.order.balanceDue ? ` (${v.order.balanceDue})` : ''}. I authorise {v.brand.name} to make that charge.
             </Checkbox>
           )}
           {err && <Notice kind="danger">{err}</Notice>}
-          <Button size="lg" icon={<Lock className="size-4" />} className="self-start !bg-[var(--qb)] !text-[var(--qon)]" pending={busy} onClick={start}>Continue to card</Button>
+          <Button size="lg" icon={<Lock className="size-4" />} className="self-start !bg-[var(--qb)] !text-[var(--qon)]" pending={busy} onClick={() => start()}>Continue to card</Button>
         </div>
       ) : (
         <Elements stripe={stripeFor(intent.publishableKey)} options={{ clientSecret: intent.clientSecret, appearance: { theme: 'stripe', variables: { colorPrimary: v.brand.color, borderRadius: '10px', fontFamily: 'Geist, system-ui, sans-serif' } } }}>
@@ -416,10 +438,10 @@ function Summary({ view: v }: { view: QuoteView }) {
         <span className="mono text-[26px] font-bold text-fg">{v.order.dueAfterCredits ?? v.order.total}</span>
       </div>
       <div className="mt-3 flex items-baseline justify-between rounded-[var(--radius-card)] px-4 py-3" style={{ background: 'color-mix(in srgb, var(--qb) 12%, transparent)' }}>
-        <span className="font-semibold" style={{ color: 'var(--qb)' }}>{v.state === 'balance' ? 'Due now' : 'Due today'}</span>
+        <span className="font-semibold" style={{ color: 'var(--qb)' }}>{v.state === 'balance' ? 'Due now' : 'Deposit to book'}</span>
         <span className="mono font-bold" style={{ color: 'var(--qb)' }}>{v.due.amount}</span>
       </div>
-      {v.state === 'quote' && <p className="mt-3 text-[13px] text-fg-2">Balance of {v.order.balance} on the event day.</p>}
+      {v.state === 'quote' && <p className="mt-3 text-[13px] text-fg-2">{v.order.depositCents > 0 ? `Balance of ${v.order.balance} on the event day, or pay ${v.order.full} in full.` : `${v.order.full} due on the event day, or pay in full now.`}</p>}
       <p className="mt-3 text-[13px] text-fg-2">
         {v.order.validUntil && v.state === 'quote' ? `Quote valid until ${v.order.validUntil}. ` : ''}Questions? Reply to the email{v.brand.phone ? ` or call ${v.brand.phone}` : ''}.
       </p>

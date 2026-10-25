@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkTemplateSource, DEFAULT_SCHEDULES, defaultTemplate, fieldsIn, fillFields, messagingSettingsSchema, outsideQuietHours, renderMessage,
-  resolveMessaging, sanitizeEmailHtml, SAMPLE_FIELDS, scheduledAt, smsSegments,
+  resolveMessaging, sampleFields, sanitizeEmailHtml, SAMPLE_FIELDS, scheduledAt, smsSegments,
 } from './messaging';
 
 const TZ = 'America/Chicago';
@@ -61,13 +61,32 @@ describe('templates', () => {
   });
   it('builder email carries the branded button and a plain-text version', () => {
     const out = renderMessage({
-      channel: 'email', template: defaultTemplate('quote', 'email'), values: SAMPLE_FIELDS,
-      brand: { orgName: 'Freedom Fun USA', brandColor: '#C2410C', onBrand: '#fff' }, summary: [{ label: 'Deposit to book', value: '$185.43' }],
-      links: { pay_link: 'https://app.test/q/abc' },
+      channel: 'email', template: defaultTemplate('review_request', 'email'), values: SAMPLE_FIELDS,
+      brand: { orgName: 'Freedom Fun USA', brandColor: '#C2410C', onBrand: '#fff' },
+      links: { review_link: 'https://g.page/r/abc' },
     });
-    expect(out.subject).toBe('Your quote Q-AUS-01043 is ready, Maria');
-    expect(out.html).toContain('href="https://app.test/q/abc"');
-    expect(out.text).toContain('Review, sign & pay: https://app.test/q/abc');
+    expect(out.subject).toBe('Thank you from Freedom Fun USA — we’d love your feedback!');
+    expect(out.html).toContain('href="https://g.page/r/abc"');
+    expect(out.text).toContain('Leave a review: https://g.page/r/abc');
+  });
+
+  it('order emails default to the Odoo HTML layout: blocks go in as HTML, values stay escaped, one footer', () => {
+    const t = defaultTemplate('quote', 'email');
+    expect(t.mode).toBe('raw');
+    const values = { ...sampleFields({ color: '#056690', onColor: '#ffffff' }, 'Freedom Fun USA', null, 'quote'), 'customer.first_name': 'Maria <b>' };
+    const out = renderMessage({ channel: 'email', template: t, values, brand: { orgName: 'Freedom Fun USA', brandColor: '#056690', onBrand: '#ffffff' }, links: {} });
+    expect(out.subject).toBe('Freedom Fun USA - Quote #Q-AUS-01043');
+    expect(out.html).toContain('Choose the option that works best for you');
+    expect(out.html).toContain('Pay in full');
+    expect(out.html).toContain('Maria &lt;b&gt;');
+    expect(out.html).not.toMatch(/\{block\./);
+    expect(out.html!.match(/You receive this because you booked/g)).toHaveLength(1);
+  });
+
+  it('payment confirmations are labelled partial or paid in full', () => {
+    expect(defaultTemplate('payment_partial', 'email').subject).toContain('Payment Confirmation (Partial)');
+    expect(defaultTemplate('payment_paid', 'email').subject).toContain('Payment Confirmation (Paid in Full)');
+    expect(defaultTemplate('invoice', 'email').subject).toContain('Invoice #{invoice.number}');
   });
 });
 

@@ -84,12 +84,12 @@ export async function quoteSignAction(token: string, input: unknown): Promise<Ac
 
 export type StartPayment = { clientSecret: string; intentId: string; publishableKey: string; amountCents: number };
 
-export async function quoteStartPaymentAction(token: string, saveCard: boolean): Promise<ActionResult<StartPayment>> {
+export async function quoteStartPaymentAction(token: string, saveCard: boolean, payFull = false): Promise<ActionResult<StartPayment>> {
   return safe<StartPayment>(async () => {
     const q = await load(token);
     if (expired(q)) return { ok: false, error: 'This quote has expired. Ask for a new one.' };
     if (open(q) && !q.signature) return { ok: false, error: 'Please sign the agreement first.' };
-    const r = await startCardPayment(db, q, { saveCard });
+    const r = await startCardPayment(db, q, { saveCard, payFull: payFull === true });
     return { ok: true, data: { clientSecret: r.clientSecret, intentId: r.intentId, publishableKey: r.publishableKey, amountCents: r.amountCents } };
   });
 }

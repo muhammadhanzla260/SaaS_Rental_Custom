@@ -8,6 +8,8 @@
  * thank-you 2 days after, survey 7 days after, balance charged on event day.
  */
 import { z } from 'zod';
+import { BLOCK_KEYS, emailBlocks, sampleEmailData } from './email-blocks';
+import { defaultEmailHtml } from './email-templates';
 import { addDays, utcToWallTime, wallTimeToUtc } from './time';
 
 // --- message types -------------------------------------------------------------------------
@@ -17,9 +19,10 @@ export type MessageGroup = 'instant' | 'scheduled' | 'internal';
 
 export const MESSAGE_TYPES = {
   quote: { label: 'Quote', group: 'instant', channels: ['email'], when: 'Sent when staff press Send quote. Includes the review, sign & pay link.' },
-  invoice: { label: 'Invoice', group: 'instant', channels: ['email'], when: 'Deposit, balance or tip invoice, with a pay link.' },
-  receipt: { label: 'Payment receipt', group: 'instant', channels: ['email'], when: 'After any successful payment, partial or full.' },
-  booking_confirmation: { label: 'Booking confirmation', group: 'instant', channels: ['email'], when: 'When the deposit is paid. Signed agreement attached.' },
+  invoice: { label: 'Invoice', group: 'instant', channels: ['email'], when: 'When staff press Email invoice: what is due, with a pay link.' },
+  payment_partial: { label: 'Payment confirmation (partial)', group: 'instant', channels: ['email'], when: 'After a payment that leaves a balance. Also confirms the booking.' },
+  payment_paid: { label: 'Payment confirmation (paid)', group: 'instant', channels: ['email'], when: 'After the payment that pays the order in full.' },
+  booking_confirmation: { label: 'Booking confirmation', group: 'instant', channels: ['email'], when: 'When an order is booked without a payment (a paid booking gets the payment confirmation instead).' },
   cancellation: { label: 'Cancellation', group: 'instant', channels: ['email'], when: 'When an order is cancelled, with refund or credit details.' },
   card_declined: { label: 'Card declined', group: 'instant', channels: ['email', 'sms'], when: 'To the customer when a charge fails, with a pay-now link.' },
   pre_event: { label: 'Pre-event reminder', group: 'scheduled', channels: ['email'], when: 'Before the event: what to expect and how to prepare.' },
@@ -159,11 +162,25 @@ export const TEMPLATE_FIELDS = [
   { key: 'pay_link', label: 'Sign & pay link', sample: 'https://…/q/…' },
   { key: 'review_link', label: 'Review link', sample: 'https://g.page/r/…' },
   { key: 'reason', label: 'Reason', sample: 'Card declined' },
+  { key: 'order.paid', label: 'Paid so far', sample: '$109.20' },
+  { key: 'order.prepared_suffix', label: '" | Prepared by …" (empty if no salesperson)', sample: ' | Prepared by Sam Ortiz' },
+  { key: 'event.days_to_go', label: 'Days to go ("3 days")', sample: '3 days' },
+  { key: 'payment.status', label: 'Partial or paid in full', sample: 'Partial payment' },
+  { key: 'payment.detail', label: 'How it was paid', sample: 'Card ending in 4242 · Oct 2, 2026' },
+  { key: 'org.location_name', label: 'Business - location', sample: 'Freedom Fun USA - Austin' },
+  { key: 'org.email', label: 'Business email', sample: 'care@freedomfunusa.com' },
+  { key: 'org.address', label: 'Business address', sample: '15122 Honeycomb Drive, Leander, TX 78641' },
+  { key: 'org.website', label: 'Website', sample: 'www.freedomfunusa.com' },
+  { key: 'org.website_url', label: 'Website link', sample: 'https://www.freedomfunusa.com' },
+  { key: 'brand.color', label: 'Brand colour', sample: '#056690' },
+  { key: 'brand.on_color', label: 'Text on brand colour', sample: '#ffffff' },
+  { key: 'contract_link', label: 'Contract (PDF) link', sample: 'https://…/q/…/print?doc=agreement' },
+  { key: 'quote_pdf_link', label: 'Quote (PDF) link', sample: 'https://…/q/…/print?doc=quote' },
 ] as const;
 export type TemplateFieldKey = (typeof TEMPLATE_FIELDS)[number]['key'];
 export type FieldValues = Partial<Record<string, string>>;
 export const SAMPLE_FIELDS: FieldValues = Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f.key, f.sample]));
-const KNOWN = new Set<string>(TEMPLATE_FIELDS.map((f) => f.key));
+const KNOWN = new Set<string>([...TEMPLATE_FIELDS.map((f) => f.key), ...BLOCK_KEYS]);
 
 // {field} or {{field}}; unknown fields are left exactly as typed.
 const FIELD_RE = /\{\{?\s*([a-z_]+(?:\.[a-z_0-9]+)?)\s*\}?\}/g;
@@ -175,7 +192,14 @@ export function fieldsIn(text: string) {
 }
 
 export function fillFields(text: string, values: FieldValues, escape: (s: string) => string = (s) => s) {
-  return text.replace(FIELD_RE, (whole, key: string) => (KNOWN.has(key) && values[key] != null ? escape(values[key]!) : whole));
+  // Blocks are HTML we generate (already escaped inside), so they go in as is.
+  return text.replace(FIELD_RE, (whole, key: string) => (KNOWN.has(key) && values[key] != null ? (BLOCK_KEYS.has(key) ? values[key]! : escape(values[key]!)) : whole));
+}
+
+/** Preview values: the sample fields plus every block rendered from the sample order in this brand. */
+export function sampleFields(brand: { color: string; onColor: string }, orgName: string, logoUrl: string | null = null, type?: MessageType): FieldValues {
+  const stage = type === 'quote' ? 'quote' : type === 'booking_confirmation' ? 'unpaid' : type === 'payment_paid' || type === 'charge_balance' ? 'paid' : 'deposit';
+  return { ...SAMPLE_FIELDS, 'brand.color': brand.color, 'brand.on_color': brand.onColor, 'org.name': orgName, ...emailBlocks(sampleEmailData(brand, orgName, stage), logoUrl) };
 }
 
 export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -205,8 +229,10 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
     body: 'Hi {customer.first_name},\n\nThanks for thinking of us for your {event.type} on {event.date}. Your quote is ready.\n\nReview it, accept our policies, sign and pay the {deposit.percent} deposit to lock in your date. Until then, items are not reserved.' } },
   invoice: { email: { subject: 'Invoice {invoice.number} from {org.name}', button: 'pay_link', buttonText: 'Pay {invoice.amount}', attachDocument: true,
     body: 'Hi {customer.first_name},\n\nHere is invoice {invoice.number} for order {order.number} ({event.date}). The amount due is {invoice.amount}.' } },
-  receipt: { email: { subject: 'Receipt {payment.number} · {order.number}', button: null, buttonText: '',
-    body: 'Hi {customer.first_name},\n\nThank you! We received {payment.amount} for order {order.number}. Receipt number {payment.number}.\n\nBalance left: {order.balance}.' } },
+  payment_partial: { email: { subject: 'Payment Confirmation (Partial) - Order #{order.number}', button: 'pay_link', buttonText: 'Pay remaining balance',
+    body: 'Hi {customer.first_name},\n\nThank you! We received {payment.amount} for order {order.number}. Receipt number {payment.number}.\n\nRemaining balance: {order.balance}.' } },
+  payment_paid: { email: { subject: 'Payment Confirmation (Paid in Full) - Order #{order.number}', button: null, buttonText: '',
+    body: 'Hi {customer.first_name},\n\nThank you! We received {payment.amount} for order {order.number}. Receipt number {payment.number}. You are paid in full.' } },
   booking_confirmation: { email: { subject: 'You’re booked! {order.number} on {event.date}', button: null, buttonText: '', attachAgreement: true,
     body: 'Hi {customer.first_name},\n\nYour {event.type} on {event.date} ({event.time}) is booked and your equipment is reserved.\n\nWe’ll set up at {event.address}. The balance of {order.balance} is charged on the event day. Your signed rental agreement is attached.' } },
   cancellation: { email: { subject: 'Order {order.number} is cancelled', button: null, buttonText: '',
@@ -240,7 +266,10 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
 
 export function defaultTemplate(type: MessageType, channel: Channel): TemplateInput & { button: Default['button'] } {
   const d = DEFAULT_TEMPLATES[type][channel] ?? DEFAULT_TEMPLATES[type].email ?? sms('');
-  return { ...templateSchema.parse({}), subject: d.subject, body: d.body, buttonText: d.buttonText, attachDocument: !!d.attachDocument, attachAgreement: !!d.attachAgreement, button: d.button };
+  const base = { ...templateSchema.parse({}), subject: d.subject, body: d.body, buttonText: d.buttonText, attachDocument: !!d.attachDocument, attachAgreement: !!d.attachAgreement, button: d.button };
+  // The order emails ship as HTML in the Odoo layout (staff edit the HTML); the rest use the builder.
+  const html = channel === 'email' ? defaultEmailHtml(type) : null;
+  return html ? { ...base, subject: html.subject, mode: 'raw', rawSource: html.html, rawKind: 'html' } : base;
 }
 
 // --- HTML checks ------------------------------------------------------------------------------------
@@ -362,7 +391,9 @@ export function renderMessage(opts: {
   if (opts.template.mode === 'raw') {
     const filled = fillFields(opts.template.rawSource, v, escapeHtml);
     const clean = sanitizeEmailHtml(filled);
-    const html = /<\/body>/i.test(clean) ? clean.replace(/<\/body>/i, `${legalFooterHtml(opts.brand)}</body>`) : `${clean}${legalFooterHtml(opts.brand)}`;
+    // Our own layouts carry the footer already (data-legal-footer); anything else gets ours.
+    const html = /data-legal-footer/.test(clean) ? clean
+      : /<\/body>/i.test(clean) ? clean.replace(/<\/body>/i, `${legalFooterHtml(opts.brand)}</body>`) : `${clean}${legalFooterHtml(opts.brand)}`;
     return { subject, html, text: htmlToText(html) };
   }
   const body = fillFields(opts.template.body, v);

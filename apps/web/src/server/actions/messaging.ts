@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
-  checkAccent, defaultTemplate, mailAccountSchema, MESSAGE_TYPES, messagingSettingsSchema, renderMessage, SAMPLE_FIELDS, smsAccountSchema,
+  checkAccent, defaultTemplate, mailAccountSchema, MESSAGE_TYPES, messagingSettingsSchema, renderMessage, sampleFields, smsAccountSchema,
   templateSchema, type Channel, type MessageType,
 } from '@rental/core';
 import {
@@ -80,7 +80,7 @@ export async function testEmailAction(slug: string, to: string): Promise<ActionR
     const rendered = renderMessage({
       channel: 'email',
       template: { ...defaultTemplate('quote', 'email'), subject: `Test email from ${ctx.tenant.name}`, body: `Hi,\n\nThis is a test from ${ctx.tenant.name}. If you can read this, quotes, invoices and reminders will reach your customers.` , buttonText: '' },
-      values: SAMPLE_FIELDS,
+      values: sampleFields({ color, onColor: checkAccent(color).onAccent }, ctx.tenant.name),
       brand: { orgName: ctx.tenant.name, brandColor: color, onBrand: checkAccent(color).onAccent },
       links: {},
     });
@@ -131,7 +131,7 @@ export async function sendTestTemplateAction(slug: string, channel: unknown, inp
     if (!addr.success) return { ok: false, error: addr.error.issues[0]!.message };
     const color = ctx.tenant.brandColor || '#2C4FE0';
     const out = renderMessage({
-      channel: 'email', template: { ...parsed.data, button: 'pay_link' }, values: SAMPLE_FIELDS,
+      channel: 'email', template: { ...parsed.data, button: 'pay_link' }, values: sampleFields({ color, onColor: checkAccent(color).onAccent }, ctx.tenant.name),
       brand: { orgName: ctx.tenant.name, brandColor: color, onBrand: checkAccent(color).onAccent },
       summary: [{ label: 'Order', value: 'Q-AUS-01043' }, { label: 'Deposit to book', value: '$185.43' }], links: { pay_link: '#' },
     });

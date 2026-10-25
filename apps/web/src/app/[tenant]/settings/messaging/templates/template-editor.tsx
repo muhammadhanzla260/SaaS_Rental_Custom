@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Check, Code2, Download, FileUp, ListChecks, Trash2, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import {
-  checkTemplateSource, MESSAGE_TYPES, renderMessage, SAMPLE_FIELDS, smsSegments, TEMPLATE_FIELDS,
+  checkTemplateSource, EMAIL_BLOCKS, MESSAGE_TYPES, renderMessage, sampleFields, smsSegments, TEMPLATE_FIELDS,
   type Channel, type EmailBrand, type MessageType, type TemplateInput,
 } from '@rental/core';
 import { Button, Card, Checkbox, cx, Field, Input, Modal, Notice, Segmented, Textarea, useToast } from '@/components/kit';
@@ -17,7 +17,7 @@ import { restoreTemplateAction, saveTemplateAction, sendTestTemplateAction } fro
 type Tpl = TemplateInput & { button: 'pay_link' | 'review_link' | null; custom: boolean; version: number; updatedByName: string | null; updatedAt: string | null };
 
 const GROUPS: { label: string; types: MessageType[] }[] = [
-  { label: 'Sent right away', types: ['quote', 'invoice', 'receipt', 'booking_confirmation', 'cancellation', 'card_declined'] },
+  { label: 'Sent right away', types: ['quote', 'invoice', 'payment_partial', 'payment_paid', 'booking_confirmation', 'cancellation', 'card_declined'] },
   { label: 'Scheduled', types: ['pre_event', 'quality_check', 'day_before', 'charge_balance', 'review_request', 'thank_you', 'survey_reminder'] },
   { label: 'Alerts', types: ['declined_alert', 'last_minute', 'change_request', 'daily_digest'] },
 ];
@@ -39,22 +39,25 @@ export function TemplateEditor({
   const [testTo, setTestTo] = useState('');
   const [busy, setBusy] = useState<'test' | 'restore' | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const sourceRef = useRef<HTMLTextAreaElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
-  const [focus, setFocus] = useState<'subject' | 'body'>('body');
+  const [focus, setFocus] = useState<'subject' | 'body' | 'source'>('body');
   const fileRef = useRef<HTMLInputElement>(null);
   const meta = MESSAGE_TYPES[type];
 
+  // The preview's sample order, with every block drawn in this workspace's colours.
+  const samples = useMemo(() => sampleFields({ color: brand.brandColor, onColor: brand.onBrand }, brand.orgName, brand.logoUrl ?? null, type), [brand, type]);
   const rendered = useMemo(
-    () => renderMessage({ channel, template: { ...v, button: template.button }, values: SAMPLE_FIELDS, brand, summary: type === 'quote' ? SAMPLE_SUMMARY : [], links: { pay_link: '#', review_link: '#' } }),
-    [v, channel, brand, template.button, type],
+    () => renderMessage({ channel, template: { ...v, button: template.button }, values: samples, brand, summary: type === 'quote' ? SAMPLE_SUMMARY : [], links: { pay_link: '#', review_link: '#' } }),
+    [v, channel, brand, template.button, type, samples],
   );
   const checks = v.mode === 'raw' ? checkTemplateSource(v.rawSource, v.rawKind) : [];
   const seg = channel === 'sms' ? smsSegments(rendered.text) : null;
 
   function insert(field: string) {
     const token = `{${field}}`;
-    const el = focus === 'subject' ? subjectRef.current : bodyRef.current;
-    const key = focus === 'subject' ? 'subject' : 'body';
+    const el = focus === 'subject' ? subjectRef.current : focus === 'source' ? sourceRef.current : bodyRef.current;
+    const key = focus === 'subject' ? 'subject' : focus === 'source' ? 'rawSource' : 'body';
     const cur = v[key];
     const start = el?.selectionStart ?? cur.length;
     const end = el?.selectionEnd ?? cur.length;
@@ -193,8 +196,24 @@ export function TemplateEditor({
                         onClick={() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([v.rawSource], { type: 'text/html' })); a.download = `${type}.${v.rawKind}`; a.click(); }}>Download</Button>
                       <Button variant="ghost" size="sm" icon={<Trash2 className="size-3.5" />} disabled={!v.rawSource} onClick={() => form.set('rawSource', '')}>Remove</Button>
                     </div>
-                    <Textarea aria-label="Template source" rows={12} spellCheck={false} value={v.rawSource} onChange={(e) => form.set('rawSource', e.target.value)} className="mono text-[12px]" placeholder="<html>…</html>" />
+                    <Textarea aria-label="Template source" ref={sourceRef} rows={12} spellCheck={false} value={v.rawSource} onFocus={() => setFocus('source')} onChange={(e) => form.set('rawSource', e.target.value)} className="mono text-[12px]" placeholder="<html>…</html>" />
                   </div>
+                  <details className="rounded-[var(--radius-card)] border border-subtle p-3">
+                    <summary className="cursor-pointer text-[13px] font-semibold text-fg">Insert a field or block</summary>
+                    <p className="mt-2 text-[12px] text-fg-2">Click to insert where the cursor is (subject or source). Blocks are built from each order: payment boxes, items, pricing and more. Move or delete them freely.</p>
+                    <p className="mb-1.5 mt-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-2">Blocks</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {EMAIL_BLOCKS.map((b) => (
+                        <button key={b.key} type="button" onClick={() => insert(b.key)} title={b.label} className="press mono rounded-md border border-dashed border-accent/50 bg-accent-soft/30 px-2 py-1 text-[12px] text-accent-text hover:bg-accent-soft">{`{${b.key}}`}</button>
+                      ))}
+                    </div>
+                    <p className="mb-1.5 mt-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-2">Fields</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {TEMPLATE_FIELDS.map((f) => (
+                        <button key={f.key} type="button" onClick={() => insert(f.key)} title={f.label} className="press mono rounded-md border border-dashed border-control px-2 py-1 text-[12px] text-fg-2 hover:bg-hover">{`{${f.key}}`}</button>
+                      ))}
+                    </div>
+                  </details>
                   <ul className="flex flex-col gap-1.5 rounded-[var(--radius-card)] bg-sunken/60 p-3">
                     {checks.map((c) => (
                       <li key={c.key} className="flex items-start gap-2 text-[13px]">

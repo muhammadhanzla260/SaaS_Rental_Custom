@@ -4,7 +4,7 @@ import { withTenant, type Db, type Tx } from '../client';
 import { customers, invoices, locations, orders, paymentMethods, payments, signatures, tenants } from '../schema';
 import { audit, type Actor } from './audit';
 import { OrgError } from './errors';
-import { enqueueOrderMessage } from './messaging';
+import { enqueueOrderMessage, enqueuePaymentConfirmation } from './messaging';
 import { nextDocumentNumber } from './orders';
 
 export type Invoice = typeof invoices.$inferSelect;
@@ -306,7 +306,9 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
     await audit(tx, tenantId, actor, { type: 'order', id: orderId }, 'order.payment', {
       number: order.number, payment: number, cents: p.amountCents, gateway: p.gateway, card: p.last4 ? `${p.brand} •${p.last4}` : null,
     });
-    if (p.receipt !== false) await enqueueOrderMessage(tx, tenantId, orderId, 'receipt', `${pay!.id}:receipt`, { automatic: true, meta: { paymentId: pay!.id } });
+    if (p.receipt !== false) {
+      await enqueuePaymentConfirmation(tx, tenantId, { id: orderId, totalCents: order.totalCents, paidCents: order.paidCents + p.amountCents }, pay!.id);
+    }
     return { payment: pay!, duplicate: false };
   });
 }

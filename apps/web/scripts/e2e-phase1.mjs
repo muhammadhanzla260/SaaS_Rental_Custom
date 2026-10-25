@@ -68,7 +68,8 @@ async function signIn(email) {
 const summary = () => page.evaluate(() => document.querySelector('[aria-label="Order summary"]')?.innerText ?? '');
 
 const nextSat = (() => { const d = new Date(); d.setDate(d.getDate() + (((6 - d.getDay() + 7) % 7) || 7)); return d; })();
-const iso = (d) => d.toISOString().slice(0, 10);
+// Local calendar date (toISOString is UTC: just after midnight east of UTC it gives the day before).
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const satBooked = iso(nextSat); // the seeded Saturday: both castles are taken
 // A different Saturday each run (3-40 weeks out), so bookings from earlier runs never fill it.
 const satFree = iso(new Date(nextSat.getTime() + (3 + (parseInt(run, 36) % 38)) * 7 * 86_400_000));
@@ -215,7 +216,7 @@ try {
   check(true, 'new customer added and opened');
 
   // --- Calendar ------------------------------------------------------------------------------
-  await go(`${S}/calendar?date=${satBooked}`);
+  await go(`${S}/calendar?date=${satBooked}&view=week`);
   await waitText('Cleanup buffer');
   check(await hasText('Maria Gonzalez') && await hasText('Priya Shah'), 'calendar week shows bookings and quotes');
   await click('Maria Gonzalez', 'td button');

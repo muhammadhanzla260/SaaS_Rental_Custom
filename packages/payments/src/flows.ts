@@ -9,15 +9,17 @@ import {
 } from '@rental/db';
 import { chargeSaved, createIntent, ensureStripeCustomer, readIntent, refundIntent, stripeClient } from './stripe';
 
-export type Due = { amountCents: number; purpose: 'deposit' | 'balance' | 'none'; label: string };
+export type Due = { amountCents: number; purpose: 'deposit' | 'full' | 'balance' | 'none'; label: string };
 
-/** What the customer pays now: the deposit to book, or what is left once booked. */
-export function amountDue(q: QuoteContext): Due {
+/** What the customer pays now: the deposit (or everything, if they choose) to book, or what is left once booked. */
+export function amountDue(q: QuoteContext, opts: { full?: boolean } = {}): Due {
   const o = q.order;
   if (o.status === 'booked' || o.status === 'completed') {
     const left = Math.max(0, o.totalCents - o.paidCents);
     return { amountCents: left, purpose: left > 0 ? 'balance' : 'none', label: left > 0 ? 'Balance due' : 'Paid in full' };
   }
+  const all = Math.max(0, o.totalCents - o.paidCents);
+  if (opts.full && all > 0) return { amountCents: all, purpose: 'full', label: 'Pay in full' };
   return { amountCents: o.depositDueCents, purpose: o.depositDueCents > 0 ? 'deposit' : 'none', label: 'Deposit to book' };
 }
 
@@ -45,8 +47,8 @@ export async function cardGateway(db: Db, q: QuoteContext) {
 }
 
 /** Start a card payment: re-check stock, then a PaymentIntent the browser confirms with Stripe. */
-export async function startCardPayment(db: Db, q: QuoteContext, opts: { saveCard: boolean }) {
-  const due = amountDue(q);
+export async function startCardPayment(db: Db, q: QuoteContext, opts: { saveCard: boolean; payFull?: boolean }) {
+  const due = amountDue(q, { full: opts.payFull });
   if (due.amountCents <= 0) throw new OrgError('Nothing is due right now.', 'invalid');
   const s = await stripeFor(db, q);
   if (!s) throw new OrgError(`${q.tenant.name} has not set up card payments yet. Please call them to book.`, 'invalid');
@@ -60,7 +62,8 @@ export async function startCardPayment(db: Db, q: QuoteContext, opts: { saveCard
     amountCents: due.amountCents,
     currency: q.tenant.currency,
     customerId,
-    saveCard: opts.saveCard,
+    // Paying everything leaves nothing for the event day, so there is no card to keep.
+    saveCard: opts.saveCard && due.purpose !== 'full',
     description: `${q.tenant.name} · ${q.order.number} · ${due.purpose}`,
     metadata: { tenant_id: q.tenant.id, order_id: q.order.id, order_number: q.order.number, purpose: due.purpose },
     // Same order, same amount, same version → the same intent (a double click never makes two).
@@ -89,7 +92,8 @@ export async function finishCardPayment(db: Db, q: QuoteContext, intentId: strin
   let booked = false;
   if (q.order.status === 'draft' || q.order.status === 'quote_sent') {
     try {
-      await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', prefs);
+      // The payment confirmation below also confirms the booking (one email, like Odoo).
+      await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', prefs, { paymentFollows: true });
       booked = true;
     } catch (e) {
       // Someone else booked the last unit between "Pay" and now: give the money back at once.

@@ -6,7 +6,7 @@ import {
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import { decryptSecret, encryptSecret, sha256Hex } from '../crypto';
-import { customers, locations, messages, messageTemplates, orders, tenants, users } from '../schema';
+import { customers, locations, messages, messageTemplates, orders, payments, signatures, tenants, users } from '../schema';
 import { audit, type Actor } from './audit';
 import { OrgError } from './errors';
 
@@ -187,6 +187,17 @@ export async function enqueueOrderMessage(
     key, type, channel, orderId, locationId: r.order.locationId, audience: opts.audience ?? 'customer', toAddress: to.to, toName: to.name,
     meta: opts.meta, skip,
   });
+}
+
+/**
+ * The payment confirmation (Odoo's payment_partial / payment_paid): "partial"
+ * while money is still owed, "paid" once the order is paid in full. One per payment.
+ */
+export function enqueuePaymentConfirmation(
+  tx: Tx, tenantId: string, order: { id: string; totalCents: number; paidCents: number }, paymentId: string, automatic = true,
+) {
+  const type: MessageType = order.paidCents >= order.totalCents ? 'payment_paid' : 'payment_partial';
+  return enqueueOrderMessage(tx, tenantId, order.id, type, `${paymentId}:payment`, { automatic, meta: { paymentId } });
 }
 
 /** An alert to the office (declined card, last-minute booking, change request). */
@@ -408,12 +419,27 @@ export function messageContext(db: Db, tenantId: string, messageId: string) {
     const template = await templateFor(tx, tenantId, m.type as MessageType, m.channel as Channel);
     const r = m.orderId ? await orderForMessages(tx, tenantId, m.orderId) : null;
     const token = m.orderId ? await ensureOrderToken(tx, tenantId, m.orderId) : null;
+    type Line = { name: string; quantity: number; service_mode: 'staffed' | 'pickup' | 'dropoff'; line_total_cents: string; image_file_id: string | null };
     const lines = m.orderId
-      ? ((await tx.execute<{ name: string; quantity: number }>(
-          sql`select name, quantity from order_lines where tenant_id = ${tenantId}::uuid and order_id = ${m.orderId}::uuid order by sort`,
-        )) as unknown as { name: string; quantity: number }[])
+      ? ((await tx.execute<Line>(sql`
+          select l.name, l.quantity, l.service_mode, l.line_total_cents::text, p.image_file_id
+          from order_lines l left join products p on p.tenant_id = l.tenant_id and p.id = l.product_id
+          where l.tenant_id = ${tenantId}::uuid and l.order_id = ${m.orderId}::uuid order by l.sort`)) as unknown as Line[])
       : [];
-    return { message: m, tenant: tenant!, prefs, messaging: resolveMessaging(prefs.messaging), template, order: r?.order ?? null, customer: r?.customer ?? null, location: r?.location ?? null, lines: [...lines], payUrl: token ? quoteUrl(token) : null };
+    // For the order blocks (payment history, contract status, "prepared by").
+    const paid = m.orderId
+      ? await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, m.orderId), eq(payments.status, 'received'))).orderBy(asc(payments.receivedAt))
+      : [];
+    const [sig] = m.orderId
+      ? await tx.select({ id: signatures.id }).from(signatures).where(and(eq(signatures.tenantId, tenantId), eq(signatures.orderId, m.orderId))).limit(1)
+      : [];
+    const sp = r?.order.salespersonUserId;
+    const [seller] = sp ? await tx.select({ name: users.name }).from(users).where(eq(users.id, sp)).limit(1) : [];
+    return {
+      message: m, tenant: tenant!, prefs, messaging: resolveMessaging(prefs.messaging), template, order: r?.order ?? null, customer: r?.customer ?? null,
+      location: r?.location ?? null, lines: [...lines], payments: paid, signed: !!sig, preparedBy: seller?.name ?? null, token,
+      payUrl: token ? quoteUrl(token) : null,
+    };
   });
 }
 export type MessageContext = NonNullable<Awaited<ReturnType<typeof messageContext>>>;

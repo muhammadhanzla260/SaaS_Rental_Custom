@@ -10,4 +10,7 @@ export * from './pricing';
 export * from './commerce';
 export * from './time';
 export * from './messaging';
+export * from './email-blocks';
+export * from './email-templates';
+export * from './calendar';
 export * from './agreement';

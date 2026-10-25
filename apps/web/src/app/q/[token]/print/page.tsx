@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { agreementSections, checkAccent, formatMoney, formatPhone, resolveAgreement } from '@rental/core';
+import { agreementSections, checkAccent, formatMoney, formatPhone, policyText, resolveAgreement } from '@rental/core';
 import { quoteContext, resolveOrderToken, type QuoteContext } from '@rental/db';
 import { PrintShell } from '@/components/money/print-shell';
 import { INVOICE_KIND } from '@/lib/invoice-doc';
@@ -12,7 +12,10 @@ export const metadata = { title: 'Your documents', robots: { index: false, follo
 
 const METHOD: Record<string, string> = { cash: 'Cash', check: 'Check', zelle: 'Zelle', venmo: 'Venmo', ach: 'ACH', link: 'Payment link', other: 'Other', card: 'Card' };
 
-/** The customer's receipt (?doc=receipt&n=PAY-…) or signed agreement (?doc=agreement), from the quote link. */
+/**
+ * The customer's documents from the quote link: ?doc=quote, ?doc=agreement (signed, or the
+ * contract to sign), ?doc=receipt&n=PAY-… (the email links "Download Quote / Contract (PDF)").
+ */
 export default async function QuotePrintPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ doc?: string; n?: string }> }) {
   const { token } = await params;
   const sp = await searchParams;
@@ -23,11 +26,17 @@ export default async function QuotePrintPage({ params, searchParams }: { params:
   const tz = q.location.timezone || q.tenant.timezone;
   const at = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: tz, dateStyle: 'medium', timeStyle: 'short' }).format(d);
 
-  if (sp.doc === 'agreement') {
-    if (!q.signature) notFound();
+  if (sp.doc === 'quote') {
     return (
-      <PrintShell title={`Signed agreement · ${q.order.number}`}>
-        <Agreement q={q} at={at} />
+      <PrintShell title={`Quote ${q.order.number}`}>
+        <Quote q={q} token={token} />
+      </PrintShell>
+    );
+  }
+  if (sp.doc === 'agreement') {
+    return (
+      <PrintShell title={`${q.signature ? 'Signed agreement' : 'Rental contract'} · ${q.order.number}`}>
+        {q.signature ? <Agreement q={q} at={at} /> : <Contract q={q} token={token} />}
       </PrintShell>
     );
   }
@@ -145,6 +154,80 @@ function Agreement({ q, at }: { q: QuoteContext; at: (d: Date) => string }) {
           <div className="flex justify-between gap-4"><dt className="text-fg-2">Damage waiver</dt><dd className="text-fg">{s.waiverAccepted ? 'Accepted' : 'Declined'}</dd></div>
           {s.ip && <div className="flex justify-between gap-4"><dt className="text-fg-2">IP address</dt><dd className="mono text-fg">{s.ip}</dd></div>}
         </dl>
+      </section>
+    </article>
+  );
+}
+
+/** The quote as a document: who, when, where, the items and the price, and what books it. */
+function Quote({ q, token }: { q: QuoteContext; token: string }) {
+  const money = (c: number) => formatMoney(c, q.tenant.currency);
+  const o = q.order;
+  const tz = q.location.timezone || q.tenant.timezone;
+  const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: tz, ...opts }).format(d);
+  const time = (d: Date) => fmt(d, { hour: 'numeric', minute: '2-digit' });
+  const due = Math.max(0, o.totalCents - o.paidCents);
+  const rows: [string, string][] = [
+    ['Customer', [q.customer.displayName, q.customer.email, q.customer.phone].filter(Boolean).join(' · ')],
+    ['Event', `${fmt(o.eventStartsAt, { dateStyle: 'full' })} · ${time(o.eventStartsAt)} – ${time(o.eventEndsAt)}`],
+    ['Where', [o.eventLocationName, o.eventLine1, o.eventCity, o.eventRegion].filter(Boolean).join(', ')],
+    ...(o.quoteExpiresOn ? [['Valid until', o.quoteExpiresOn] as [string, string]] : []),
+  ];
+  return (
+    <article className="flex flex-col gap-5" aria-label={`Quote ${o.number}`}>
+      <Letterhead q={q} kind={o.status === 'booked' || o.status === 'completed' ? 'Order' : 'Quote'} number={o.number} />
+      <dl className="flex flex-col gap-2.5 border-y border-subtle py-4 text-[14px]">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4"><dt className="shrink-0 text-fg-2">{k}</dt><dd className="text-right text-fg">{v}</dd></div>
+        ))}
+      </dl>
+      <ul className="flex flex-col divide-y divide-subtle text-[14px]">
+        {q.lines.map((l, i) => (
+          <li key={i} className="flex justify-between gap-4 py-2.5">
+            <span className="text-fg">{l.name}{l.quantity > 1 ? ` × ${l.quantity}` : ''}</span>
+            <span className="mono shrink-0 text-fg">{money(Number(l.line_total_cents))}</span>
+          </li>
+        ))}
+      </ul>
+      <dl className="flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-subtle p-4 text-[14px]">
+        {orderSummaryRows(o, q.tenant.currency).map((r) => (
+          <div key={r.label} className="flex justify-between gap-4"><dt className="text-fg-2">{r.label}</dt><dd className={r.tone === 'credit' ? 'mono text-success-fg' : 'mono text-fg'}>{r.value}</dd></div>
+        ))}
+        <div className="flex justify-between gap-4 border-t border-subtle pt-1.5 text-base font-bold"><dt className="text-fg">Total</dt><dd className="mono text-fg">{money(o.totalCents)}</dd></div>
+        {o.depositDueCents > 0 && o.paidCents === 0 && <div className="flex justify-between gap-4"><dt className="text-fg-2">Deposit to book</dt><dd className="mono text-fg">{money(o.depositDueCents)}</dd></div>}
+        {o.paidCents > 0 && <div className="flex justify-between gap-4"><dt className="text-fg-2">Paid</dt><dd className="mono text-success-fg">{money(o.paidCents)}</dd></div>}
+        {o.paidCents > 0 && <div className="flex justify-between gap-4 font-semibold"><dt className="text-fg">Balance due</dt><dd className="mono text-fg">{money(due)}</dd></div>}
+      </dl>
+      <p className="text-[13px] text-fg-2 print:hidden">Review, sign and pay online: <a className="font-semibold text-fg underline" href={`/q/${token}`}>open your quote</a>.</p>
+    </article>
+  );
+}
+
+/** The contract to sign (before signing): the workspace's current agreement and policies. */
+function Contract({ q, token }: { q: QuoteContext; token: string }) {
+  const a = resolveAgreement(q.prefs.agreement);
+  return (
+    <article className="flex flex-col gap-5" aria-label="Rental contract">
+      <Letterhead q={q} kind="Rental contract" number={q.order.number} />
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-fg">{a.title}</h1>
+      <div className="flex flex-col gap-4 text-[14px] leading-relaxed text-fg">
+        {agreementSections(a.body).map((sec, i) => (
+          <section key={i} className="break-inside-avoid">
+            {sec.heading && <h2 className="mb-1 font-semibold">{sec.heading}</h2>}
+            {sec.paragraphs.map((p, j) => <p key={j} className="text-fg-2">{p}</p>)}
+          </section>
+        ))}
+      </div>
+      <section className="break-inside-avoid rounded-[var(--radius-card)] border border-subtle p-4 text-[14px]">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-2">Policies to accept</h2>
+        <ul className="mt-2 flex flex-col gap-2">
+          {a.policies.map((p) => <li key={p.key}><span className="font-semibold text-fg">{p.title}.</span> <span className="text-fg-2">{policyText(p, a)}</span></li>)}
+        </ul>
+        <p className="mt-4 text-fg-2">Not signed yet · version {a.version}. <a className="font-semibold text-fg underline print:no-underline" href={`/q/${token}`}>Sign online</a>, or sign below and return it.</p>
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-[1.4fr_1fr]">
+          <div className="border-b border-fg-3 pb-1 text-[12px] text-fg-2">Signature</div>
+          <div className="border-b border-fg-3 pb-1 text-[12px] text-fg-2">Date</div>
+        </div>
       </section>
     </article>
   );
