@@ -8,13 +8,14 @@ import { CustomerFormDrawer } from '@/components/customers/customer-form';
 import { Button, cx, Notice, Pill, SaveBar, Select, useToast } from '@/components/kit';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import {
-  availabilityAction, getCustomerAction, recordPaymentAction, resolveOverpaymentAction, saveCustomerAddressAction, saveOrderAction,
+  availabilityAction, getCustomerAction, resolveOverpaymentAction, saveCustomerAddressAction, saveOrderAction,
   transitionOrderAction, travelForOrderAction, usableCreditsAction, validateCouponAction,
 } from '@/server/actions/commerce';
 import { addMinutes, initialDraft, locationOf, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
 import { OrderHistory } from './history';
 import { CancelOrderModal, RainCheckModal } from './cancel-modals';
-import { BookModal, OverpaidModal, PaymentModal, type BookChoice } from './modals';
+import { OverpaidModal } from './modals';
+import { PaymentOptionsModal, type BookChoice, type PayTab } from './payment-options';
 import { CustomerSection, EventSection, ItemsSection, LinesSection, NotesSection } from './sections';
 import { SummaryPanel } from './summary';
 import type { BuilderCredit, BuilderCustomer, BuilderData, BuilderProduct, Draft, DraftLine } from './types';
@@ -45,10 +46,11 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   const [busy, setBusy] = useState<null | 'save' | 'quote' | 'cancel'>(null);
   const [custLoading, setCustLoading] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
-  const [bookOpen, setBookOpen] = useState(false);
+  /** The Payment Options window, open on this tab. */
+  const [options, setOptions] = useState<PayTab | null>(null);
+  const moneyChanged = useRef(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [rainOpen, setRainOpen] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
   const [overpaid, setOverpaid] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const navAfterBook = useRef<string | null>(null);
@@ -264,12 +266,24 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     if (wasNew) navAfterBook.current = `/${data.slug}/orders/${r.id}`;
     return { ok: true, number: r.number };
   }
-  function closeBook() {
-    setBookOpen(false);
+  /** Payment Options saves the order first (a new or changed order), then works on it by id. */
+  async function prepareOrder(): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+    const wasNew = !meta.id;
+    const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
+    if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
+    if (wasNew) navAfterBook.current = `/${data.slug}/orders/${r.id}`;
+    return { ok: true, id: r.id };
+  }
+  function closeOptions() {
+    setOptions(null);
     if (navAfterBook.current) {
       router.replace(navAfterBook.current);
       navAfterBook.current = null;
-    } else router.refresh();
+    } else if (moneyChanged.current) {
+      // Payments change the totals, invoices and history: start again from what the server stored.
+      moneyChanged.current = false;
+      window.location.reload();
+    }
   }
 
   // Cancel and rain check change the order on the server (status, date, version): reload it fresh.
@@ -314,7 +328,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <Button variant="secondary" size="lg" onClick={save} pending={busy === 'save'} disabled={!!meta.id && !dirty}>{meta.id && !dirty ? 'Saved' : 'Save draft'}</Button>
             <Button variant="secondary" size="lg" onClick={sendQuote} pending={busy === 'quote'} disabled={d.lines.length === 0}>{status === 'quote_sent' ? 'Resend quote' : 'Send quote'}</Button>
           </div>
-          <Button size="lg" className="w-full text-[15px]" disabled={bookBlocked} onClick={() => { setError(null); setBookOpen(true); }}>Book order →</Button>
+          <Button size="lg" className="w-full text-[15px]" disabled={bookBlocked} onClick={() => { setError(null); setOptions('pay'); }}>Payment options · book →</Button>
           {d.lines.length > 0 && missing.length > 0 ? (
             <div role="status" className="rounded-[var(--radius-card)] border border-warning-mark/40 bg-warning-bg p-3 text-[13px] text-warning-fg">
               <p className="font-semibold">Still required to book:</p>
@@ -338,7 +352,14 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
           <div className="grid grid-cols-1 gap-2">
             <Button variant="secondary" disabled={dirty} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setRainOpen(true)}>Rain check · weather</Button>
           </div>
-          {data.perms.recordPayment && balance > 0 && <Button variant="secondary" onClick={() => setPayOpen(true)}>Record a payment · {money(balance)} due</Button>}
+          {data.perms.recordPayment && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" disabled={dirty || balance <= 0} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setOptions('pay')}>
+                {balance > 0 ? `Record payment · ${money(balance)}` : 'Paid in full'}
+              </Button>
+              <Button variant="secondary" disabled={dirty} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setOptions('tip')}>Collect tip</Button>
+            </div>
+          )}
           <p className="text-center text-[12px] text-fg-2">Booked orders stay fully editable. Each save re-checks availability, re-prices the order and is recorded in the history.</p>
         </>
       )}
@@ -416,7 +437,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             ) : (
               <>
                 <Button variant="ghost" className="text-white hover:bg-white/10" onClick={save} pending={busy === 'save'} disabled={!!meta.id && !dirty}>Save</Button>
-                <Button variant="volt" disabled={bookBlocked} onClick={() => { setError(null); setBookOpen(true); }}>Book</Button>
+                <Button variant="volt" disabled={bookBlocked} onClick={() => { setError(null); setOptions('pay'); }}>Book</Button>
               </>
             )}
           </div>
@@ -429,23 +450,36 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         </div>
       )}
 
-      <BookModal
-        open={bookOpen}
-        onClose={closeBook}
-        depositLabel={money(s.depositCents)}
+      <PaymentOptionsModal
+        open={options !== null}
+        initialTab={options ?? 'pay'}
+        onClose={closeOptions}
+        booked={booked}
+        slug={data.slug}
+        orderId={meta.id}
+        number={meta.number}
+        money={money}
         depositCents={s.depositCents}
         totalCents={s.totalCents}
-        totalLabel={money(s.totalCents)}
+        paidCents={meta.paidCents}
         tipBaseCents={s.merchandiseCents}
-        money={money}
         policies={data.policies}
         signedOnline={data.signedOnline}
         bufferLabel={bufferLabel}
-        number={meta.number}
-        onConfirm={confirmBooking}
         calendarHref={`/${data.slug}/calendar?date=${d.date}&loc=${d.locationId}`}
         canRecordPayment={data.perms.recordPayment}
-        booked={false}
+        cards={{
+          available: !!data.cards.locations[d.locationId],
+          testMode: !!data.cards.locations[d.locationId]?.testMode,
+          // The saved card belongs to the customer the page was loaded with.
+          saved: data.cards.saved && data.cards.saved.customerId === d.customer?.id ? data.cards.saved : null,
+        }}
+        customerEmail={d.billing.email || d.customer?.email || null}
+        country={data.country}
+        prepare={prepareOrder}
+        onBookOffline={confirmBooking}
+        onSendQuote={sendQuote}
+        onChanged={() => { moneyChanged.current = true; }}
       />
       {meta.id && (
         <>
@@ -466,21 +500,6 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         </>
       )}
       <OverpaidModal open={overpaid > 0} amountLabel={money(overpaid)} onChoose={resolveOver} canRefund={data.perms.refund} />
-      <PaymentModal
-        open={payOpen}
-        onClose={() => setPayOpen(false)}
-        balanceCents={balance}
-        onSave={async (p) => {
-          if (!meta.id) return 'Save the order first.';
-          const r = await recordPaymentAction(data.slug, meta.id, p);
-          if (!r.ok) return r.error;
-          toast(r.message ?? 'Recorded.');
-          setPayOpen(false);
-          setMeta((m) => ({ ...m, paidCents: m.paidCents + Math.round(parseFloat(p.amount) * 100) }));
-          router.refresh();
-          return null;
-        }}
-      />
       <CustomerFormDrawer
         open={newCustomer}
         onClose={() => setNewCustomer(false)}

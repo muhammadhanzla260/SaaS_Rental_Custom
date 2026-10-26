@@ -153,33 +153,150 @@ export function balanceCharger(db: Db) {
   };
 }
 
+// --- staff card payments (order Payment Options, Invoices → Record payment) ---------------------------------
+
 /**
- * Staff "Record payment → card on file": charge the customer's saved card now
- * for an amount the office chooses (partial allowed), plus an optional tip.
+ * What staff take by card: `book` books the order once the money is in, `payment`
+ * pays toward a booked order, `tip` is Collect Tip (a tip on its own, no amount).
  */
-export async function chargeCardOnFile(
-  db: Db, tenantId: string, orderId: string, actor: Actor, p: { amountCents: number; tipCents: number; receipt: boolean },
-) {
+export type StaffCard = { purpose: 'book' | 'payment' | 'tip'; amountCents: number; tipCents: number; receipt: boolean; saveCard?: boolean; policies?: Record<string, boolean> };
+export type StaffCardResult = { number: string; last4: string | null; brand: string | null; booked: boolean };
+
+async function staffQuote(db: Db, tenantId: string, orderId: string) {
   const { quoteContext } = await import('@rental/db');
   const q = await quoteContext(db, tenantId, orderId);
   if (!q) throw new OrgError('Order not found.', 'not_found');
-  const card = q.card?.gateway === 'stripe' ? q.card : null;
-  if (!card || !card.gatewayCustomerId) throw new OrgError('This customer has no saved card. Send them a pay link instead.', 'invalid');
+  return q;
+}
+
+/** The amounts make sense for the order as it is now (checked again when the money comes back). */
+function checkStaffCard(q: QuoteContext, p: StaffCard) {
+  const open = q.order.status === 'draft' || q.order.status === 'quote_sent';
+  const live = q.order.status === 'booked' || q.order.status === 'completed';
+  if (p.purpose === 'book' && !open) throw new OrgError('This order is already booked. Record the payment instead.', 'invalid');
+  if (p.purpose !== 'book' && !live) throw new OrgError(p.purpose === 'tip' ? 'Tips are collected once the order is booked.' : 'Book the order first.', 'invalid');
+  if (p.tipCents < 0 || p.amountCents < 0) throw new OrgError('Amounts cannot be negative.', 'invalid');
+  if (p.purpose === 'tip') {
+    if (p.amountCents !== 0 || p.tipCents <= 0) throw new OrgError('Enter the tip amount.', 'invalid');
+  } else {
+    if (p.amountCents <= 0) throw new OrgError('Enter the amount to charge.', 'invalid');
+    if (p.amountCents > q.order.totalCents - q.order.paidCents) throw new OrgError('That is more than the order total.', 'invalid');
+  }
+}
+
+/**
+ * The card went through (new or saved): book the order when that was the point
+ * (refunding at once if the stock went in the meantime), then record the payment
+ * once and keep the card for auto-charge when it was saved.
+ */
+async function settleStaffCard(
+  db: Db, q: QuoteContext, s: NonNullable<Awaited<ReturnType<typeof stripeFor>>>, actor: Actor, p: StaffCard,
+  i: { id: string; created: Date; card: { brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null }; saved: { customerId: string | null; methodId: string } | null },
+): Promise<StaffCardResult> {
+  let booked = false;
+  if (p.purpose === 'book' && (q.order.status === 'draft' || q.order.status === 'quote_sent')) {
+    try {
+      await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', parsePreferences(q.tenant.settings), {
+        booking: { method: 'card', policies: p.policies ?? {} }, paymentFollows: true,
+      });
+      booked = true;
+    } catch (e) {
+      await refundIntent(s.stripe, i.id, `Could not book ${q.order.number}: ${(e as Error).message}`);
+      throw new OrgError(`The card was charged, but the order could not be booked, so the charge was refunded in full. ${(e as Error).message}`, 'invalid');
+    }
+  }
+  const r = await recordGatewayPayment(db, q.tenant.id, actor, q.order.id, {
+    gateway: 'stripe', ref: i.id, amountCents: p.amountCents, tipCents: p.tipCents, brand: i.card.brand, last4: i.card.last4, receipt: p.receipt,
+    steps: { authorizedAt: i.created.toISOString(), capturedAt: new Date().toISOString() },
+  });
+  if (i.saved) {
+    await withTenant(db, q.tenant.id, (tx) =>
+      saveCardTx(tx, q.tenant.id, {
+        customerId: q.customer.id, gateway: 'stripe', gatewayCustomerId: i.saved!.customerId, gatewayMethodId: i.saved!.methodId, brand: i.card.brand,
+        last4: i.card.last4, expMonth: i.card.expMonth, expYear: i.card.expYear,
+      }),
+    );
+  }
+  return { number: r.payment.number, last4: i.card.last4, brand: i.card.brand, booked };
+}
+
+/** New card at the counter or on the phone: a PaymentIntent for Stripe's card field in the staff browser. */
+export async function startStaffCardPayment(db: Db, tenantId: string, orderId: string, p: StaffCard) {
+  const q = await staffQuote(db, tenantId, orderId);
+  checkStaffCard(q, p);
   const s = await stripeFor(db, q);
   if (!s) throw new OrgError('Connect Stripe first (Settings → Workspace & brand → Payments).', 'invalid');
+  if (p.purpose === 'book') {
+    const avail = await stillAvailable(db, q);
+    if (!avail.ok) throw new OrgError(`${avail.short.join(', ')} ${avail.short.length === 1 ? 'is' : 'are'} no longer available for this time.`, 'invalid');
+  }
+  const existing = q.card?.gateway === 'stripe' ? q.card.gatewayCustomerId : null;
+  const customerId = await ensureStripeCustomer(s.stripe, existing, {
+    name: q.customer.displayName ?? 'Customer', email: q.customer.email, phone: q.customer.phone, ref: `${q.tenant.id}:${q.customer.id}`,
+  });
+  const total = p.amountCents + p.tipCents;
+  const intent = await createIntent(s.stripe, {
+    amountCents: total,
+    currency: q.tenant.currency,
+    customerId,
+    saveCard: !!p.saveCard,
+    description: `${q.tenant.name} · ${q.order.number} · ${p.purpose === 'tip' ? 'tip' : 'payment'}`,
+    // What to record once it succeeds travels with the intent (the browser only says "done").
+    metadata: {
+      tenant_id: tenantId, order_id: orderId, order_number: q.order.number, purpose: `staff_${p.purpose}`,
+      amount_cents: String(p.amountCents), tip_cents: String(p.tipCents), receipt: p.receipt ? '1' : '0',
+    },
+    idempotencyKey: `${orderId}:staff-${p.purpose}:${p.amountCents}:${p.tipCents}:v${q.order.version}:${p.saveCard ? 'save' : 'once'}`,
+  });
+  return { clientSecret: intent.clientSecret, intentId: intent.id, publishableKey: s.creds.publishableKey!, amountCents: total, testMode: s.creds.keyMode === 'test' };
+}
+
+/** After Stripe's card field says it went through: trust only what Stripe reports, then settle. */
+export async function finishStaffCardPayment(db: Db, tenantId: string, orderId: string, actor: Actor, intentId: string, policies: Record<string, boolean> = {}) {
+  const q = await staffQuote(db, tenantId, orderId);
+  const s = await stripeFor(db, q);
+  if (!s) throw new OrgError('Card payments are not set up.', 'invalid');
+  const i = await readIntent(s.stripe, intentId);
+  const m = i.metadata;
+  if (m.order_id !== orderId || m.tenant_id !== tenantId || !m.purpose?.startsWith('staff_')) throw new OrgError('This payment belongs to another order.', 'invalid');
+  if (i.status === 'processing') throw new OrgError('The bank is still processing the payment. Check Invoices & payments in a minute.', 'invalid');
+  if (i.status !== 'succeeded') throw new OrgError('The payment did not go through. No money was taken.', 'invalid');
+  const p: StaffCard = {
+    purpose: m.purpose.slice(6) as StaffCard['purpose'], amountCents: Number(m.amount_cents), tipCents: Number(m.tip_cents), receipt: m.receipt === '1', policies,
+  };
+  return settleStaffCard(db, q, s, actor, p, {
+    id: i.id, created: i.created, card: i.card, saved: i.savedForLater && i.paymentMethodId ? { customerId: i.customerId, methodId: i.paymentMethodId } : null,
+  });
+}
+
+/** Charge the customer's saved card now (partial allowed, plus a tip), booking the order when asked. */
+export async function chargeSavedCardForOrder(db: Db, tenantId: string, orderId: string, actor: Actor, p: StaffCard): Promise<StaffCardResult> {
+  const q = await staffQuote(db, tenantId, orderId);
+  checkStaffCard(q, p);
+  const card = q.card?.gateway === 'stripe' ? q.card : null;
+  if (!card || !card.gatewayCustomerId) throw new OrgError('This customer has no saved card. Use a new card or send a pay link.', 'invalid');
+  const s = await stripeFor(db, q);
+  if (!s) throw new OrgError('Connect Stripe first (Settings → Workspace & brand → Payments).', 'invalid');
+  if (p.purpose === 'book') {
+    const avail = await stillAvailable(db, q);
+    if (!avail.ok) throw new OrgError(`${avail.short.join(', ')} ${avail.short.length === 1 ? 'is' : 'are'} no longer available for this time.`, 'invalid');
+  }
   const total = p.amountCents + p.tipCents;
   const r = await chargeSaved(s.stripe, {
     amountCents: total, currency: q.tenant.currency, customerId: card.gatewayCustomerId, paymentMethodId: card.gatewayMethodId,
-    description: `${q.tenant.name} · ${q.order.number} · payment`, metadata: { tenant_id: tenantId, order_id: orderId, purpose: 'staff' },
+    description: `${q.tenant.name} · ${q.order.number} · ${p.purpose === 'tip' ? 'tip' : 'payment'}`, metadata: { tenant_id: tenantId, order_id: orderId, purpose: `staff_${p.purpose}` },
     // A double click on the same order version makes one charge, not two.
-    idempotencyKey: `${orderId}:staff:${total}:v${q.order.version}`,
+    idempotencyKey: `${orderId}:staff-${p.purpose}:${total}:v${q.order.version}`,
   });
   if (!r.ok) throw new OrgError(r.declined ? `Card declined: ${r.message}` : r.message, 'invalid');
-  const rec = await recordGatewayPayment(db, tenantId, actor, orderId, {
-    gateway: 'stripe', ref: r.intentId, amountCents: p.amountCents, tipCents: p.tipCents, brand: r.card.brand, last4: r.card.last4, receipt: p.receipt,
-    steps: { authorizedAt: new Date().toISOString(), capturedAt: new Date().toISOString() },
-  });
-  return { number: rec.payment.number, last4: r.card.last4, brand: r.card.brand };
+  return settleStaffCard(db, q, s, actor, p, { id: r.intentId, created: new Date(), card: r.card, saved: null });
+}
+
+/** Invoices → Record payment → Card on file. */
+export async function chargeCardOnFile(
+  db: Db, tenantId: string, orderId: string, actor: Actor, p: { amountCents: number; tipCents: number; receipt: boolean },
+) {
+  return chargeSavedCardForOrder(db, tenantId, orderId, actor, { purpose: 'payment', ...p });
 }
 
 /**

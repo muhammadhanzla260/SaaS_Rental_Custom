@@ -292,7 +292,7 @@ export const UNPAID_REASONS = ['Mailed check expected', 'External invoice sent',
 /** Policies staff confirm the customer agreed to when booking for them (Odoo POS "Additional information"). */
 const policyAcks = z.record(z.string().regex(/^[a-z_]{2,30}$/), z.boolean()).default({});
 
-/** How the deposit is handled when booking. Card and pay link need a connected gateway (Phase 2). */
+/** How the deposit is handled when booking (the Payment Options tabs). */
 export const bookingSchema = z.discriminatedUnion('method', [
   z.object({
     method: z.literal('manual'),
@@ -305,6 +305,8 @@ export const bookingSchema = z.discriminatedUnion('method', [
     receipt: z.boolean().default(true),
     policies: policyAcks,
   }),
+  // Card (new or saved): the charge goes through first, then the order is booked (Payment Options).
+  z.object({ method: z.literal('card'), policies: policyAcks }),
   z.object({
     method: z.literal('none'),
     reason: z.enum(UNPAID_REASONS, 'Choose a reason.'),

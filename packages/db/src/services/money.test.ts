@@ -13,7 +13,7 @@ import { createProduct } from './catalog';
 import { createCustomer } from './customers';
 import { listLocations } from './locations';
 import { latestSignature, listInvoices, recordGatewayPayment, saveCardTx, signAgreement, syncOrderInvoices } from './money';
-import { createOrder, getOrder, orderInputFrom, recordPayment, transitionOrder, updateOrder } from './orders';
+import { createOrder, getOrder, orderInputFrom, recordPayment, recordTip, transitionOrder, updateOrder } from './orders';
 import { setupOrganization } from './organizations';
 import { withTenant } from '../client';
 
@@ -127,6 +127,27 @@ describe('gateway payments and cards', () => {
     expect(list.kpis.outstanding).toBeGreaterThan(0);
     await syncOrderInvoices(db, tenantId, o.id); // idempotent
     expect((await invoicesOf(o.id)).length).toBe(2);
+  });
+});
+
+describe('Collect Tip', () => {
+  it('a tip on its own after booking: a receipt with no amount, the order and its invoices unchanged', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(36)), prefs);
+    await expect(recordTip(db, tenantId, actor, o.id, prefs, { method: 'cash', tip: 20 })).rejects.toThrow(/once the order is booked/);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'check', amount: 185.43 } });
+    const before = await invoicesOf(o.id);
+    const t = await recordTip(db, tenantId, actor, o.id, prefs, { method: 'venmo', tip: 25, reference: '@maria' });
+    expect(t.payment).toMatchObject({ amountCents: 0, tipCents: 2500, method: 'venmo', invoiceId: null });
+    const after = (await getOrder(db, tenantId, o.id))!;
+    expect(after.paidCents).toBe(18543);
+    expect(after.versions[0]!.action).toBe('tip');
+    expect(await invoicesOf(o.id)).toEqual(before);
+    // A card tip through the gateway: no amount, no invoice, no payment confirmation email.
+    const g = await recordGatewayPayment(db, tenantId, actor, o.id, { gateway: 'stripe', ref: `pi_tip_${run}`, amountCents: 0, tipCents: 1500, brand: 'visa', last4: '4242' });
+    expect(g.payment).toMatchObject({ amountCents: 0, tipCents: 1500, invoiceId: null });
+    const mails = await owner.db.execute<{ n: number }>(sql`select count(*)::int as n from messages where tenant_id = ${tenantId}::uuid and order_id = ${o.id}::uuid and meta->>'paymentId' = ${g.payment.id}`);
+    expect([...mails][0]!.n).toBe(0);
+    await expect(recordTip(db, tenantId, actor, o.id, prefs, { method: 'cash', tip: 0 })).rejects.toThrow(/tip amount/);
   });
 });
 

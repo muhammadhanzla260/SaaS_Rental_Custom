@@ -2,7 +2,8 @@ import 'server-only';
 import { notFound } from 'next/navigation';
 import { policyText, parseLocationSettings, resolveAgreement, type ServiceMode } from '@rental/core';
 import {
-  getCustomer, getFile, getOrder, latestSignature, listCategories, refundablePayments, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
+  getCustomer, getFile, getOrder, getPaymentCredentials, latestSignature, listCategories, refundablePayments, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf,
+  savedCard, travelRules, usableCredits,
 } from '@rental/db';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -44,10 +45,13 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     ? await Promise.all([customerFor(ctx.tenant.id, customerId), usableCredits(db, ctx.tenant.id, customerId, order?.id ?? null)])
     : [null, []];
   const prefs = ctx.prefs;
-  const [map, signature, refundable] = await Promise.all([
+  const [map, signature, refundable, card, gateways] = await Promise.all([
     order?.setupMapFileId ? getFile(db, ctx.tenant.id, order.setupMapFileId) : Promise.resolve(null),
     order ? latestSignature(db, ctx.tenant.id, order.id) : Promise.resolve(null),
     order && order.paidCents > 0 ? refundablePayments(db, ctx.tenant.id, order.id) : Promise.resolve([]),
+    customerId ? savedCard(db, ctx.tenant.id, customerId, 'stripe') : Promise.resolve(null),
+    // Which locations can take cards (each may have its own Stripe account). Only the mode leaves the server.
+    Promise.all(locations.map(async (l) => [l.id, await getPaymentCredentials(db, ctx.tenant.id, l.id)] as const)),
   ]);
   const agreement = resolveAgreement(prefs.agreement);
   const usedIds = new Set(order?.lines.map((l) => l.productId) ?? []);
@@ -99,6 +103,10 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     readOnly: ctx.readOnly,
     policies: agreement.policies.filter((p) => p.key !== 'waiver').map((p) => ({ key: p.key, title: p.title, text: policyText(p, agreement) })),
     signedOnline: !!signature,
+    cards: {
+      locations: Object.fromEntries(gateways.filter(([, c]) => c?.provider === 'stripe' && c.secret && c.publishableKey).map(([id, c]) => [id, { testMode: c!.keyMode === 'test' }])),
+      saved: card && card.gatewayCustomerId ? { customerId: card.customerId, brand: card.brand, last4: card.last4, expMonth: card.expMonth, expYear: card.expYear } : null,
+    },
     rainCheckMonths: agreement.rainCheckMonths,
     customer,
     credits: credits.map((c) => ({ id: c.id, code: c.code, kind: c.kind, label: c.label, balanceCents: c.balanceCents, validUntil: c.validUntil, reason: c.reason })),
@@ -136,7 +144,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
             unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface,
           })),
           credits: order.creditApplications.map((a) => ({ creditId: a.creditId, amountCents: a.amountCents })),
-          payments: order.payments.map((p) => ({ id: p.id, number: p.number, method: p.method, amountCents: p.amountCents, reference: p.reference, receivedAt: p.receivedAt.toISOString(), status: p.status, cardLast4: p.cardLast4 })),
+          payments: order.payments.map((p) => ({ id: p.id, number: p.number, method: p.method, amountCents: p.amountCents, tipCents: p.tipCents, reference: p.reference, receivedAt: p.receivedAt.toISOString(), status: p.status, cardLast4: p.cardLast4 })),
           invoices: invoices.map((i) => ({ id: i.id, number: i.number, kind: i.kind, amountCents: i.amountCents, paidCents: i.paidCents, status: i.status, dueOn: i.dueOn, autoCharge: i.autoCharge })),
           versions: order.versions.map((v) => ({
             version: v.version, action: v.action, diff: v.diff as Record<string, { from: string; to: string }>, totals: v.totals as { totalCents?: number },

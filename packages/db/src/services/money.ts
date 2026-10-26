@@ -294,7 +294,7 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
     const [pay] = await tx
       .insert(payments)
       .values({
-        tenantId, number, orderId, method: 'card', amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId: openInv?.id ?? null, gateway: p.gateway,
+        tenantId, number, orderId, method: 'card', amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId: p.amountCents > 0 ? openInv?.id ?? null : null, gateway: p.gateway,
         gatewayRef: p.ref, cardBrand: p.brand ?? null, cardLast4: p.last4 ?? null, steps: p.steps ?? {}, note: p.note ?? null, createdByUserId: actor.userId ?? null,
       })
       .returning();
@@ -306,7 +306,8 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
     await audit(tx, tenantId, actor, { type: 'order', id: orderId }, 'order.payment', {
       number: order.number, payment: number, cents: p.amountCents, gateway: p.gateway, card: p.last4 ? `${p.brand} •${p.last4}` : null,
     });
-    if (p.receipt !== false) {
+    // A tip on its own pays nothing on the order, so there is no payment confirmation to send.
+    if (p.receipt !== false && p.amountCents > 0) {
       await enqueuePaymentConfirmation(tx, tenantId, { id: orderId, totalCents: order.totalCents, paidCents: order.paidCents + p.amountCents }, pay!.id);
     }
     return { payment: pay!, duplicate: false };

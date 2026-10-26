@@ -48,7 +48,7 @@ async function setValue(selector, value) {
   await page.waitForSelector(selector, { visible: true });
   await page.evaluate((s, v) => {
     const el = document.querySelector(s);
-    const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -121,7 +121,7 @@ try {
   await setValue('#ob-date', satBooked);
   await waitText('free for this time', 15000);
   check(await hasText('Only 0 of 2 free for this time'), 'acceptance 2: castle flagged when both are reserved');
-  const bookDisabled = await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.innerText.includes('Book order'))?.disabled);
+  const bookDisabled = await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.innerText.includes('Payment options · book'))?.disabled);
   check(bookDisabled === true, 'acceptance 2: booking is blocked until fixed');
   await click('Add Castle Bounce House');
   await waitText('Refused · Castle Bounce House');
@@ -133,12 +133,12 @@ try {
   // --- Book with a manual payment (Odoo POS: required info, policies, tip) ------------------
   check(await hasText('Still required to book') && await hasText('Confirm the event day point of contact'), 'booking lists what is still required (contact not confirmed yet)');
   await click('I confirmed the event day point of contact', 'label');
-  await page.waitForFunction(() => ![...document.querySelectorAll('button')].find((b) => b.innerText.includes('Book order'))?.disabled, { timeout: 10000 });
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].find((b) => b.innerText.includes('Payment options · book'))?.disabled, { timeout: 10000 });
   check(!(await hasText('Still required to book')), 'confirming the contact clears the checklist and enables booking');
-  await click('Book order');
-  await waitText('Book & take the deposit');
-  await click('Cash, check, Zelle');
-  await setValue('#bk-ref', `QA ${run}`);
+  await click('Payment options · book');
+  await waitText('Record Payment Received');
+  await setValue('#po-method', 'check');
+  await setValue('#po-ref', `QA ${run}`);
   await click('10% |', '[role="radio"]');
   check(await page.$eval('dialog[open]', (e) => /Total payment to record\s*\$235\.43/.test(e.innerText)), 'a 10% coach tip ($50.00 on $500 of rentals) is added to the deposit');
   await click('Confirm booking');

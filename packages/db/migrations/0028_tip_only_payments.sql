@@ -1,0 +1,2 @@
+ALTER TABLE "payments" DROP CONSTRAINT "payments_amount";--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_amount" CHECK ("payments"."amount_cents" >= 0 and ("payments"."amount_cents" > 0 or "payments"."tip_cents" > 0));

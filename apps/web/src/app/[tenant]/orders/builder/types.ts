@@ -41,7 +41,7 @@ export type BuilderOrder = {
   unpaidReason: string | null; expectedPaymentOn: string | null; followUpNotes: string | null; cancelReason: string | null; bookedAt: string | null;
   lines: { productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null }[];
   credits: { creditId: string; amountCents: number }[];
-  payments: { id: string; number: string; method: string; amountCents: number; reference: string | null; receivedAt: string; status: string; cardLast4: string | null }[];
+  payments: { id: string; number: string; method: string; amountCents: number; tipCents: number; reference: string | null; receivedAt: string; status: string; cardLast4: string | null }[];
   invoices: { id: string; number: string; kind: string; amountCents: number; paidCents: number; status: string; dueOn: string | null; autoCharge: boolean }[];
   versions: { version: number; action: string; diff: Record<string, { from: string; to: string }>; totals: { totalCents?: number }; actorName: string | null; reason: string | null; at: string }[];
 };
@@ -63,6 +63,8 @@ export type BuilderData = {
   policies: { key: string; title: string; text: string }[];
   /** The customer already signed the agreement online (then no staff confirmation is needed). */
   signedOnline: boolean;
+  /** Card payments in Payment Options: locations with Stripe connected, and the customer's saved card. */
+  cards: { locations: Record<string, { testMode: boolean }>; saved: { customerId: string; brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null } | null };
   /** Rain checks stay valid this many months (Agreement settings). */
   rainCheckMonths: number;
   customer: BuilderCustomer | null;

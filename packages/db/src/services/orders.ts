@@ -804,6 +804,35 @@ export function recordPayment(
   });
 }
 
+/**
+ * Collect Tip (Odoo POS): a tip for the party coach taken on its own after booking,
+ * by cash, check, Zelle, Venmo or ACH. It is a receipt with no amount, so the
+ * order total and its invoices do not change.
+ */
+export function recordTip(
+  db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences,
+  p: { method: string; tip: number; reference?: string | null; note?: string | null },
+) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
+    if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (order.status !== 'booked' && order.status !== 'completed') throw new OrgError('Tips are collected once the order is booked.', 'invalid');
+    const cents = toCents(p.tip);
+    if (cents <= 0) throw new OrgError('Enter the tip amount.', 'invalid');
+    const [pay] = await tx
+      .insert(payments)
+      .values({
+        tenantId, number: await nextDocumentNumber(tx, 'receipt', prefs, order.locationId), orderId: id, method: p.method, amountCents: 0, tipCents: cents,
+        reference: p.reference ?? null, note: p.note ?? null, createdByUserId: actor.userId ?? null,
+      })
+      .returning();
+    const [after] = await tx.update(orders).set({ version: order.version + 1 }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).returning();
+    await recordVersion(tx, tenantId, actor, after!, 'tip', { Tip: { from: '', to: `${pay!.number} · ${pay!.method} · ${money(cents)}` } });
+    await audit(tx, tenantId, actor, { type: 'order', id }, 'order.tip', { number: order.number, payment: pay!.number, cents });
+    return { order: after!, payment: pay! };
+  });
+}
+
 // --- reads ----------------------------------------------------------------------------------------
 
 /**

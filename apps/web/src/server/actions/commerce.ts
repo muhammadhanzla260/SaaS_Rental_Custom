@@ -9,7 +9,7 @@ import {
 } from '@rental/core';
 import {
   addUnit, cancelOrder, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateProduct, findDuplicateCustomers,
-  getCustomer, getOrder, importCustomers, latestSignature, listCustomers, productAvailability, recordPayment, removeCustomerAddress, removeUnit, renameCategory,
+  getCustomer, getOrder, importCustomers, latestSignature, listCustomers, productAvailability, recordPayment, recordTip, removeCustomerAddress, removeUnit, renameCategory,
   resolveOverpayment, saveCustomerAddress, saveDocument, saveImage, setCustomerMessaging, setProductStatus, setUnitStatus, transitionOrder, updateCustomer,
   rescheduleOrder, updateOrder, updateProduct, usableCredits, validateCoupon, voidCredit,
   type Availability, type CustomerCredit, type CustomerProfile, type OrderAction,
@@ -20,7 +20,7 @@ import { db } from '../db';
 import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 import { dispatchOrder } from '@rental/messaging';
-import { refundToCards } from '@rental/payments';
+import { chargeSavedCardForOrder, finishStaffCardPayment, refundToCards, startStaffCardPayment, type StaffCardResult } from '@rental/payments';
 import { listMessages } from '@rental/db';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
@@ -341,7 +341,8 @@ export async function transitionOrderAction(
       if (blocked) return { ok: false, error: blocked };
     }
     const r = await transitionOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), a.data, ctx.prefs, { reason: opts.reason?.slice(0, 500), booking });
-    refresh(slug);
+    // Booking shows its own done step in Payment Options (the order reloads when it closes); a refresh would remount it away.
+    if (a.data !== 'book') refresh(slug);
     let message = ACTION_DONE[a.data];
     if (a.data === 'send_quote') {
       // Staff are waiting on this one: send now and say where it went.
@@ -358,8 +359,10 @@ export async function transitionOrderAction(
 const paymentSchema = z.object({
   method: z.enum(['cash', 'check', 'zelle', 'venmo', 'ach', 'other']),
   amount: z.coerce.number().positive('Enter the amount received.').max(1_000_000),
+  tip: z.coerce.number().min(0).max(100_000).default(0),
   reference: z.string().trim().max(80).optional(),
   note: z.string().trim().max(500).optional(),
+  receipt: z.boolean().default(true),
 });
 
 export async function recordPaymentAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ number: string }>> {
@@ -367,10 +370,92 @@ export async function recordPaymentAction(slug: string, id: string, input: unkno
     const ctx = await requirePermission(slug, 'payments.record');
     const p = paymentSchema.safeParse(input);
     if (!p.success) return invalid(p.error);
+    // No page refresh here: the order screen shows its own done step, then reloads when it closes.
     const r = await recordPayment(db, ctx.tenant.id, ctx.actor, uuid.parse(id), ctx.prefs, p.data);
-    refresh(slug);
     after(() => dispatchOrder(db, ctx.tenant.id, r.order.id).catch((e) => console.error('[dispatch]', e)));
     return { ok: true, data: { number: r.payment.number }, message: `${r.payment.number} recorded.` };
+  });
+}
+
+const tipSchema = z.object({
+  method: z.enum(['cash', 'check', 'zelle', 'venmo', 'ach', 'other']),
+  tip: z.coerce.number().positive('Enter the tip amount.').max(100_000),
+  reference: z.string().trim().max(80).optional(),
+});
+
+/** Collect Tip, by cash, check or a transfer (cards go through the card actions below). */
+export async function collectTipAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ number: string }>> {
+  return run<{ number: string }>(async () => {
+    const ctx = await requirePermission(slug, 'payments.record');
+    const p = tipSchema.safeParse(input);
+    if (!p.success) return invalid(p.error);
+    const r = await recordTip(db, ctx.tenant.id, ctx.actor, uuid.parse(id), ctx.prefs, p.data);
+    return { ok: true, data: { number: r.payment.number }, message: `Tip recorded · ${r.payment.number}.` };
+  });
+}
+
+// --- cards taken by staff (Payment Options) -------------------------------------------------------------
+// These do not refresh the page: the Payment Options window shows its done step and the order reloads on close.
+
+const staffCardSchema = z.object({
+  purpose: z.enum(['book', 'payment', 'tip']),
+  amount: z.coerce.number().min(0).max(1_000_000),
+  tip: z.coerce.number().min(0).max(100_000).default(0),
+  receipt: z.boolean().default(true),
+  saveCard: z.boolean().default(false),
+  policies: z.record(z.string().max(40), z.boolean()).default({}),
+});
+const cents = (n: number) => Math.round(n * 100);
+
+/** Booking by card: the same "still required" checks as any booking, before any money moves. */
+async function staffCardContext(slug: string, id: string, input: unknown) {
+  const p = staffCardSchema.safeParse(input);
+  if (!p.success) throw new ActionError(p.error.issues[0]?.message ?? 'Check the amounts.');
+  const ctx = await requirePermission(slug, 'payments.record');
+  if (p.data.purpose === 'book') {
+    await requirePermission(slug, 'orders.create');
+    const blocked = await bookingBlocked(ctx.tenant.id, id, ctx.prefs, p.data.policies);
+    if (blocked) throw new ActionError(blocked);
+  }
+  const d = p.data;
+  return { ctx, card: { purpose: d.purpose, amountCents: d.purpose === 'tip' ? 0 : cents(d.amount), tipCents: cents(d.tip), receipt: d.receipt, saveCard: d.saveCard, policies: d.policies } };
+}
+
+const cardDone = (r: StaffCardResult, purpose: string) =>
+  `${purpose === 'tip' ? 'Tip charged' : r.booked ? 'Booked and charged' : 'Charged'} ${r.brand ? r.brand.toUpperCase() : 'card'} •${r.last4 ?? '••••'} · ${r.number}.`;
+
+export type StaffCardIntent = { clientSecret: string; intentId: string; publishableKey: string; amountCents: number; testMode: boolean };
+
+/** New card: the PaymentIntent that Stripe's card field (in this browser) confirms. Card numbers never reach us. */
+export async function staffCardStartAction(slug: string, id: string, input: unknown): Promise<ActionResult<StaffCardIntent>> {
+  return run<StaffCardIntent>(async () => {
+    const orderId = uuid.parse(id);
+    const { ctx, card } = await staffCardContext(slug, orderId, input);
+    const r = await startStaffCardPayment(db, ctx.tenant.id, orderId, card);
+    return { ok: true, data: r };
+  });
+}
+
+/** Stripe's card field said yes: book (when booking), record the payment, keep the card if it was saved. */
+export async function staffCardFinishAction(slug: string, id: string, intentId: string, policies: Record<string, boolean> = {}): Promise<ActionResult<{ booked: boolean }>> {
+  return run<{ booked: boolean }>(async () => {
+    const orderId = uuid.parse(id);
+    const ctx = await requirePermission(slug, 'payments.record');
+    const acks = z.record(z.string().max(40), z.boolean()).parse(policies);
+    const r = await finishStaffCardPayment(db, ctx.tenant.id, orderId, ctx.actor, z.string().regex(/^pi_[A-Za-z0-9]+$/).parse(intentId), acks);
+    after(() => dispatchOrder(db, ctx.tenant.id, orderId).catch((e) => console.error('[dispatch]', e)));
+    return { ok: true, data: { booked: r.booked }, message: cardDone(r, r.booked ? 'book' : 'payment') };
+  });
+}
+
+/** The customer's saved card, charged now (booking the order when that is the step). */
+export async function savedCardChargeAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ booked: boolean }>> {
+  return run<{ booked: boolean }>(async () => {
+    const orderId = uuid.parse(id);
+    const { ctx, card } = await staffCardContext(slug, orderId, input);
+    const r = await chargeSavedCardForOrder(db, ctx.tenant.id, orderId, ctx.actor, card);
+    after(() => dispatchOrder(db, ctx.tenant.id, orderId).catch((e) => console.error('[dispatch]', e)));
+    return { ok: true, data: { booked: r.booked }, message: cardDone(r, card.purpose) };
   });
 }
 

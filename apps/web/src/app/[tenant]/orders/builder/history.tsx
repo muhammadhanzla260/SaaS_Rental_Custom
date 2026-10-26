@@ -20,6 +20,7 @@ const ACTION: Record<string, string> = {
   reopen: 'Reopened',
   complete: 'Completed',
   payment: 'Payment recorded',
+  tip: 'Tip collected',
   overpayment_to_wallet: 'Overpayment moved to wallet',
   refund_owed: 'Refund owed',
   call_logged: 'Pre-event call made',
@@ -132,7 +133,10 @@ export function OrderHistory({
                     <span className="mono block text-[13px] text-fg">{p.number}</span>
                     <span className="block text-[12px] text-fg-2">{p.cardLast4 ? `Card •${p.cardLast4}` : METHOD[p.method] ?? p.method}{p.reference ? ` · ${p.reference}` : ''} · {new Date(p.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </span>
-                  <span className="mono text-sm font-semibold text-success-fg">{money(p.amountCents)}</span>
+                  <span className="shrink-0 text-right">
+                    <span className="mono block text-sm font-semibold text-success-fg">{p.amountCents > 0 ? money(p.amountCents) : 'Tip only'}</span>
+                    {p.tipCents > 0 && <span className="mono block text-[12px] text-fg-2">+ {money(p.tipCents)} tip</span>}
+                  </span>
                 </li>
               ))}
             </ul>

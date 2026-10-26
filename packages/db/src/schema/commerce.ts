@@ -523,7 +523,8 @@ export const payments = pgTable(
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
     check('payments_method', sql`${t.method} in ('cash','check','zelle','venmo','ach','card','link','other')`),
     check('payments_status', sql`${t.status} in ('received','refunded','void')`),
-    check('payments_amount', sql`${t.amountCents} > 0`),
+    // A tip collected on its own after booking has no amount, only the tip.
+    check('payments_amount', sql`${t.amountCents} >= 0 and (${t.amountCents} > 0 or ${t.tipCents} > 0)`),
     check('payments_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),
     unique('payments_gateway_ref').on(t.tenantId, t.gatewayRef),
     index('payments_order_idx').on(t.tenantId, t.orderId),
