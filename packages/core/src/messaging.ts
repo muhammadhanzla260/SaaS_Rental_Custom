@@ -36,6 +36,7 @@ export const MESSAGE_TYPES = {
   last_minute: { label: 'Last-minute booking', group: 'internal', channels: ['email'], when: 'A booking made shortly before its event.' },
   change_request: { label: 'Customer asked for changes', group: 'internal', channels: ['email'], when: 'From the quote page’s Request changes.' },
   daily_digest: { label: 'Tomorrow’s events', group: 'internal', channels: ['email'], when: 'Every evening: the events for tomorrow.' },
+  weekly_report: { label: 'Weekly reports', group: 'internal', channels: ['email'], when: 'Mondays at 8:00 AM: the reports someone set to Email weekly.' },
 } as const satisfies Record<string, { label: string; group: MessageGroup; channels: readonly Channel[]; when: string }>;
 export type MessageType = keyof typeof MESSAGE_TYPES;
 export const MESSAGE_TYPE_KEYS = Object.keys(MESSAGE_TYPES) as MessageType[];
@@ -263,6 +264,7 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
   change_request: { email: { subject: '{customer.name} asked for changes to {order.number}', button: null, buttonText: '',
     body: '{customer.name} asked for changes to quote {order.number} ({event.date}):\n\n{reason}' } },
   daily_digest: { email: { subject: 'Tomorrow’s events', button: null, buttonText: '', body: '{reason}' } },
+  weekly_report: { email: { subject: 'Your Monday reports', button: null, buttonText: '', body: '{reason}' } },
 };
 
 export function defaultTemplate(type: MessageType, channel: Channel): TemplateInput & { button: Default['button'] } {

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, date, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { createdAt, id, tenantId, updatedAt } from './columns';
 import { orders } from './commerce';
 import { tenants } from './org';
@@ -77,5 +77,27 @@ export const messages = pgTable(
     index('messages_due_idx').on(t.status, t.scheduledFor),
     index('messages_order_idx').on(t.tenantId, t.orderId),
     index('messages_log_idx').on(t.tenantId, t.createdAt),
+  ],
+);
+
+/**
+ * Reports someone set to "Email weekly" (one per report per workspace). The
+ * worker sends them together on Monday mornings in the workspace's time zone.
+ */
+export const reportSchedules = pgTable(
+  'report_schedules',
+  {
+    tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+    reportKey: text('report_key').notNull(),
+    /** The period switch at the time it was scheduled (never 'custom'). */
+    period: text('period').notNull().default('this_month'),
+    locationId: uuid('location_id'),
+    createdByUserId: text('created_by_user_id'),
+    lastSentOn: date('last_sent_on', { mode: 'string' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.reportKey] }),
+    check('report_schedules_period', sql`${t.period} in ('this_month','last_month','quarter','year')`),
   ],
 );

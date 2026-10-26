@@ -190,6 +190,13 @@
       "when": 1792979004306,
       "tag": "0026_ops_board",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792980243861,
+      "tag": "0027_report_schedules",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@
  *   dispatch_due      every minute: send queued emails/texts that are due (exactly once) and
  *                     charge saved cards for balances due today
  *   daily_digest      every 15 min: tomorrow's events to the office at each workspace's digest time
+ *   weekly_reports    every 15 min: on Mondays from 8:00 AM (workspace time), the reports set to Email weekly
  *   ensure_partitions nightly: next month's audit_log partition
  *
  * Two connections: the owner (cross-workspace scans, SKIP LOCKED claims) and the
@@ -15,7 +16,7 @@ import { run, type Task } from 'graphile-worker';
 import { resolve } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { parsePreferences, resolveMessaging, utcToWallTime } from '@rental/core';
-import { createDb, enqueueMessage, tomorrowsEvents, withTenant } from '@rental/db';
+import { createDb, enqueueMessage, queueWeeklyReports, tomorrowsEvents, withTenant } from '@rental/db';
 import { dispatchDue } from '@rental/messaging';
 import { balanceCharger } from '@rental/payments';
 
@@ -74,10 +75,26 @@ const tasks: Record<string, Task> = {
       if (row) logger.info(`digest queued for ${t.id} (${events.length} events)`);
     }
   },
+
+  /** Monday 8:00 AM in each live workspace's time zone: every report set to Email weekly, in one email. */
+  weekly_reports: async (_payload, { logger }) => {
+    const tenants = await owner.db.execute<{ id: string; slug: string; currency: string; timezone: string; settings: unknown }>(
+      sql`select t.id, t.slug, t.currency, t.timezone, t.settings from tenants t
+          where t.status in ('active','trial','past_due') and exists (select 1 from report_schedules s where s.tenant_id = t.id)`,
+    );
+    const base = (process.env.APP_URL || process.env.BETTER_AUTH_URL || 'http://localhost:3000').replace(/\/$/, '');
+    for (const t of tenants) {
+      if (!resolveMessaging(parsePreferences(t.settings).messaging).live) continue;
+      const { date, time } = utcToWallTime(new Date(), t.timezone);
+      if (new Date(`${date}T12:00:00Z`).getUTCDay() !== 1 || time < '08:00') continue;
+      const row = await queueWeeklyReports(app.db, t, date, base);
+      if (row) logger.info(`weekly reports queued for ${t.id}`);
+    }
+  },
 };
 
 // Times are UTC. Fields: minute hour day month weekday task
-const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '15 3 * * * ensure_partitions'].join('\n');
+const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '*/15 * * * * weekly_reports', '15 3 * * * ensure_partitions'].join('\n');
 
 const once = process.argv.includes('--once');
 const runner = await run({

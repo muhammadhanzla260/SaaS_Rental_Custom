@@ -131,6 +131,47 @@ try {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'the board fits a 390 px phone (columns scroll inside)');
   await page.setViewport({ width: 1440, height: 1000 });
 
+  // --- Reports ----------------------------------------------------------------------------------------
+  await go(`${S}/reports`);
+  await waitText('Revenue per day');
+  const mtd = await page.evaluate(() => {
+    const cents = (s) => Math.round(Number(s.replace(/[^0-9.-]/g, '')) * 100);
+    const tile = [...document.querySelectorAll('main span')].find((e) => e.innerText === 'Revenue')?.nextElementSibling?.innerText ?? '';
+    const bars = document.querySelector('[role="img"]').getAttribute('aria-label').split(': ').slice(1).join(': ').split(', ').map((t) => cents(t.split(' · ')[1] ?? '0'));
+    return { tile: cents(tile), bars: bars.reduce((a, b) => a + b, 0), count: bars.length };
+  });
+  check(mtd.count >= 1 && mtd.bars === mtd.tile, `acceptance 5: Month to Date bars add up to the Revenue tile (${money(mtd.bars)} = ${money(mtd.tile)})`);
+  await shot('07-reports-mtd');
+  await page.type('input[placeholder="Find a report"]', 'rain');
+  check((await page.$$eval('nav[aria-label="Reports"] a', (a) => a.map((x) => x.innerText.trim()))).join('|') === 'Credits and Rain Checks', 'the report search narrows the list');
+  await click('Credits and Rain Checks', 'nav[aria-label="Reports"] a');
+  await page.waitForFunction(() => /RC-\d{4}/.test(document.body.innerText) && document.body.innerText.includes('Remaining'), { timeout: 20000 });
+  check(true, 'acceptance 3: the credits report lists the rain check with issued / used / remaining');
+  const csv = await page.evaluate(async () => {
+    const a = [...document.querySelectorAll('a')].find((x) => x.innerText.includes('Export CSV'));
+    const r = await fetch(a.href);
+    return { type: r.headers.get('content-type'), name: r.headers.get('content-disposition'), body: await r.text() };
+  });
+  check(csv.type.startsWith('text/csv') && /credits-and-rain-checks/.test(csv.name) && csv.body.includes('Code,Kind,Customer') && /\r\nTotal,/.test(csv.body), 'Export CSV downloads the same report with a totals line');
+  await click('Email weekly');
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].some((e) => /every Monday at 8:00 AM|is scheduled/.test(e.innerText)), { timeout: 15000 });
+  check(await has('Emailed Mondays'), 'Email weekly schedules the report for Monday mornings');
+  await go(`${S}/reports?r=credits_rain_checks`);
+  check(await has('Emailed Mondays'), 'the schedule is saved');
+  await click('Emailed Mondays');
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].some((e) => e.innerText.includes('Schedule removed')), { timeout: 15000 });
+  check(true, 'and can be removed');
+  await click('Last month', '[role="radio"]');
+  await page.waitForFunction(() => location.search.includes('p=last_month'), { timeout: 15000 });
+  check(true, 'the period switch reloads the report');
+  await go(`/print/${S.slice(1)}/reports?r=receivables`);
+  check(await has('Receivables') && await has('Print or save as PDF'), 'PDF opens a printable page');
+  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+  await go(`${S}/reports?r=order_list`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'reports fit a 390 px phone (the table scrolls inside)');
+  await shot('08-reports-phone');
+  await page.setViewport({ width: 1440, height: 1000 });
+
   // --- Emails and phones ----------------------------------------------------------------------------
   await go(`${S}/settings/messaging?tab=log&q=${fx.b.number}`);
   await waitText('Cancellation');
