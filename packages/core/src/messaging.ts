@@ -162,6 +162,7 @@ export const TEMPLATE_FIELDS = [
   { key: 'pay_link', label: 'Sign & pay link', sample: 'https://…/q/…' },
   { key: 'review_link', label: 'Review link', sample: 'https://g.page/r/…' },
   { key: 'reason', label: 'Reason', sample: 'Card declined' },
+  { key: 'cancel.outcome', label: 'What happens to the money (cancellation)', sample: 'Rain check RC-0019 for $185.43, valid until November 7, 2027. Use it on a new date.' },
   { key: 'order.paid', label: 'Paid so far', sample: '$109.20' },
   { key: 'order.prepared_suffix', label: '" | Prepared by …" (empty if no salesperson)', sample: ' | Prepared by Sam Ortiz' },
   { key: 'event.days_to_go', label: 'Days to go ("3 days")', sample: '3 days' },
@@ -236,7 +237,7 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
   booking_confirmation: { email: { subject: 'You’re booked! {order.number} on {event.date}', button: null, buttonText: '', attachAgreement: true,
     body: 'Hi {customer.first_name},\n\nYour {event.type} on {event.date} ({event.time}) is booked and your equipment is reserved.\n\nWe’ll set up at {event.address}. The balance of {order.balance} is charged on the event day. Your signed rental agreement is attached.' } },
   cancellation: { email: { subject: 'Order {order.number} is cancelled', button: null, buttonText: '',
-    body: 'Hi {customer.first_name},\n\nYour order {order.number} for {event.date} has been cancelled. {reason}\n\nIf this is a surprise, reply to this email and we’ll sort it out.' } },
+    body: 'Hi {customer.first_name},\n\nYour order {order.number} for {event.date} has been cancelled ({reason}).\n\n{cancel.outcome}\n\nIf this is a surprise, reply to this email and we’ll sort it out.' } },
   card_declined: {
     email: { subject: 'Payment for {order.number} didn’t go through', button: 'pay_link', buttonText: 'Pay now',
       body: 'Hi {customer.first_name},\n\nWe tried to charge {invoice.amount} for your event on {event.date}, but the card was declined. Please pay with the link below so we can keep your booking.' },

@@ -32,6 +32,7 @@ export function fieldValues(ctx: MessageContext, extra: Extra = {}): FieldValues
     review_link: ctx.prefs.brand.reviewLink ?? '',
     pay_link: ctx.payUrl ?? '',
     reason: typeof meta.reason === 'string' ? meta.reason : '',
+    'cancel.outcome': typeof meta.outcome === 'string' ? meta.outcome : '',
   };
   if (o) {
     const date = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' }).format(o.eventStartsAt);

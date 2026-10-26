@@ -13,7 +13,8 @@ import {
 } from '@/server/actions/commerce';
 import { addMinutes, initialDraft, locationOf, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
 import { OrderHistory } from './history';
-import { BookModal, CancelModal, OverpaidModal, PaymentModal, type BookChoice } from './modals';
+import { CancelOrderModal, RainCheckModal } from './cancel-modals';
+import { BookModal, OverpaidModal, PaymentModal, type BookChoice } from './modals';
 import { CustomerSection, EventSection, ItemsSection, LinesSection, NotesSection } from './sections';
 import { SummaryPanel } from './summary';
 import type { BuilderCredit, BuilderCustomer, BuilderData, BuilderProduct, Draft, DraftLine } from './types';
@@ -46,6 +47,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   const [newCustomer, setNewCustomer] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [rainOpen, setRainOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [overpaid, setOverpaid] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -270,15 +272,8 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     } else router.refresh();
   }
 
-  async function cancelOrder(reason: string) {
-    if (!meta.id) return;
-    const t = await transitionOrderAction(data.slug, meta.id, 'cancel', { reason });
-    setCancelOpen(false);
-    if (!t.ok) return toast(t.error, 'error');
-    setMeta((m) => ({ ...m, status: 'cancelled', version: t.data!.version }));
-    toast(t.message ?? 'Cancelled.');
-    router.refresh();
-  }
+  // Cancel and rain check change the order on the server (status, date, version): reload it fresh.
+  const reloadOrder = () => { setCancelOpen(false); setRainOpen(false); window.location.reload(); };
   async function reopen() {
     if (!meta.id) return;
     const t = await transitionOrderAction(data.slug, meta.id, 'reopen');
@@ -340,12 +335,17 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <Button variant="secondary" disabled={!dirty} onClick={() => { setD(savedDraft); setError(null); }}>Discard changes</Button>
             <Button variant="danger-ghost" onClick={() => setCancelOpen(true)}>Cancel order</Button>
           </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Button variant="secondary" disabled={dirty} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setRainOpen(true)}>Rain check · weather</Button>
+          </div>
           {data.perms.recordPayment && balance > 0 && <Button variant="secondary" onClick={() => setPayOpen(true)}>Record a payment · {money(balance)} due</Button>}
           <p className="text-center text-[12px] text-fg-2">Booked orders stay fully editable. Each save re-checks availability, re-prices the order and is recorded in the history.</p>
         </>
       )}
       {!booked && meta.id && !cancelled && !readOnly && <Button variant="ghost" onClick={() => setCancelOpen(true)}>Cancel order</Button>}
-      {cancelled && data.perms.create && !data.readOnly && <Button variant="secondary" onClick={reopen}>Reopen as a draft</Button>}
+      {cancelled && data.perms.create && !data.readOnly && (!data.order?.cancelOutcome || data.order.cancelOutcome === 'none'
+        ? <Button variant="secondary" onClick={reopen}>Reopen as a draft</Button>
+        : <p className="text-center text-[12px] text-fg-2">What was paid became credit or a refund, so this order stays closed. Start a new order and apply the credit.</p>)}
     </div>
   );
 
@@ -356,7 +356,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         actions={
           <div className="flex items-center gap-2">
             {meta.id && <span className="mono hidden whitespace-nowrap rounded-md border border-subtle px-2 py-1 text-xs text-fg-2 xl:inline">{meta.number}</span>}
-            <Pill tone={(st?.tone ?? 'neutral') as 'neutral'}>{st?.label ?? status}</Pill>
+            <Pill tone={(st?.tone ?? 'neutral') as 'neutral'}>{cancelled && data.order?.cancelOutcome === 'rain_check' ? 'Rained out' : st?.label ?? status}</Pill>
             {meta.version > 0 && <span className="mono hidden text-xs text-fg-2 sm:inline">v{meta.version}</span>}
             {dirty && meta.id && <span className="hidden items-center gap-1.5 text-xs font-semibold text-warning-fg lg:flex"><span className="anim-blink size-1.5 rounded-full bg-warning-mark" />Unsaved changes</span>}
             {data.locations.length > 1 && (
@@ -447,7 +447,24 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         canRecordPayment={data.perms.recordPayment}
         booked={false}
       />
-      <CancelModal open={cancelOpen} onClose={() => setCancelOpen(false)} onConfirm={cancelOrder} number={meta.number} booked={booked} />
+      {meta.id && (
+        <>
+          <CancelOrderModal
+            open={cancelOpen} onClose={() => setCancelOpen(false)} onDone={reloadOrder} slug={data.slug} orderId={meta.id} number={meta.number}
+            firstName={d.customer?.firstName || d.customer?.name.split(' ')[0] || 'The customer'} paidCents={meta.paidCents} cardPaidCents={data.order?.cardPaidCents ?? 0}
+            money={money} canSettle={data.perms.refund} rainCheckMonths={data.rainCheckMonths}
+            walletCents={data.credits.filter((c) => c.kind !== 'rain_check').reduce((s, c) => s + c.balanceCents, 0)}
+          />
+          {booked && (
+            <RainCheckModal
+              open={rainOpen} onClose={() => setRainOpen(false)} onDone={reloadOrder} slug={data.slug} orderId={meta.id} number={meta.number}
+              firstName={d.customer?.firstName || d.customer?.name.split(' ')[0] || 'The customer'} paidCents={meta.paidCents} money={money} canSettle={data.perms.refund}
+              rainCheckMonths={data.rainCheckMonths} locationId={d.locationId} tz={tz} start={d.start} end={addMinutes(d.start, d.durationMin)} durationMin={d.durationMin}
+              lines={d.lines.map((l) => ({ productId: l.productId, name: l.name, quantity: l.quantity }))}
+            />
+          )}
+        </>
+      )}
       <OverpaidModal open={overpaid > 0} amountLabel={money(overpaid)} onChoose={resolveOver} canRefund={data.perms.refund} />
       <PaymentModal
         open={payOpen}

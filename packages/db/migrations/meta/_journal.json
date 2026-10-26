@@ -176,6 +176,20 @@
       "when": 1792955603705,
       "tag": "0024_pos_inputs",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792957248917,
+      "tag": "0025_cancel_outcomes",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792979004306,
+      "tag": "0026_ops_board",
+      "breakpoints": true
     }
   ]
 }

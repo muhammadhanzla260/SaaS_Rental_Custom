@@ -93,8 +93,13 @@ export async function chargeSaved(
   }
 }
 
-export async function refundIntent(stripe: Stripe, intentId: string, reason: string) {
-  await stripe.refunds.create({ payment_intent: intentId, reason: 'requested_by_customer', metadata: { note: reason.slice(0, 400) } }, { idempotencyKey: `refund:${intentId}` });
+/** Refund a card payment (all of it, or `amountCents`). Returns the gateway's refund id. */
+export async function refundIntent(stripe: Stripe, intentId: string, reason: string, amountCents?: number) {
+  const r = await stripe.refunds.create(
+    { payment_intent: intentId, ...(amountCents ? { amount: amountCents } : {}), reason: 'requested_by_customer', metadata: { note: reason.slice(0, 400) } },
+    { idempotencyKey: `refund:${intentId}:${amountCents ?? 'all'}` },
+  );
+  return r.id;
 }
 
 /** Check a secret key before saving it (Settings → Connect). */

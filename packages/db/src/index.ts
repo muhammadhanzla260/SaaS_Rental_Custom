@@ -13,3 +13,4 @@ export * from './services/customers';
 export * from './services/orders';
 export * from './services/messaging';
 export * from './services/money';
+export * from './services/ops';

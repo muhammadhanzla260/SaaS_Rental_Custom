@@ -253,30 +253,6 @@ export function OverpaidModal({ open, amountLabel, onChoose, canRefund }: { open
   );
 }
 
-export function CancelModal({ open, onClose, onConfirm, number, booked }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => Promise<void>; number: string; booked: boolean }) {
-  const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) setReason(''); }, [open]);
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Cancel ${number}?`}
-      sub={booked ? 'The equipment is released straight away. Refunds, rain checks and the full cancel flow arrive in Phase 3.' : 'The quote is kept in history and can be reopened.'}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>Keep the order</Button>
-          <Button variant="danger" pending={busy} onClick={async () => { setBusy(true); await onConfirm(reason); setBusy(false); }}>Cancel order</Button>
-        </>
-      }
-    >
-      <Field label="Reason" htmlFor="cx-reason" optional>
-        <Textarea id="cx-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Customer changed plans" />
-      </Field>
-    </Modal>
-  );
-}
-
 export function PaymentModal({ open, onClose, onSave, balanceCents }: { open: boolean; onClose: () => void; onSave: (p: { method: string; amount: string; reference: string }) => Promise<string | null>; balanceCents: number }) {
   const [p, setP] = useState({ method: 'cash', amount: '', reference: '' });
   const [busy, setBusy] = useState(false);

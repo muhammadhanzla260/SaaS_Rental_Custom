@@ -1,6 +1,7 @@
 /**
  * Fresh quotes for the Phase 2b browser QA (called by e2e-phase2b.mjs):
  *   create   → prints JSON: a quote with a 30% deposit and one with no deposit, each with its customer link
+ *   booked   → prints JSON: two booked orders with the deposit paid by check (Phase 3)
  *   cleanup <orderId…> → cancels them, so the calendar stays clean
  * A random weekday 60–150 days out keeps runs from colliding with each other or the demo.
  */
@@ -46,7 +47,20 @@ if (process.argv[2] === 'cleanup') {
     const token = await withTenant(db, t.id, (tx) => ensureOrderToken(tx, t.id, o.id));
     return { id: o.id, number: o.number, url: quoteUrl(token) };
   };
-  console.log(JSON.stringify({ day, deposit: await make({ kind: 'percent', value: 30 }), noDeposit: await make({ kind: 'none', value: 0 }) }));
+  if (process.argv[2] === 'booked') {
+    // Credits from earlier runs would pile up on the QA customer: void them first.
+    await owner`update credits set voided_at = now() where tenant_id = ${t.id} and customer_id = ${customerId} and voided_at is null`;
+    // Phase 3: two booked orders with the 30% deposit paid by check (to cancel, rain-check, reschedule).
+    const book = async () => {
+      const q = await make({ kind: 'percent', value: 30 });
+      const [dep] = await owner<{ d: string }[]>`select deposit_due_cents::text d from orders where id = ${q.id}`;
+      const { order } = await transitionOrder(db, t.id, actor, q.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'check', amount: Number(dep!.d) / 100 } });
+      return { ...q, paidCents: order.paidCents };
+    };
+    console.log(JSON.stringify({ day, a: await book(), b: await book() }));
+  } else {
+    console.log(JSON.stringify({ day, deposit: await make({ kind: 'percent', value: 30 }), noDeposit: await make({ kind: 'none', value: 0 }) }));
+  }
 }
 await app.end();
 await owner.end();

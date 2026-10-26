@@ -1,19 +1,19 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
-  parseLocationSettings, quoteOrder, renderPrefix, sequenceScope, toCents, travelFee,
-  type BookingInput, type DocumentKind, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
+  cancelSchema, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
+  type BookingInput, type CancelInput, type CancelOutcome, type DocumentKind, type RescheduleInput, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import {
   coupons, creditApplications, credits, customers, invoices, locations, memberships, orderLines, orderVersions, orders, payments, productLocationPrices,
-  products, reservations, taxRates, users,
+  products, refunds, reservations, taxRates, users,
 } from '../schema';
 import { audit, type Actor } from './audit';
 import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
 import { OrgError } from './errors';
 import { enqueueOfficeAlert, enqueueOrderMessage, enqueuePaymentConfirmation, ensureOrderToken, planOrderMessages } from './messaging';
-import { billingOrder, syncInvoices } from './money';
+import { billingOrder, rainCheckUntil, syncInvoices } from './money';
 
 export type Order = typeof orders.$inferSelect;
 export type OrderLine = typeof orderLines.$inferSelect;
@@ -307,9 +307,11 @@ async function reserveAll(tx: Tx, tenantId: string, order: Order, lines: OrderLi
     const turnaround = p.turnaroundMinutes ?? prefs.booking.cleanupBufferMinutes;
     const blockedUntil = new Date(order.eventEndsAt.getTime() + turnaround * 60_000);
     try {
-      await tx.execute(sql`select app_reserve_inventory(${order.id}::uuid, ${line.id}::uuid, ${line.productId}::uuid, ${order.locationId}::uuid,
+      // A savepoint per line: a refused line rolls back only itself, so the next lines are still checked
+      // (without it Postgres aborts the transaction and every later line fails with a raw error).
+      await tx.transaction((sp) => sp.execute(sql`select app_reserve_inventory(${order.id}::uuid, ${line.id}::uuid, ${line.productId}::uuid, ${order.locationId}::uuid,
         ${line.quantity}::int, ${order.eventStartsAt.toISOString()}::timestamptz, ${order.eventEndsAt.toISOString()}::timestamptz,
-        ${blockedUntil.toISOString()}::timestamptz)`);
+        ${blockedUntil.toISOString()}::timestamptz)`));
     } catch (e) {
       const cause = (e as { cause?: { message?: string; detail?: string } }).cause;
       if (!cause?.message?.includes('NOT_AVAILABLE')) throw e;
@@ -382,7 +384,7 @@ async function actorName(tx: Tx, actor: Actor) {
   return u?.name ?? null;
 }
 
-async function recordVersion(tx: Tx, tenantId: string, actor: Actor, order: Order, action: string, diff: Record<string, unknown>, reason?: string | null) {
+export async function recordVersion(tx: Tx, tenantId: string, actor: Actor, order: Order, action: string, diff: Record<string, unknown>, reason?: string | null) {
   await tx.insert(orderVersions).values({
     tenantId,
     orderId: order.id,
@@ -578,7 +580,13 @@ export function transitionOrder(
       await tx.delete(reservations).where(and(eq(reservations.tenantId, tenantId), eq(reservations.orderId, id)));
       set = { status: 'cancelled', cancelledAt: now, cancelReason: opts.reason ?? null };
     }
-    if (action === 'reopen') set = { status: 'draft', cancelledAt: null, cancelReason: null };
+    if (action === 'reopen') {
+      // Its money was settled (credit, refund or rain check): reopening would count it twice.
+      if (order.cancelOutcome && order.cancelOutcome !== 'none') {
+        throw new OrgError('What was paid on this order was already turned into credit or refunded. Start a new order and apply the credit there.', 'invalid');
+      }
+      set = { status: 'draft', cancelledAt: null, cancelReason: null, cancelOutcome: null };
+    }
     const [after] = await tx
       .update(orders)
       .set({ ...set, version: order.version + 1 })
@@ -615,6 +623,157 @@ export function transitionOrder(
     await syncInvoices(tx, tenantId, id);
     return { order: after!, payment };
   });
+}
+
+// --- cancel with money outcomes, rain checks, reschedule (Phase 3) ---------------------------------------
+
+/** Received payments of an order, newest first (what a refund comes back from). */
+export function refundablePayments(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const pays = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt));
+    const done = await tx.select({ paymentId: refunds.paymentId, cents: sql<number>`sum(${refunds.amountCents})::bigint` }).from(refunds)
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId))).groupBy(refunds.paymentId);
+    const back = new Map(done.map((d) => [d.paymentId, Number(d.cents)]));
+    return pays.map((p) => ({ ...p, refundableCents: Math.max(0, p.amountCents - (back.get(p.id) ?? 0)) })).filter((p) => p.refundableCents > 0);
+  });
+}
+
+/**
+ * Split a refund over the payments: card payments first (back through the
+ * gateway), newest first; whatever is left is handed back by staff.
+ */
+export function planRefund(pays: { id: string; gateway: string; method: string; gatewayRef: string | null; refundableCents: number }[], amountCents: number) {
+  const order = [...pays.filter((p) => p.gateway !== 'manual' && p.gatewayRef), ...pays.filter((p) => p.gateway === 'manual' || !p.gatewayRef)];
+  const parts: { paymentId: string; cents: number; gateway: string; method: string; intentRef: string | null }[] = [];
+  let left = amountCents;
+  for (const p of order) {
+    if (left <= 0) break;
+    const cents = Math.min(left, p.refundableCents);
+    parts.push({ paymentId: p.id, cents, gateway: p.gateway, method: p.method, intentRef: p.gatewayRef });
+    left -= cents;
+  }
+  return { parts, unallocatedCents: left };
+}
+
+export type DoneRefund = { paymentId: string | null; cents: number; gateway: string; method: string; ref: string | null };
+
+async function insertCreditTx(tx: Tx, tenantId: string, actor: Actor, o: Order, kind: 'wallet' | 'rain_check' | 'goodwill', cents: number, reason: string, validUntil: string | null) {
+  const prefix = kind === 'rain_check' ? 'RC-' : kind === 'goodwill' ? 'GW-' : 'WC-';
+  const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number(${`credit:${prefix}`}, ${prefix}, 4) as number`)) as unknown as [{ number: string }];
+  const [c] = await tx
+    .insert(credits)
+    .values({ tenantId, customerId: o.customerId, kind, code: num.number, amountCents: cents, reason, validUntil, sourceOrderId: o.id, createdByUserId: actor.userId ?? null })
+    .returning();
+  return c!;
+}
+
+/**
+ * Cancel a booking and settle what was paid: wallet credit, refund, or a rain
+ * check (weather; the order shows as "Rained out"). Always releases the items,
+ * cancels scheduled messages and the balance charge, voids unpaid invoices and
+ * emails the cancellation. Card refunds are made at the gateway first and
+ * passed in as `done`; the rest of a refund is recorded as handed back.
+ */
+export function cancelOrder(
+  db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences, input: CancelInput, done: DoneRefund[] = [],
+) {
+  const c = cancelSchema.parse(input);
+  return withTenant(db, tenantId, async (tx) => {
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
+    if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (!ALLOWED.cancel.includes(order.status as OrderStatus)) throw new OrgError(`This order is ${order.status.replace('_', ' ')}; it cannot be cancelled now.`, 'invalid');
+    const paid = order.paidCents;
+    const amount = toCents(c.amount);
+    const goodwill = toCents(c.goodwill);
+    if (c.outcome === 'none' && paid > 0) throw new OrgError(`Choose what happens to the ${money(paid)} paid.`, 'invalid');
+    if (c.outcome !== 'none' && amount > paid) throw new OrgError(`That is more than the ${money(paid)} paid.`, 'invalid');
+    if ((c.outcome === 'wallet' || c.outcome === 'rain_check') && amount + goodwill <= 0) throw new OrgError('Enter the credit amount.', 'invalid');
+    if (c.outcome === 'refund' && amount <= 0) throw new OrgError('Enter the refund amount.', 'invalid');
+
+    const now = new Date();
+    const why = [c.reason, c.note].filter(Boolean).join(' · ');
+    let credit: typeof credits.$inferSelect | null = null;
+    let extra: typeof credits.$inferSelect | null = null;
+    const made: (typeof refunds.$inferSelect)[] = [];
+    if (c.outcome === 'wallet' || c.outcome === 'rain_check') {
+      const label = c.outcome === 'rain_check' ? `Rain check · ${order.number}` : `Cancelled ${order.number}`;
+      credit = await insertCreditTx(tx, tenantId, actor, order, c.outcome, amount + goodwill, `${label}${goodwill ? ` (includes ${money(goodwill)} goodwill)` : ''} · ${c.reason}`,
+        c.outcome === 'rain_check' ? (c.validUntil ?? rainCheckUntil(prefs, now)) : c.validUntil);
+    }
+    if (c.outcome === 'refund') {
+      const gateway = done.reduce((s, r) => s + r.cents, 0);
+      if (gateway > amount) throw new OrgError('The card refunds are more than the refund amount.', 'invalid');
+      const rows: DoneRefund[] = [...done];
+      if (amount > gateway) {
+        // The rest comes back from the manual payments (staff hand it back).
+        const pays = (await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, id), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt)))
+          .filter((p) => p.gateway === 'manual');
+        let left = amount - gateway;
+        for (const p of pays) {
+          if (left <= 0) break;
+          const cents = Math.min(left, p.amountCents);
+          rows.push({ paymentId: p.id, cents, gateway: 'manual', method: p.method, ref: null });
+          left -= cents;
+        }
+        if (left > 0) throw new OrgError(`${money(left)} was paid by card and could not be refunded at the gateway.`, 'invalid');
+      }
+      for (const r of rows) {
+        const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+        const [row] = await tx.insert(refunds).values({
+          tenantId, number: num.number, orderId: id, paymentId: r.paymentId, amountCents: r.cents, method: r.method, gateway: r.gateway, gatewayRef: r.ref,
+          reason: why, createdByUserId: actor.userId ?? null,
+        }).returning();
+        made.push(row!);
+      }
+      if (goodwill > 0) extra = await insertCreditTx(tx, tenantId, actor, order, 'goodwill', goodwill, `Goodwill · cancelled ${order.number}`, null);
+    }
+    const refunded = made.reduce((s, r) => s + r.amountCents, 0);
+
+    await tx.delete(reservations).where(and(eq(reservations.tenantId, tenantId), eq(reservations.orderId, id)));
+    const [after] = await tx
+      .update(orders)
+      .set({ status: 'cancelled', cancelledAt: now, cancelReason: why, cancelOutcome: c.outcome, paidCents: paid - refunded, version: order.version + 1 })
+      .where(and(eq(orders.tenantId, tenantId), eq(orders.id, id)))
+      .returning();
+
+    const outcome = cancelOutcomeText(c.outcome, { credit, extra, refunded, money });
+    const diff: Record<string, { from: string; to: string }> = { Status: { from: order.status, to: c.outcome === 'rain_check' ? 'rained out' : 'cancelled' }, Outcome: { from: '', to: outcome } };
+    for (const r of made) diff[`Refund ${r.number}`] = { from: '', to: `${money(r.amountCents)} · ${r.gateway === 'manual' ? `${r.method}, handed back` : 'to the card'}` };
+    await recordVersion(tx, tenantId, actor, after!, 'cancel', diff, why);
+    await audit(tx, tenantId, actor, { type: 'order', id }, 'order.cancel', {
+      number: order.number, from: order.status, outcome: c.outcome, credit: credit?.code ?? null, refundedCents: refunded, reason: c.reason,
+    });
+    await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: why, outcome } });
+    await planOrderMessages(tx, tenantId, id);
+    await syncInvoices(tx, tenantId, id);
+    return { order: after!, credit, goodwillCredit: extra, refunds: made, outcome };
+  });
+}
+
+/** What the customer is told happened to their money (cancellation email, history, result card). */
+export function cancelOutcomeText(
+  outcome: CancelOutcome,
+  r: { credit: { code: string; amountCents: number; validUntil: string | null } | null; extra?: { code: string; amountCents: number } | null; refunded: number; money: (c: number) => string },
+) {
+  const until = (d: string | null) => (d ? `, valid until ${new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : '');
+  if (outcome === 'rain_check' && r.credit) return `Rain check ${r.credit.code} for ${r.money(r.credit.amountCents)}${until(r.credit.validUntil)}. Use it on a new date.`;
+  if (outcome === 'wallet' && r.credit) return `Wallet credit ${r.credit.code} for ${r.money(r.credit.amountCents)}, ready for your next booking.`;
+  if (outcome === 'refund') return `Refund of ${r.money(r.refunded)}${r.extra ? `, plus goodwill credit ${r.extra.code} for ${r.money(r.extra.amountCents)}` : ''}.`;
+  return 'Nothing was paid on this order.';
+}
+
+/**
+ * Rain check → Reschedule now: move the booking to a new date (availability is
+ * re-checked; same number, new version, reminders re-planned).
+ */
+export async function rescheduleOrder(db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences, input: RescheduleInput) {
+  const r = rescheduleSchema.parse(input);
+  const full = await getOrder(db, tenantId, id);
+  if (!full) throw new OrgError('Order not found.', 'not_found');
+  if (full.status !== 'booked') throw new OrgError('Only a booked order can be rescheduled.', 'invalid');
+  const multiDay = full.multiDay || r.endsAt.getTime() - r.startsAt.getTime() > 86_400_000;
+  const next = orderInputFrom(full, full.lines, full.creditApplications, { startsAt: r.startsAt, endsAt: r.endsAt, multiDay });
+  return updateOrder(db, tenantId, actor, id, next, prefs, full.version, `Rescheduled · ${[r.reason, r.note].filter(Boolean).join(' · ')}`);
 }
 
 /** Record money received outside a gateway (cash, check, Zelle...). */

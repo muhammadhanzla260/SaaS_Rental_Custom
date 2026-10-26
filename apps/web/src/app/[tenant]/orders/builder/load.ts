@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound } from 'next/navigation';
 import { policyText, parseLocationSettings, resolveAgreement, type ServiceMode } from '@rental/core';
 import {
-  getCustomer, getFile, getOrder, latestSignature, listCategories, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
+  getCustomer, getFile, getOrder, latestSignature, listCategories, refundablePayments, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf, travelRules, usableCredits,
 } from '@rental/db';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -44,9 +44,10 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     ? await Promise.all([customerFor(ctx.tenant.id, customerId), usableCredits(db, ctx.tenant.id, customerId, order?.id ?? null)])
     : [null, []];
   const prefs = ctx.prefs;
-  const [map, signature] = await Promise.all([
+  const [map, signature, refundable] = await Promise.all([
     order?.setupMapFileId ? getFile(db, ctx.tenant.id, order.setupMapFileId) : Promise.resolve(null),
     order ? latestSignature(db, ctx.tenant.id, order.id) : Promise.resolve(null),
+    order && order.paidCents > 0 ? refundablePayments(db, ctx.tenant.id, order.id) : Promise.resolve([]),
   ]);
   const agreement = resolveAgreement(prefs.agreement);
   const usedIds = new Set(order?.lines.map((l) => l.productId) ?? []);
@@ -98,13 +99,15 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     readOnly: ctx.readOnly,
     policies: agreement.policies.filter((p) => p.key !== 'waiver').map((p) => ({ key: p.key, title: p.title, text: policyText(p, agreement) })),
     signedOnline: !!signature,
+    rainCheckMonths: agreement.rainCheckMonths,
     customer,
     credits: credits.map((c) => ({ id: c.id, code: c.code, kind: c.kind, label: c.label, balanceCents: c.balanceCents, validUntil: c.validUntil, reason: c.reason })),
     order: order
       ? {
           id: order.id, number: order.number, status: order.status, version: order.version, locationId: order.locationId, customerId: order.customerId,
           eventType: order.eventType, startsAt: order.eventStartsAt.toISOString(), endsAt: order.eventEndsAt.toISOString(),
-          multiDay: order.multiDay, discountNote: order.discountNote,
+          multiDay: order.multiDay, discountNote: order.discountNote, cancelOutcome: order.cancelOutcome,
+          cardPaidCents: refundable.filter((p) => p.gateway !== 'manual' && p.gatewayRef).reduce((s, p) => s + p.refundableCents, 0),
           setupMap: map ? { id: map.id, name: map.filename, url: `/api/files/${ctx.tenant.id}/${map.id}` } : null,
           policyAcks: (order.policyAcks ?? {}) as Record<string, { at: string; by: string | null }>,
           eventLocationName: order.eventLocationName,

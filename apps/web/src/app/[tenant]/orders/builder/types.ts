@@ -27,7 +27,9 @@ export type Billing = { name?: string; email?: string; phone?: string; phone2?: 
 
 export type BuilderOrder = {
   id: string; number: string; status: string; version: number; locationId: string; customerId: string; eventType: string | null;
-  startsAt: string; endsAt: string; multiDay: boolean; discountNote: string | null; setupMap: SetupMap | null; policyAcks: Record<string, { at: string; by: string | null }>; eventLocationName: string | null; eventAddress: Addr; customerAddressId: string | null;
+  startsAt: string; endsAt: string; multiDay: boolean; cancelOutcome: string | null;
+  /** Paid by card through the gateway (can go back to the card on cancel). */
+  cardPaidCents: number; discountNote: string | null; setupMap: SetupMap | null; policyAcks: Record<string, { at: string; by: string | null }>; eventLocationName: string | null; eventAddress: Addr; customerAddressId: string | null;
   contact: { name: string; mobile: string; email: string; confirmed: boolean };
   eventMiles: number | null; milesOverridden: boolean; travelInfo: Record<string, unknown> | null;
   setupSurface: string | null; eventLocationFee: boolean; eventLocationFeeCents: number; billing: Billing;
@@ -61,6 +63,8 @@ export type BuilderData = {
   policies: { key: string; title: string; text: string }[];
   /** The customer already signed the agreement online (then no staff confirmation is needed). */
   signedOnline: boolean;
+  /** Rain checks stay valid this many months (Agreement settings). */
+  rainCheckMonths: number;
   customer: BuilderCustomer | null;
   credits: BuilderCredit[];
   order: BuilderOrder | null;

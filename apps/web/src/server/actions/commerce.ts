@@ -4,14 +4,14 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { z } from 'zod';
 import {
-  bookingRequirements, bookingSchema, categorySchema, creditSchema, customerAddressSchema, customerSchema, orderSchema, productSchema, resolveAgreement,
+  bookingRequirements, bookingSchema, cancelSchema, categorySchema, creditSchema, customerAddressSchema, customerSchema, orderSchema, productSchema, rescheduleSchema, resolveAgreement,
   unitSchema, type OrderInput,
 } from '@rental/core';
 import {
-  addUnit, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateProduct, findDuplicateCustomers,
+  addUnit, cancelOrder, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateProduct, findDuplicateCustomers,
   getCustomer, getOrder, importCustomers, latestSignature, listCustomers, productAvailability, recordPayment, removeCustomerAddress, removeUnit, renameCategory,
   resolveOverpayment, saveCustomerAddress, saveDocument, saveImage, setCustomerMessaging, setProductStatus, setUnitStatus, transitionOrder, updateCustomer,
-  updateOrder, updateProduct, usableCredits, validateCoupon, voidCredit,
+  rescheduleOrder, updateOrder, updateProduct, usableCredits, validateCoupon, voidCredit,
   type Availability, type CustomerCredit, type CustomerProfile, type OrderAction,
 } from '@rental/db';
 import { invalid, type ActionResult } from '@/lib/result';
@@ -20,6 +20,7 @@ import { db } from '../db';
 import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 import { dispatchOrder } from '@rental/messaging';
+import { refundToCards } from '@rental/payments';
 import { listMessages } from '@rental/db';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
@@ -459,5 +460,41 @@ export async function uploadSetupMapAction(slug: string, formData: FormData): Pr
     if (!file) return { ok: false, error: 'Choose an image or PDF.' };
     const id = await saveDocument(db, ctx.tenant.id, ctx.user.id, file, 'setup_map');
     return { ok: true, data: { id, name: file.filename, url: `/api/files/${ctx.tenant.id}/${id}` } };
+  });
+}
+
+/**
+ * Cancel an order and settle what was paid (wallet credit, refund or rain check).
+ * Card refunds are made at the gateway first, so money only moves when the
+ * gateway says yes; then the cancel is recorded in one transaction.
+ */
+export async function cancelOrderAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ outcome: string; code: string | null }>> {
+  return run<{ outcome: string; code: string | null }>(async () => {
+    const parsed = cancelSchema.safeParse(input);
+    if (!parsed.success) return invalid(parsed.error);
+    const c = parsed.data;
+    const ctx = await requirePermission(slug, c.outcome === 'none' ? 'orders.create' : 'payments.refund');
+    const orderId = uuid.parse(id);
+    const o = await getOrder(db, ctx.tenant.id, orderId);
+    if (!o) return { ok: false, error: 'Order not found.' };
+    if (c.outcome !== 'none' && Math.round(c.amount * 100) > o.paidCents) return { ok: false, error: 'That is more than was paid.' };
+    const done = c.outcome === 'refund' ? await refundToCards(db, ctx.tenant.id, orderId, Math.round(c.amount * 100), `Cancelled ${o.number}: ${c.reason}`) : [];
+    const r = await cancelOrder(db, ctx.tenant.id, ctx.actor, orderId, ctx.prefs, c, done);
+    // No revalidatePath: it would refresh this page mid-result (the new version remounts the editor).
+    // Every page is rendered per request, so others are fresh anyway; Done reloads the order.
+    after(() => dispatchOrder(db, ctx.tenant.id, orderId).catch((e) => console.error('[dispatch]', e)));
+    return { ok: true, data: { outcome: r.outcome, code: r.credit?.code ?? r.goodwillCredit?.code ?? null }, message: r.outcome };
+  });
+}
+
+/** Rain check → Reschedule now: move the booking to a new date (availability re-checked). */
+export async function rescheduleOrderAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ version: number }>> {
+  return run<{ version: number }>(async () => {
+    const ctx = await requirePermission(slug, 'orders.create');
+    const parsed = rescheduleSchema.safeParse(input);
+    if (!parsed.success) return invalid(parsed.error);
+    const r = await rescheduleOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), ctx.prefs, parsed.data);
+    after(() => dispatchOrder(db, ctx.tenant.id, r.order.id).catch((e) => console.error('[dispatch]', e)));
+    return { ok: true, data: { version: r.order.version }, message: 'Rescheduled. Reminders follow the new date.' };
   });
 }

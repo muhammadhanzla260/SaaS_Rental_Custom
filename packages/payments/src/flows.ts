@@ -166,7 +166,7 @@ export async function chargeCardOnFile(
   const card = q.card?.gateway === 'stripe' ? q.card : null;
   if (!card || !card.gatewayCustomerId) throw new OrgError('This customer has no saved card. Send them a pay link instead.', 'invalid');
   const s = await stripeFor(db, q);
-  if (!s) throw new OrgError('Connect Stripe first (Settings → Workspace & brand → Connect).', 'invalid');
+  if (!s) throw new OrgError('Connect Stripe first (Settings → Workspace & brand → Payments).', 'invalid');
   const total = p.amountCents + p.tipCents;
   const r = await chargeSaved(s.stripe, {
     amountCents: total, currency: q.tenant.currency, customerId: card.gatewayCustomerId, paymentMethodId: card.gatewayMethodId,
@@ -180,4 +180,28 @@ export async function chargeCardOnFile(
     steps: { authorizedAt: new Date().toISOString(), capturedAt: new Date().toISOString() },
   });
   return { number: rec.payment.number, last4: r.card.last4, brand: r.card.brand };
+}
+
+/**
+ * Refund part of a cancelled order's payments to the cards they came from
+ * (newest first). Returns what the gateway refunded, for cancelOrder to record;
+ * the rest of the amount comes from cash/check payments (handed back by staff).
+ */
+export async function refundToCards(db: Db, tenantId: string, orderId: string, amountCents: number, reason: string) {
+  const { getPaymentCredentials, planRefund, refundablePayments, getOrder } = await import('@rental/db');
+  const order = await getOrder(db, tenantId, orderId);
+  if (!order) throw new OrgError('Order not found.', 'not_found');
+  const plan = planRefund(await refundablePayments(db, tenantId, orderId), amountCents);
+  if (plan.unallocatedCents > 0) throw new OrgError('That is more than was paid.', 'invalid');
+  const cards = plan.parts.filter((p) => p.gateway === 'stripe' && p.intentRef);
+  if (!cards.length) return [];
+  const creds = await getPaymentCredentials(db, tenantId, order.locationId);
+  if (!creds || creds.provider !== 'stripe' || !creds.secret) throw new OrgError('Card payments are not connected, so the card refund cannot be made. Choose wallet credit or a rain check instead.', 'invalid');
+  const stripe = stripeClient(creds.secret);
+  const done: { paymentId: string; cents: number; gateway: string; method: string; ref: string }[] = [];
+  for (const p of cards) {
+    const ref = await refundIntent(stripe, p.intentRef!, reason, p.cents);
+    done.push({ paymentId: p.paymentId, cents: p.cents, gateway: 'stripe', method: 'card', ref });
+  }
+  return done;
 }

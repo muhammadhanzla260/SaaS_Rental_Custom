@@ -344,6 +344,40 @@ export function bookingRequirements(o: {
   ].filter((x): x is string => !!x);
 }
 
+export const CANCEL_REASONS = ['Customer changed plans', 'Weather', 'Double booking', 'Equipment unavailable', 'Other'] as const;
+export const CANCEL_OUTCOMES = {
+  none: { label: 'Nothing was paid' },
+  wallet: { label: 'Wallet credit' },
+  refund: { label: 'Refund' },
+  rain_check: { label: 'Rain check' },
+} as const;
+export type CancelOutcome = keyof typeof CANCEL_OUTCOMES;
+
+/**
+ * Cancel a booking and decide what happens to what was paid (Odoo:
+ * action_cancel_rental_booking_full credits the wallet, capped at what was
+ * collected). `amount` comes out of what was paid; `goodwill` is extra credit
+ * on top. A rain check is the weather version: a coded credit with an expiry.
+ */
+export const cancelSchema = z.object({
+  reason: z.enum(CANCEL_REASONS, 'Choose a reason.'),
+  note: optional(500),
+  outcome: z.enum(['none', 'wallet', 'refund', 'rain_check']),
+  amount: money.default(0),
+  goodwill: money.default(0),
+  validUntil: z.union([z.literal(''), z.null(), z.iso.date()]).optional().transform((v) => v || null),
+});
+export type CancelInput = z.input<typeof cancelSchema>;
+
+/** Rain check → "Reschedule now": the same order moves to a new date (new version, same number). */
+export const rescheduleSchema = z.object({
+  startsAt: z.coerce.date(),
+  endsAt: z.coerce.date(),
+  reason: z.enum(CANCEL_REASONS).default('Weather'),
+  note: optional(500),
+}).refine((r) => r.endsAt > r.startsAt, { message: 'The event must end after it starts.', path: ['endsAt'] });
+export type RescheduleInput = z.input<typeof rescheduleSchema>;
+
 export const ORDER_STATUS = {
   draft: { label: 'Draft', tone: 'neutral' },
   quote_sent: { label: 'Quote sent', tone: 'info' },

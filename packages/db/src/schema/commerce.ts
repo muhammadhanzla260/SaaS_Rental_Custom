@@ -346,6 +346,10 @@ export const orders = pgTable(
     setupMapFileId: uuid('setup_map_file_id'),
     /** Policies staff confirmed the customer agreed to when booking for them: { key: { at, by } }. */
     policyAcks: jsonb('policy_acks').notNull().default({}),
+    /** What happened to the money when it was cancelled: wallet credit, refund, rain check ("Rained out") or nothing paid. */
+    cancelOutcome: text('cancel_outcome'),
+    /** Ops board "Mark called": the pre-event call was made (who and when are in the history). */
+    preEventCalledAt: timestamp('pre_event_called_at', { withTimezone: true }),
     quoteSentAt: timestamp('quote_sent_at', { withTimezone: true }),
     /** sha256 of the customer's quote-page token (the token itself is only ever in the link). */
     accessTokenHash: text('access_token_hash'),
@@ -370,6 +374,7 @@ export const orders = pgTable(
     foreignKey({ columns: [t.tenantId, t.locationId], foreignColumns: [locations.tenantId, locations.id] }),
     foreignKey({ columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }),
     check('orders_status', sql`${t.status} in ('draft','quote_sent','booked','completed','cancelled')`),
+    check('orders_cancel_outcome', sql`${t.cancelOutcome} is null or ${t.cancelOutcome} in ('none','wallet','refund','rain_check')`),
     check('orders_period', sql`${t.eventEndsAt} > ${t.eventStartsAt}`),
     check('orders_discount_kind', sql`${t.discountKind} is null or ${t.discountKind} in ('percent','amount')`),
     check('orders_deposit_kind', sql`${t.depositKind} in ('percent','amount','none')`),
@@ -522,6 +527,57 @@ export const payments = pgTable(
     check('payments_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),
     unique('payments_gateway_ref').on(t.tenantId, t.gatewayRef),
     index('payments_order_idx').on(t.tenantId, t.orderId),
+  ],
+);
+
+/**
+ * Money given back (cancel → refund). Card payments are refunded through the
+ * gateway (gatewayRef = the gateway's refund id); the rest is handed back by
+ * staff (cash, check...). The order's paid amount goes down by the refund.
+ */
+export const refunds = pgTable(
+  'refunds',
+  {
+    tenantId: tenantId(),
+    id: id(),
+    number: text('number').notNull(),
+    orderId: uuid('order_id').notNull(),
+    paymentId: uuid('payment_id'),
+    amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+    method: text('method').notNull(),
+    gateway: text('gateway').notNull().default('manual'),
+    gatewayRef: text('gateway_ref'),
+    reason: text('reason'),
+    createdByUserId: text('created_by_user_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.id] }),
+    unique('refunds_number').on(t.tenantId, t.number),
+    foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
+    check('refunds_amount', sql`${t.amountCents} > 0`),
+    check('refunds_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),
+    index('refunds_order_idx').on(t.tenantId, t.orderId),
+  ],
+);
+
+/** Ops board: a card hidden until a time ("Snooze 1 day", or after "Send pay link"). */
+export const opsSnoozes = pgTable(
+  'ops_snoozes',
+  {
+    tenantId: tenantId(),
+    orderId: uuid('order_id').notNull(),
+    /** Which card: deposit, final_payment, call, contact, quote. */
+    rule: text('rule').notNull(),
+    until: timestamp('until', { withTimezone: true }).notNull(),
+    reason: text('reason'),
+    createdByUserId: text('created_by_user_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.orderId, t.rule] }),
+    foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
+    check('ops_snoozes_rule', sql`${t.rule} in ('deposit','final_payment','call','contact','quote')`),
   ],
 );
 
