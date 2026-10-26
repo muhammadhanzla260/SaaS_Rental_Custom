@@ -36,11 +36,12 @@ const badgeFor = (dueIn: number): Pick<OpsCard, 'badge' | 'tone'> =>
 
 type Row = {
   id: string; number: string; status: string; location_id: string; tz: string; customer: string | null; event_type: string | null;
-  starts: Date; total_cents: string; paid_cents: string; deposit_due_cents: string; unpaid_reason: string | null; expected_payment_on: string | null;
-  contact_confirmed: boolean; contact_mobile: string | null; contact_name: string | null; pre_event_called_at: Date | null; quote_sent_at: Date | null;
-  overdue_cents: string | null; overdue_due_on: string | null; charge_error: string | null; charge_at: Date | null; has_card: boolean;
+  starts: string; total_cents: string; paid_cents: string; deposit_due_cents: string; unpaid_reason: string | null; expected_payment_on: string | null;
+  contact_confirmed: boolean; contact_mobile: string | null; contact_name: string | null; pre_event_called_at: string | null; quote_sent_at: string | null;
+  overdue_cents: string | null; overdue_due_on: string | null; charge_error: string | null; charge_at: string | null; has_card: boolean;
 };
 
+const iso = (d: Date) => d.toISOString();
 const days = (from: string, to: string) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
 const short = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
@@ -52,9 +53,9 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
     const loc = opts.locationId ? sql`and o.location_id = ${opts.locationId}::uuid` : sql``;
     const rows = (await tx.execute<Row>(sql`
       select o.id, o.number, o.status, o.location_id, coalesce(l.timezone, t.timezone) as tz, c.display_name as customer, o.event_type,
-             o.event_starts_at as starts, o.total_cents::text, o.paid_cents::text, o.deposit_due_cents::text, o.unpaid_reason, o.expected_payment_on::text,
-             o.contact_confirmed, o.event_contact_mobile as contact_mobile, o.event_contact_name as contact_name, o.pre_event_called_at, o.quote_sent_at,
-             ov.cents::text as overdue_cents, ov.due_on::text as overdue_due_on, ov.err as charge_error, ov.charged as charge_at,
+             o.event_starts_at::text as starts, o.total_cents::text, o.paid_cents::text, o.deposit_due_cents::text, o.unpaid_reason, o.expected_payment_on::text,
+             o.contact_confirmed, o.event_contact_mobile as contact_mobile, o.event_contact_name as contact_name, o.pre_event_called_at::text, o.quote_sent_at::text,
+             ov.cents::text as overdue_cents, ov.due_on::text as overdue_due_on, ov.err as charge_error, ov.charged::text as charge_at,
              exists (select 1 from payment_methods pm where pm.tenant_id = o.tenant_id and pm.customer_id = o.customer_id and pm.removed_at is null) as has_card
       from orders o
       join customers c on c.tenant_id = o.tenant_id and c.id = o.customer_id
@@ -66,20 +67,21 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
       ) ov on true
       where o.tenant_id = ${tenantId}::uuid ${loc}
         and (
-          (o.status = 'booked' and o.event_starts_at < ${new Date(now.getTime() + 15 * 86_400_000)}::timestamptz and o.event_ends_at > ${new Date(now.getTime() - 86_400_000)}::timestamptz)
+          (o.status = 'booked' and o.event_starts_at < ${iso(new Date(now.getTime() + 15 * 86_400_000))}::timestamptz and o.event_ends_at > ${iso(new Date(now.getTime() - 86_400_000))}::timestamptz)
           or (o.status in ('booked','completed') and ov.cents > 0)
-          or (o.status = 'quote_sent' and o.event_starts_at > ${now}::timestamptz)
+          or (o.status = 'quote_sent' and o.event_starts_at > ${iso(now)}::timestamptz)
         )`)) as unknown as Row[];
     const snoozed = await tx.select({ orderId: opsSnoozes.orderId, rule: opsSnoozes.rule }).from(opsSnoozes)
       .where(and(eq(opsSnoozes.tenantId, tenantId), gt(opsSnoozes.until, now)));
     const hidden = new Set(snoozed.map((s) => `${s.orderId}:${s.rule}`));
 
     const cards: OpsCard[] = [];
-    const add = (r: Row, rule: OpsRule, detail: string, dueIn: number, action: OpsAction, badge = badgeFor(dueIn)) => {
+    const add = (r: { id: string; number: string; customer: string | null; location_id: string }, rule: OpsRule, detail: string, dueIn: number, action: OpsAction, badge = badgeFor(dueIn)) => {
       if (hidden.has(`${r.id}:${rule}`)) return;
       cards.push({ rule, orderId: r.id, number: r.number, title: r.customer || 'Customer', detail, locationId: r.location_id, dueIn, action, ...badge });
     };
-    for (const r of rows) {
+    for (const raw of rows) {
+      const r = { ...raw, starts: new Date(raw.starts) };
       const today = utcToWallTime(now, r.tz).date;
       const day = utcToWallTime(r.starts, r.tz).date;
       const toEvent = days(today, day);
@@ -88,7 +90,7 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
       const deposit = Number(r.deposit_due_cents);
       if (Number(r.overdue_cents) > 0) {
         add(r, 'final_payment', r.charge_error
-          ? `Auto-charge declined${r.charge_at ? ` ${short(utcToWallTime(r.charge_at, r.tz).date)}` : ''} · ${money(Number(r.overdue_cents))} due`
+          ? `Auto-charge declined${r.charge_at ? ` ${short(utcToWallTime(new Date(r.charge_at), r.tz).date)}` : ''} · ${money(Number(r.overdue_cents))} due`
           : `${money(Number(r.overdue_cents))} was due ${short(r.overdue_due_on!)}`, Math.min(-1, days(today, r.overdue_due_on!)), r.has_card ? 'retry_charge' : 'pay_link');
       }
       if (r.status === 'booked' && toEvent >= 0) {
@@ -104,7 +106,7 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
         }
       }
       if (r.status === 'quote_sent' && r.quote_sent_at) {
-        const age = days(utcToWallTime(r.quote_sent_at, r.tz).date, today);
+        const age = days(utcToWallTime(new Date(r.quote_sent_at), r.tz).date, today);
         // Oldest quotes first; the badge says how old it is.
         if (age >= 3) add(r, 'quote', `Quote sent ${age} days ago · event ${short(day)}`, -age, 'follow_up', { badge: `${age} days`, tone: age >= 7 ? 'overdue' : 'later' });
       }
@@ -115,23 +117,23 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
     const week = 7 * 86_400_000;
     const [k] = (await tx.execute<Record<string, string>>(sql`
       select
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - week)}::timestamptz)::text as quotes_week,
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - 2 * week)}::timestamptz and o.quote_sent_at < ${new Date(now.getTime() - week)}::timestamptz)::text as quotes_prev,
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - 30 * 86_400_000)}::timestamptz)::text as sent_30,
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - 30 * 86_400_000)}::timestamptz and o.status in ('booked','completed'))::text as booked_30,
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - 60 * 86_400_000)}::timestamptz and o.quote_sent_at < ${new Date(now.getTime() - 30 * 86_400_000)}::timestamptz)::text as sent_prev,
-        count(*) filter (where o.quote_sent_at >= ${new Date(now.getTime() - 60 * 86_400_000)}::timestamptz and o.quote_sent_at < ${new Date(now.getTime() - 30 * 86_400_000)}::timestamptz and o.status in ('booked','completed'))::text as booked_prev,
-        coalesce(sum(o.total_cents) filter (where o.status = 'quote_sent' and o.event_starts_at > ${now}::timestamptz), 0)::text as open_value,
-        count(*) filter (where o.status = 'quote_sent' and o.event_starts_at > ${now}::timestamptz)::text as open_count,
-        coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${now}::timestamptz and o.event_starts_at < ${new Date(now.getTime() + week)}::timestamptz), 0)::text as next7,
-        coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${new Date(now.getTime() - 52 * week)}::timestamptz and o.event_starts_at < ${new Date(now.getTime() - 51 * week)}::timestamptz), 0)::text as next7_ly
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - week))}::timestamptz)::text as quotes_week,
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - 2 * week))}::timestamptz and o.quote_sent_at < ${iso(new Date(now.getTime() - week))}::timestamptz)::text as quotes_prev,
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - 30 * 86_400_000))}::timestamptz)::text as sent_30,
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - 30 * 86_400_000))}::timestamptz and o.status in ('booked','completed'))::text as booked_30,
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - 60 * 86_400_000))}::timestamptz and o.quote_sent_at < ${iso(new Date(now.getTime() - 30 * 86_400_000))}::timestamptz)::text as sent_prev,
+        count(*) filter (where o.quote_sent_at >= ${iso(new Date(now.getTime() - 60 * 86_400_000))}::timestamptz and o.quote_sent_at < ${iso(new Date(now.getTime() - 30 * 86_400_000))}::timestamptz and o.status in ('booked','completed'))::text as booked_prev,
+        coalesce(sum(o.total_cents) filter (where o.status = 'quote_sent' and o.event_starts_at > ${iso(now)}::timestamptz), 0)::text as open_value,
+        count(*) filter (where o.status = 'quote_sent' and o.event_starts_at > ${iso(now)}::timestamptz)::text as open_count,
+        coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${iso(now)}::timestamptz and o.event_starts_at < ${iso(new Date(now.getTime() + week))}::timestamptz), 0)::text as next7,
+        coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${iso(new Date(now.getTime() - 52 * week))}::timestamptz and o.event_starts_at < ${iso(new Date(now.getTime() - 51 * week))}::timestamptz), 0)::text as next7_ly
       from orders o where o.tenant_id = ${tenantId}::uuid ${loc}`)) as unknown as Record<string, string>[];
     const n = (key: string) => Number(k?.[key] ?? 0);
     const rate = (b: number, s: number) => (s ? Math.round((b / s) * 100) : null);
     // Weekly bars for the tiles: the last 8 weeks.
     const series = (await tx.execute<{ w: number; quotes: string; booked_value: string }>(sql`
-      select w, count(o.id) filter (where o.quote_sent_at >= ${now}::timestamptz - (w + 1) * interval '7 days' and o.quote_sent_at < ${now}::timestamptz - w * interval '7 days')::text as quotes,
-             coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${now}::timestamptz - (w + 1) * interval '7 days' and o.event_starts_at < ${now}::timestamptz - w * interval '7 days'), 0)::text as booked_value
+      select w, count(o.id) filter (where o.quote_sent_at >= ${iso(now)}::timestamptz - (w + 1) * interval '7 days' and o.quote_sent_at < ${iso(now)}::timestamptz - w * interval '7 days')::text as quotes,
+             coalesce(sum(o.total_cents) filter (where o.status in ('booked','completed') and o.event_starts_at >= ${iso(now)}::timestamptz - (w + 1) * interval '7 days' and o.event_starts_at < ${iso(now)}::timestamptz - w * interval '7 days'), 0)::text as booked_value
       from generate_series(0, 7) w left join orders o on o.tenant_id = ${tenantId}::uuid ${loc}
       group by w order by w desc`)) as unknown as { w: number; quotes: string; booked_value: string }[];
     const kpis = {
@@ -143,14 +145,14 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
     };
 
     // Tomorrow, in each location's time zone.
-    const tomorrow = (await tx.execute<{ id: string; number: string; customer: string | null; event_type: string | null; starts: Date; tz: string; items: string | null; total_cents: string; paid_cents: string }>(sql`
-      select o.id, o.number, c.display_name as customer, o.event_type, o.event_starts_at as starts, coalesce(l.timezone, t.timezone) as tz, o.total_cents::text, o.paid_cents::text,
+    const tomorrow = (await tx.execute<{ id: string; number: string; customer: string | null; event_type: string | null; starts: string; tz: string; items: string | null; total_cents: string; paid_cents: string }>(sql`
+      select o.id, o.number, c.display_name as customer, o.event_type, o.event_starts_at::text as starts, coalesce(l.timezone, t.timezone) as tz, o.total_cents::text, o.paid_cents::text,
              (select string_agg(ol.name || case when ol.quantity > 1 then ' ×' || ol.quantity else '' end, ' · ' order by ol.sort) from order_lines ol where ol.tenant_id = o.tenant_id and ol.order_id = o.id) as items
       from orders o join customers c on c.tenant_id = o.tenant_id and c.id = o.customer_id
       join locations l on l.tenant_id = o.tenant_id and l.id = o.location_id join tenants t on t.id = o.tenant_id
       where o.tenant_id = ${tenantId}::uuid ${loc} and o.status = 'booked'
-        and (o.event_starts_at at time zone coalesce(l.timezone, t.timezone))::date = ((${now}::timestamptz at time zone coalesce(l.timezone, t.timezone))::date + 1)
-      order by o.event_starts_at`)) as unknown as { id: string; number: string; customer: string | null; event_type: string | null; starts: Date; tz: string; items: string | null; total_cents: string; paid_cents: string }[];
+        and (o.event_starts_at at time zone coalesce(l.timezone, t.timezone))::date = ((${iso(now)}::timestamptz at time zone coalesce(l.timezone, t.timezone))::date + 1)
+      order by o.event_starts_at`)) as unknown as { id: string; number: string; customer: string | null; event_type: string | null; starts: string; tz: string; items: string | null; total_cents: string; paid_cents: string }[];
     const tomorrowDay = addDays(utcToWallTime(now, rows[0]?.tz ?? tomorrow[0]?.tz ?? 'UTC').date, 1);
 
     return {
@@ -160,7 +162,7 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
         date: tomorrowDay,
         events: tomorrow.map((e) => ({
           id: e.id, number: e.number, title: e.customer || 'Customer', items: e.items ?? '',
-          time: new Intl.DateTimeFormat('en-US', { timeZone: e.tz, hour: 'numeric', minute: '2-digit' }).format(e.starts),
+          time: new Intl.DateTimeFormat('en-US', { timeZone: e.tz, hour: 'numeric', minute: '2-digit' }).format(new Date(e.starts)),
           pay: Number(e.paid_cents) >= Number(e.total_cents) ? 'Paid' : Number(e.paid_cents) > 0 ? 'Deposit paid' : 'Unpaid',
         })),
       },

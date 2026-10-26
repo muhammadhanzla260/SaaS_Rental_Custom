@@ -22,6 +22,7 @@ const ACTION: Record<string, string> = {
   payment: 'Payment recorded',
   overpayment_to_wallet: 'Overpayment moved to wallet',
   refund_owed: 'Refund owed',
+  call_logged: 'Pre-event call made',
 };
 const METHOD = Object.fromEntries(MANUAL_METHODS.map((m) => [m.value, m.label])) as Record<string, string>;
 const INVOICE_STATUS: Record<string, { tone: 'success' | 'warning' | 'danger' | 'info'; label: string }> = {

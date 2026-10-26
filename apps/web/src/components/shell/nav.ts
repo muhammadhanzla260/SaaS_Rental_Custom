@@ -49,7 +49,7 @@ export const ORG_NAV: NavGroup[] = [
     label: 'Workspace',
     items: [
       { id: 'home', label: 'Home', icon: 'home', href: '' },
-      { id: 'ops', label: 'Action needed', icon: 'ops', phase: 3 },
+      { id: 'ops', label: 'Action needed', icon: 'ops', href: '/actions', permission: 'orders.view' },
       { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar', permission: 'orders.view' },
       { id: 'orders', label: 'Orders', icon: 'orders', href: '/orders', permission: 'orders.view' },
       { id: 'pos', label: 'New order', icon: 'pos', href: '/orders/new', permission: 'orders.create' },

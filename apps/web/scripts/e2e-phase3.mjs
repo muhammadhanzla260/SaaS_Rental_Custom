@@ -114,6 +114,23 @@ try {
   check(true, 'the order shows as "Rained out"');
   await shot('05-rained-out');
 
+  // --- Ops board ("Action needed") ------------------------------------------------------------------
+  await go(`${S}/actions`);
+  await waitText('Quotes sent this week');
+  check(await has('Deposit needed') && await has('Pre-event call due') && await has('Quotes going cold') && await has('Tomorrow ·'), 'the board shows its columns, KPI tiles and tomorrow’s events');
+  const cardsBefore = await page.$$eval('article', (a) => a.length);
+  if (cardsBefore > 0) {
+    await click('Snooze 1 day', 'article button');
+    await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].some((e) => e.innerText.includes('Snoozed')), { timeout: 15000 });
+    await page.waitForFunction((n) => document.querySelectorAll('article').length === n - 1, { timeout: 15000 }, cardsBefore);
+    check(true, 'snoozing a card removes it');
+  } else check(await has('All clear'), 'no cards: the board says All clear');
+  await shot('06-ops-board');
+  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+  await go(`${S}/actions`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'the board fits a 390 px phone (columns scroll inside)');
+  await page.setViewport({ width: 1440, height: 1000 });
+
   // --- Emails and phones ----------------------------------------------------------------------------
   await go(`${S}/settings/messaging?tab=log&q=${fx.b.number}`);
   await waitText('Cancellation');
