@@ -32,7 +32,7 @@ if (process.argv[2] === 'cleanup') {
     address: { line1: '1100 Congress Ave', city: 'Austin', region: 'TX', postalCode: '78701', country: 'US', lat: 30.2747, lng: -97.7404 },
   }))).id;
   const [aus] = await owner<{ id: string }[]>`select id from locations where tenant_id = ${t.id} and code = 'AUS'`;
-  const [jenga] = await owner<{ id: string }[]>`select id from products where tenant_id = ${t.id} and sku = 'GM-JENGA'`;
+  const [jenga] = await owner<{ id: string }[]>`select id from products where tenant_id = ${t.id} and name = 'Giant Jenga' and status = 'active'`;
   const day = addDays(new Date().toISOString().slice(0, 10), 60 + Math.floor(Math.random() * 90));
   const make = async (deposit: { kind: 'percent' | 'none'; value: number }) => {
     const o = await createOrder(db, t.id, actor, orderSchema.parse({
@@ -40,7 +40,7 @@ if (process.argv[2] === 'cleanup') {
       startsAt: wallTimeToUtc(day, '13:00', 'America/Chicago'), endsAt: wallTimeToUtc(day, '17:00', 'America/Chicago'),
       eventAddress: { line1: '1100 Congress Ave', city: 'Austin', region: 'TX', postalCode: '78701', country: 'US', lat: 30.2747, lng: -97.7404 }, eventMiles: 4,
       eventContactName: 'Quinn Tester', eventContactMobile: '512-555-0131', contactConfirmed: true,
-      lines: [{ productId: jenga!.id, quantity: 1, serviceMode: 'staffed' }],
+      lines: [{ productId: jenga!.id, quantity: 1, serviceMode: 'dropoff' }],
       deposit,
     }), prefs);
     await transitionOrder(db, t.id, actor, o.id, 'send_quote', prefs);

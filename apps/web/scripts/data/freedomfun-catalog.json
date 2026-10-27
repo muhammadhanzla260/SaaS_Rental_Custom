@@ -1,0 +1,2844 @@
+{
+ "products": [
+  {
+   "name": "Archery Tag",
+   "category": "Archery Games",
+   "categorySlug": "archery-games",
+   "params": [
+    "10 Players Per Match",
+    "30x60 ft."
+   ],
+   "prices": {
+    "staffed": 325.0,
+    "dropoff": 429.0
+   },
+   "units": {
+    "staffed": "For 1 Hour",
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    50.0
+   ],
+   "description": "Archery Tag is the experience everyone in your group will still be talking about next weekend. Foam-tipped arrows. Bunkers. Teams, tournaments, and 100+ fast-paced matches per hour. No skill required, no experience needed, and absolutely no sitting on the sidelines.\nForget bowling alleys and trampoline parks where half the group waits around doing nothing. This is full-group, full-energy, outdoor combat that works for birthdays, school events, church groups, and corporate teams. Your coaches run the show so you can just play.\nConcierge pricing available , with Drop-Off and DIY options. Get a quote to lock in your date.",
+   "includes": [
+    "(10) Bows",
+    "(10) Masks",
+    "(20) Arrows",
+    "(6) Barricades"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n Concierge // Freedom does it all.\nDelivery, setup & a friendly coach for 1 hr. of archery tag fun. $50 each additional 30 min.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9defc00384066912bb4_agaJk3u_kkYxtsY5NuIskv-TASEtKVePRWllwY_6v28.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9defc00383038912bb5_an8WbNEhkQNgPGr2iBY0cVieQNgEZr0B-vxBpfzlGeE.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9defc0038c8c1912bbc_tAb2RdMmHreuQnCbjQXbdXq3yIZ3fG9qav6-_ZtXWI4.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9defc003859f2912bb6_q9_TjNmG_D1KH4GJDHTri375L6G7Lj1fZm8ueDocYmQ.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9defc003836ba912bb7_rK-KFXhL0UoHds22hmZKGQQ3ttF8heUWNb9Hnj51iD4.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Hoverball",
+   "category": "Archery Games",
+   "categorySlug": "archery-games",
+   "params": [
+    "2 Players At Once",
+    "5x10 ft."
+   ],
+   "prices": {
+    "dropoff": 229.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Hoverball takes archery and adds something you have never seen before: the targets float. Hover in mid-air. Move. Dare you to miss. It sounds simple, it looks impossible, and it draws a crowd every single time it shows up at an event.\nPerfect for school carnivals, festivals, church fairs, and birthday parties that want something nobody has seen before. Kids and adults compete side by side, and nobody walks away without bragging about their shot count.\nOne of the most crowd-stopping attractions in the Freedom Fun lineup. Get a quote to add it to your event.",
+   "includes": [
+    "(2) Bows",
+    "(6) Arrows",
+    "(4) Floating Targets"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the\nparty. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d56c85f979e4e125586_IG3blZGq4owpmi56QvZTmQZuc_QfGWMCpiAUInGJxm0.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644b6d6f2796b34ebf30e399_guy-shooting-an-archery-bow-upside-down-at-the-hoverball-inflatable-carnival-game-rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644b6ce8ff82450660e21487_archery-hoverball-inflatable-carnival-game-at-a-school-event.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d56c85f977bf412558f_6QWKbvYEnN0Ma0r3QgG0QCD3A52q-XSnVPVkCXkElzw.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d56c85f973675125591_cdWJzIVxS13A0QOE4nineyPpgPvWAUrFD-shUd3ulAc.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Inflatable Interactives"
+   ]
+  },
+  {
+   "name": "Freedom Bounce House",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "7 Kids at Once",
+    "13x13 ft."
+   ],
+   "prices": {
+    "dropoff": 199.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Great for Birthdays & Celebrations\n Choose Your Banner with Our Customization Tool\n See Real Event Photos\nOur classic bounce house rental is perfect for birthday parties, playdates, and group events - simple, classic fun delivered, set up, and picked up so your party just works.\nYou care about safety, and so do we. Every bounce house is professionally cleaned, inspected, and set up following nationally recognized safety standards by our SIOTO-certified team , so kids can jump safely and you can relax with confidence.",
+   "includes": [
+    "13 ft. x 13 ft. Bounce House",
+    "FREE Custom Banner (Birthday, Princess, Dinosaur, Unicorn, Sports, or Jungle)",
+    "We deliver, setup & pickup",
+    "Cleaned & inspected before every event",
+    "Set up following safety best practices",
+    "Friendly, professional team"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d8494e6a421f76c9547ee_bounce-house-main-product-photo.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d84b2b5f3f1058f228808_Birthday-Bounce-House-webp-finalk.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d84cbd97f1642332d5de8_Dinosaur-Bounce-House-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d84d7e6a421f76c95701d_Princess-Bounce-House-Only-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d84f8b5f3f1058f22a764_Jungle-Bounce-House-webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Freedom Extreme Combo (Wet or Dry)",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "7 Kids at Once",
+    "Wet or Dry"
+   ],
+   "prices": {
+    "dropoff": 349.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Picture this: a giant bounce house joined to a dual-lane slide, kids bouncing, racing, and sliding for hours, wet or dry.\nThat's the Freedom Extreme Combo, our do-it-all inflatable for birthdays, playdates, and group events. Bounce inside, climb up, and race down two lanes, run it dry or add water for a splash landing. Perfect for birthdays, schools, churches, and HOAs, it's the one unit that keeps everyone busy.\nPick your theme. Bounce, slide, repeat. Party sorted.\nWe've got this. SIOTO Platinum Certified, the highest national safety standard and a credential almost no other rental company carries. Every unit arrives professionally cleaned, inspected, and set up, so kids can play freely and you can relax with confidence.\n Dimensions: 30' long \u00d7 15' wide",
+   "includes": [
+    "30' \u00d7 15' combo bounce house with a dual-lane slide",
+    "Run it wet or dry, your choice for any season",
+    "Free custom banner (birthday, princess, dinosaur, unicorn, sports, or jungle)",
+    "SIOTO Platinum setup and safety inspection",
+    "We deliver, setup & pickup",
+    "Fully insured, commercial-grade equipment"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66d8ca9af08a7e9c9003429f_64a6fc6fa8ac4587c2f3fc39_freedom-bounce-house-waterslide-rental-setup-outside-720x400.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d9e4d95544999c2132dae_Unicorn-Combo-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d9e7bd68d2de2d7e6bf84_Birthday-Combo-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d9eb00704b6f6fc64c071_Dinosaur-Combo-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/696d9fcb13ccbc8589d51715_Sports-Combo-webp.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Water Fun"
+   ]
+  },
+  {
+   "name": "Purple & Pink Bounce House",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "7 Kids at Once",
+    "13x13 ft."
+   ],
+   "prices": {
+    "dropoff": 199.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A dreamy pink and purple castle where little ones bounce, giggle, and rule the kingdom for the day. Perfect for birthdays, schools, churches, and HOAs , it keeps kids jumping and smiling for hours.\nYou care about safety, and so do we. Every bounce house is professionally cleaned, inspected, and set up following nationally recognized safety standards by our SIOTO-certified team , so kids can play freely and you can relax with confidence.",
+   "includes": [
+    "13 ft. x 13 ft. Princess Bounce House",
+    "Dreamy Pink & Purple Castle Design, perfect for princess parties",
+    "Built-In Basketball Hoop for extra playtime",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host, We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6871f0d2f37ff9d3e0a909f2_Purple-Pink-Princess-Theme-Bounce-House.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6871f47f83af98feef91973e_purple-bounce-house-side-with-kids.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6871f6a1cd9be84a842d696b_school-carnival-purple-pink-bounce-house-with-little-girl.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6871fc6410c9694c1927b601_ChatGPT-Image-Jul-12--2025--01_09_29-AM.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6871fc9a994f7fe5a14c32e5_xbh-pnkmod-14b_3qtr_1.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Tropical Bounce & Slide Combo",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "10 kids at once",
+    "19x19 ft."
+   ],
+   "prices": {
+    "dropoff": 375.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Turn your party into a tropical escape with this vibrant bounce-and-slide combo, island-themed fun that works wet or dry for up to 10 kids at once. Perfect for birthdays, schools, churches, and HOAs, it's two attractions in one that keeps everyone moving.\nSIOTO Platinum Certified, the highest national safety standard, and a credential almost no other rental company carries. Every unit arrives fully dried, sanitized, and inspected, so kids play freely and you relax.",
+   "includes": [
+    "Tropical Bounce & Slide Combo, island theming for wet or dry play",
+    "Built-In Slide & Splash Landing for cool, nonstop fun",
+    "Sanitized & Fully Dried before every event, no standing water, no mildew",
+    "Fully Insured & Commercial-Grade, properly inspected before every event"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d48e21d2849d472d86cd53_tropical-combo-by-pool-no-banner.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d48e3182439ccc016a623f_tropical-combo-princess-banner-by-pool.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d48e154574cca456d38aed_tropical-combo-dinosaur-banner-by-pool.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/687b15b3b3418041ca742bbc_ef7fefd42a47cd20ae9e93e6ebfe8f55.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/687b15ecf6be50f05c6ccfda_Tropical-Combo-Plain.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Water Fun"
+   ]
+  },
+  {
+   "name": "Bounce & Bubbles Combo",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "Ages 3+",
+    "Over $75 in Savings!"
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "Two of our most-loved experiences bundled together for families and backyard celebrations . A Freedom Fun Bubble Coach leads 1 hour of pure bubble fun, bringing kids and parents together in joyful, stress-free play.\nAfter the bubble party winds down, the fun keeps going with your very own bounce house or combo unit to enjoy all day long .\nChoose from Bounce House + Bubble Party starting at $449 or Combo + Bubble Party starting at $599 . Includes a professional bubble machine, 5 bubble stations, 10 bubble wands, and over $75 in built-in savings. A guaranteed hit at birthdays, schools, churches, and HOAs .",
+   "includes": [
+    "Choice of Bounce House or Combo Unit (keep all day)",
+    "Bubble Party (1 hour with Freedom Fun Bubble Coach)",
+    "Professional Bubble Machine, 5 Bubble Stations, 10 Bubble Wands",
+    "$75 in built-in savings",
+    "Add A Concession With Servings For $75",
+    "Includes 1 hour with your Freedom Fun Bubble Coach"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & a party host for 1hr of bubble fun. $75 each additional 30 min. Keep the bounce house all day.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/691131e09cf6273c14c7850e_Copy-of-Landscape-Product-Card-Bounce-House-Bubble-Party-Webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69114323195d5b016ee791c5_IMG_8962-webp2.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a6ee7422213a14b0ccf05a_bounce-house-rentals.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f616e8f1b11fed55f0cd2_bubble-4.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f61817228170b1cb18f7a_bubble-3.webp"
+   ],
+   "customPricing": true,
+   "alsoIn": [
+    "Bubble Parties",
+    "Specials"
+   ]
+  },
+  {
+   "name": "Bounce House or Combo + Nerf Laser Tag",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "Ages 4+",
+    "Over $50 in Savings!"
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Backyard Fun That Doubles the Excitement\n 10 Nerf Laser Tag Guns Included\nBounce House + Nerf Laser Tag starting at $279\nCombo + Nerf Laser Tag starting at $449\nPlanning a bounce house party? Add nonstop action with 10 Nerf laser tag guns included. Guests can bounce, slide, and jump into fast-paced laser battles all at the same time. Perfect for birthdays, schools, churches, and HOAs , it keeps more kids entertained at once and brings extra energy to the party.\nYou care about safety, and so do we. Every bounce house is professionally cleaned, inspected, and set up following nationally recognized safety standards by our SIOTO-certified team , so kids can play freely and you can relax with confidence.",
+   "includes": [
+    "Choice of Bounce House or Combo Unit",
+    "10 Nerf Laser Tag Guns (indoor or outdoor play)",
+    "Over $50 in built-in savings",
+    "Add 4 Super Laser Barricades for just $45",
+    "Add A Concession With Servings For $75",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host // We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour\n\nWorking on something bigger?\nWe regularly partner with schools, churches, HOAs, and corporate clients on custom event packages, extended engagements, and multi-night experiences. If your event has unique needs, we'd love to talk. Contact us and one of our Event Pros will be happy to discuss what's possible.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d48a0b0cdf2d663d2d9e3f_bounce-house-nerf-laser-tag-special-product-collage-card.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a81b0681f4a1e87dc8d2ed_nerf-laser-tag-birthday-party.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d4894fdcb9f494fa5fbf91_freedom-bounce-house-and-combo-no-banner-photo.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a6ee7422213a14b0ccf05a_bounce-house-rentals.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a81b35562d57b93cc3e345_nerf-laser-tag.webp"
+   ],
+   "customPricing": true,
+   "alsoIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Bounce House or Combo + Hoverball",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "Ages 4+",
+    "Over $100 in Savings!"
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Backyard Fun That Hits the Bullseye\n Hoverball Archery Challenge Included\nBounce House + Hoverball starting at $379\nCombo + Hoverball starting at $529\nPlanning a bounce house party? Add target-smashing fun with Hoverball Archery included. Guests can bounce, slide, and test their aim with floating targets and safe foam-tipped arrows. Perfect for birthdays, schools, churches, and HOAs , it brings nonstop energy and keeps more guests engaged at once.\nYou care about safety, and so do we. Every bounce house is professionally cleaned, inspected, and set up following nationally recognized safety standards by our SIOTO-certified team , so kids can play freely and you can relax with confidence.",
+   "includes": [
+    "Choice of Bounce House or Combo Unit",
+    "Hoverball Archery Game (indoor or outdoor play)",
+    "Safe bows, foam-tipped arrows, magical floating on air targets",
+    "$100 in built-in savings",
+    "Add A Concession With Servings For $75",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host // We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour\n\nWorking on something bigger?\nWe regularly partner with schools, churches, HOAs, and corporate clients on custom event packages, extended engagements, and multi-night experiences. If your event has unique needs, we'd love to talk. Contact us and one of our Event Pros will be happy to discuss what's possible.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d488776f3e8b3e8abd1845_bounce-house-hoverball-special-product-collage-card.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d04cd6c9f6972ca61e9612_father-son-hoverball.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d4894fdcb9f494fa5fbf91_freedom-bounce-house-and-combo-no-banner-photo.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a6ee7422213a14b0ccf05a_bounce-house-rentals.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d04d5bd90e8263e50cb6da_IMG-20220928-WA0022.jpeg"
+   ],
+   "customPricing": true,
+   "alsoIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Seasonal Bounce House & Combos",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "Holiday Parties",
+    "Includes Free Seasonal Banner"
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Birthday Parties & Holiday Fun\n Includes FREE Seasonal Banner Customization\nSeasonal Bounce House starting at $199\nSeasonal Combo starting at $399\nMake your party unforgettable with our customizable bounce houses & combos! Choose from Halloween, Thanksgiving, or Christmas themes at no additional cost.\nJust let your Freedom FUN Consultant know which banner you'd like when booking your event.",
+   "includes": [
+    "Choose ANY Bounce House or Combo from our lineup",
+    "FREE Seasonal Banner of your choice ($50 value)",
+    "(1) Halloween Monsters",
+    "(2) Thanksgiving Harvest",
+    "(3) Christmas - Santa & Elf or Santa & Friends",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68ced26448cf2311fd58384a_Thanksgiving-Bounce-House-Banner.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d49134fdd47057053d3cac_santa-and-friends-banner.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68d4910a6f3e8b3e8abf4969_merry-christmas-banner.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68ced22fab3f2906cb2db555_Halloween-Banner.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68cec494ea487b1aa3a79dcd_bounce-house-christmas-themed-with-snow-machines-and-snow-globes.webp"
+   ],
+   "customPricing": true,
+   "alsoIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Gingerbread Combo",
+   "category": "Bounce Houses & Combos",
+   "categorySlug": "bounce-house-and-combos",
+   "params": [
+    "5-8 Kids",
+    "27x13x17 ft."
+   ],
+   "prices": {
+    "dropoff": 499.0
+   },
+   "units": {
+    "dropoff": "4 hours"
+   },
+   "baseHours": 4.0,
+   "overtime": null,
+   "description": "Our Gingerbread Bounce House has a dual lane slide for double the kids at once. It's adorned with icing, gumdrops, candy canes and of course - Gingerbread men! A must-have for any holiday party.\n$499 for 4 hours.",
+   "includes": [
+    "(1) Gingerbread Combo Bounce House",
+    "(1) 50ft. Extension Cord",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68cf6d54b4b647e97e718fa5_gingerbread-bounce-house-2.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66c3733919b746b9976590f0_christmas-themed-inflatable-bounce-house-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66c3733919b746b9976590ec_top-of-gingerbread-combo-bounce-house-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66c374d6b94ad75d9eaa8166_side-angle-of-gingerbread-man-combo-christmas-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66c374d6b94ad75d9eaa8169_inside-of-gingerbread-combo-bounce-house-rental-christmas-themed-for-holidays.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Extreme Games",
+    "Snow Globes",
+    "Specials",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Bubble Party",
+   "category": "Bubble Parties",
+   "categorySlug": "bubble-parties",
+   "params": [
+    "Great For Small Groups",
+    "20x20 ft. recommended"
+   ],
+   "prices": {
+    "staffed": 325.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "A sky full of bubbles, kids chasing them barefoot across the grass, and giant wands they get to work themselves. Our Bubble Party fills your space with millions of bubbles and sets up hands-on stations the kids run with our coach. A guaranteed hit at birthdays, schools, churches, and HOAs .\nThis is one of our signature events , and we run the whole thing. Your trained Bubble Coach leads the fun, keeps the bubbles flowing, and handles setup and cleanup. You just show up and watch the smiles.",
+   "includes": [
+    "Pro Bubble Machine pumping out millions of bubbles nonstop",
+    "5 Bubble Stations + 10 Giant Wands so every kid gets hands-on",
+    "Dedicated Bubble Coach running the whole experience",
+    "Clean, Kid-Safe Bubble Solution, gentle on skin and clothes",
+    "We deliver, setup & pickup",
+    "Works Anywhere, just one power outlet, no water or mess"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe'll deliver, set up, and host the bubble party. Includes 1 hour of bubbles. $75 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f6165d9fc4a4845d27f62_bubble-party-2-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f616e8f1b11fed55f0cd2_bubble-4.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f6231d15b5c75bd0d609d_64e035b805bdcbfef6242dc3_amazing-bubble-party-rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/64a6fca54693f43204d43a1d_kid-at-bubble-party-720x400.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f61817228170b1cb18f7a_bubble-3.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Giant Bubble Zone",
+   "category": "Bubble Parties",
+   "categorySlug": "bubble-parties",
+   "params": [
+    "Great For Small Groups",
+    "30x30 ft. recommended"
+   ],
+   "prices": {
+    "staffed": 599.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "Picture billions of bubbles drifting across a field and up to 200 kids running through the middle of it. The Giant Bubble Zone is built for big crowds, so no one waits their turn. A guaranteed hit at birthdays, schools, churches, and HOAs , plus large community and church events.\nThis is one of our signature events , scaled up for your biggest days. Your trained Bubble Coach leads the whole zone, keeps every machine running, and handles setup and cleanup start to finish. You just enjoy the moment.",
+   "includes": [
+    "Multiple Pro Bubble Machines blanketing a 30x30 zone in bubbles",
+    "10 Bubble Stations + 30 Giant Wands to keep 200 kids busy",
+    "Dedicated Bubble Coach running the full event",
+    "Clean, Kid-Safe Bubble Solution, gentle on skin and clothes",
+    "We deliver, setup & pickup",
+    "Works Anywhere, just one power outlet, no water or mess"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & a party host for 2 full hrs. of Bubble fun. $75 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f624db9e1b729f97f60de_freedom-bubble-pasrty.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66ff561dad7cb898a90232e0_65187b3936bc29f637b38e28_64a6fca54693f43204d43a2d_2-kids-making-large-bubbles-at-a-bubble-party-720x400.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f65a08f1b11fed5605ca1_bubble-zone-party.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/685f659b5f0d36de5033f40b_64a6fca54693f43204d43a1d_kid-at-bubble-party-720x400.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/64a6fca54693f43204d43a29_two-girls-playing-with-bubbles-720x400.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Incredi-Bubble Party",
+   "category": "Bubble Parties",
+   "categorySlug": "bubble-parties",
+   "params": [
+    "All Ages",
+    "30 x 30 ft."
+   ],
+   "prices": {
+    "staffed": 449.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "Our biggest bubble experience, built for kids of all ages. A foam cannon fills the air while a dedicated operator keeps the energy high, then millions of bubbles pour from our commercial machine and five bubble stations, all set to a lively soundtrack.\nThis is one of our signature events , and we run the whole thing. You just show up and watch the smiles.\nA guaranteed hit at birthdays, schools, churches, and HOAs , plus backyard and community celebrations.",
+   "includes": [
+    "Foam Cannon + Commercial Bubble Machine running nonstop",
+    "Dedicated Foam & Bubble Operator running the whole show",
+    "Lively Music System keeping the party moving",
+    "5 Bubble Stations + 10 Wands so every kid gets hands-on",
+    "Clean, Kid-Safe Foam & Bubbles, gentle on skin and clothes",
+    "Over $75 in Built-In Savings"
+   ],
+   "notes": "See Bubble Party Event Photos\n\nSee Foam Party Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & a friendly coach for 1 hr. of bubbly fun. $75 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a814b2ce70a06e154ead64_bubble-party-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6996213f2b3f9e000237bef2_FD_Jun-11-2024_DSC00498cc.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69961f9c4bf758d5a60b712d_4S2A6148.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/699624d08ca7edcc263565b2_IMG-20220921-WA0003.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/699624759f1202e1b12b824a_FreedomFunUSA-46.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Popcorn Machine",
+   "category": "Concessions",
+   "categorySlug": "concessions",
+   "params": [
+    "30 servings",
+    "2x2 ft."
+   ],
+   "prices": {
+    "dropoff": 150.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Bring everyone together with fresh, movie-style popcorn - the irresistible scent alone makes any event feel festive and fun. Whether it's a school carnival, church night, or backyard movie, this classic favorite keeps guests smiling and coming back for more. Setup is simple, beautiful, and stress-free - we'll deliver the magic straight to your door.",
+   "includes": [
+    "(30) 1 oz Servings Of Popcorn",
+    "(30) 1 oz Popcorn Bags",
+    "(1) Extension Cord (if needed)"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our location and return it the next day. Instructions provided, you got this.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e1572a3d3f823b7501f_IaHbCBHUQr4c4slrEC0bJOfv-0rBL_YZzbnwSt2XM6E.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f951_6503d42a0ee978836716eb0b_popcorn-servings.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969ebbf_640148cd9e62750affb31a64_2q1l0nUFkhJQVzZVzge2Iffc4hG4xsbmHne7TAZn6xM.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb89_63ff2e1572a3d3bc61b7501c_ZA4EyG7GsWs5l2-4J4B89rZDOy0NCvehysZnG0wjd9w.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6697e58265746b760a3f0caa_63ff2e1572a3d3f823b7501f_IaHbCBHUQr4c4slrEC0bJOfv-0rBL_YZzbnwSt2XM6E.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Cotton Candy Machine",
+   "category": "Concessions",
+   "categorySlug": "concessions",
+   "params": [
+    "60 Servings",
+    "2x2 ft."
+   ],
+   "prices": {
+    "dropoff": 150.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Spin up smiles with fluffy, fresh cotton candy - a fan-favorite that turns any event into a celebration. Whether it's a birthday party, school carnival, or church festival, this sweet classic keeps kids and adults coming back for more. Setup is simple, beautiful, and stress-free - we'll deliver the magic straight to your door.",
+   "includes": [
+    "(1) Box Of Sugar Floss (60 servings)",
+    "(1) Set of Cotton Candy Cones",
+    "(1) Extension Cord (if needed)"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our location and return it the next day. Instructions provided, you got this.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb51_63feea174bf12151fb9c0c80_gARb4iu2GW_19xnar42gdBfcuDgt6hHFbHlB1mlqfLw.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb53_63feea174bf121dfea9c0c84_B0v2I0s8Rv4Aps-jaLWRcp3WN6zxhB5EkCfA5eQSXgY.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f89c_64a7050c94511a82a74b53b1_cotton-candy-machine-rental-720x400.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb52_63feea174bf12103219c0c83_Ccb-H9ieX0dzFq7nMfB43vW6V0It1Kakb4COqH4llvA.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb57_63feea174bf1216da09c0c82_s_399vDUgxB5n3YiSGlQhQryaVPKTLTfKNFmacEI_Rk.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Snow Cone Machine",
+   "category": "Concessions",
+   "categorySlug": "concessions",
+   "params": [
+    "60 Servings",
+    "2x2 ft."
+   ],
+   "prices": {
+    "dropoff": 150.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Beat the heat with our tastiest, most refreshing treat. Our snow-cone machines include everything but the ice!",
+   "includes": [
+    "(1) Bottle Of Syrup (Grape or Cherry)",
+    "(60) Paper Cups",
+    "(1) Extension Cord (if needed)",
+    "How Much Ice Do You Need? A 20lb bag of ice will make 40 sno-cones!",
+    "We do not provide the ice!"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our location and return it the next day. Instructions provided, you got this.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e8d9c214b2d7c7ee9a6_r9BYRG5CzBBQNZ3BVY2kErV24i96TETZ06kohUVN3dg.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e8d9c214b658f7ee9a3_GM6OCvfFdAnCGVc6wRHJMI2sc3hiGskkFrrgPx26nW0.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb95_63ff2e8d9c214b00707ee9a5_7nfeK_bHFnTuUHCpNkJrQNKXkaQit-lq8fp4kn35Db8.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6697e670457c9a4928c2d5c0_63ff2e8d9c214b2d7c7ee9a6_r9BYRG5CzBBQNZ3BVY2kErV24i96TETZ06kohUVN3dg.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e8d9c214b658f7ee9a3_GM6OCvfFdAnCGVc6wRHJMI2sc3hiGskkFrrgPx26nW0.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Hot Cocoa Bar",
+   "category": "Concessions",
+   "categorySlug": "concessions",
+   "params": [
+    "30 Servings",
+    "4x2 ft."
+   ],
+   "prices": {
+    "dropoff": 119.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Bring everyone together with a cozy Hot Cocoa Bar - complete with rich cocoa, festive toppings, and cheerful holiday d\u00e9cor. Whether it's a Winter Festival or Backyard Movie Night, this easy add-on makes your guests feel warm, connected, and cared for. Setup is simple, beautiful, and stress-free - we'll deliver the magic straight to your door.",
+   "includes": [
+    "30 Servings of Premium Cocoa Mix - Rich, creamy, and water-based (no milk required). $20 per additional 10 servings.",
+    "Festive 8-12 oz. Paper Cups - Classic red holiday style",
+    "Mini Marshmallows, Chocolate Chips, Peppermints & Sprinkles - All the toppings for a magical touch",
+    "Clear Acrylic Jars with Lids & Scoops - Clean, professional presentation",
+    "Holiday Signage + Decorative Tablecloth Box - Creates that perfect \"Hot Cocoa Bar\" look",
+    "Stainless Steel Coffee Urn (45-cup) - Primary hot water source; heats in ~30 min (45 best)"
+   ],
+   "notes": "Add A Host // Freedom does it all.\nWe'll deliver, set up, and serve the concessions. $100 per hour.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/68f447a10119c8b555836517_Christmas_Promo_2025_Tile_2_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69042fd724cc53b97ac80e8c_Freedom_Fun_Kids_Hot_Cocoa_Snow_Globe_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6904318a687b105639394227_hot-coco-bar-on-table-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/690432acaaaa02fc4a648764_Kid_hot_chocolate_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69043a62aaaa02fc4a658038_kids-hot-chocolate-gingerbread-bounce-house-webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Epic VR Zone: 4-Player Inflatable Arena",
+   "category": "Extreme Games",
+   "categorySlug": "extreme-games",
+   "params": [
+    "4 Players At Once",
+    "20x20 ft."
+   ],
+   "prices": {
+    "staffed": 899.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": null,
+   "description": "Some attractions people walk past. This one, they walk toward. Epic VR Zone is a 20x20 ft. enclosed inflatable arena with four Meta Quest headsets running at once and two VR coaches fitting guests, picking games and keeping the line moving.\nBuilt for crowds. For schools and festivals we scale each experience to under five minutes per station, so the whole crowd gets a turn. Crowd favorites like Beat Saber, Gorilla Tag and Walkabout Mini Golf come ready to play, we can load almost any Meta Quest title on request, and we filter the lineup by age. See the VR Game Guide .\nMake it the headliner. Run laser tag next to the VR Zone, then bring everyone together for an outdoor movie. Bundle with laser tag or an outdoor movie and save 10%.\nConcierge service starts at $899 for 2 hours , with additional time available.",
+   "includes": [
+    "(4) Meta Quest VR Headsets, sanitized and charged",
+    "(1) 20x20 ft. Enclosed Inflatable VR Arena",
+    "(2) Professional VR Coaches running every turn",
+    "Crowd favorites ready to play, almost any Meta Quest title on request",
+    "Age-filtered lineup, mature titles locked out for kids",
+    "Delivery, setup and teardown included"
+   ],
+   "notes": "See Real Event Photos\n\nSee the VR Game Guide\nCrowd favorites, themed packs and titles on request, rated by age.\n Concierge // Freedom does it all.\nDelivery, setup, teardown and two VR coaches for 2 full hours. Additional time available, ask your Fun Sales Rep.\n\nBig crowd?\nWe scale each experience to under five minutes per station so hundreds of guests get a turn.\n\nBundle & Save 10%\nAdd laser tag, Nerf Wars or an outdoor movie and save on the total.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6961b488c76e1e578684daf4_6680799fe06f85333969eb56_63feea2457c34d44f9a45ffc_F4ESYuPoGZhd9UrkS7xinb_XpXy-HVS9iznkGQsDhME.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6961b500826fe68a15e0028f_epic-virtual-reality-station.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6961b4f1ef11ada32f4b6fcf_6680799fe06f85333969eb55_63feea2457c34d4bf3a45ffe_LXpvMtqEqBLzVNO-d3DIOwGT3kcS4W6EsJhPA8U6dcY.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6961b4ddcd05baf76da202d7_6680799fe06f85333969eb58_63feea2457c34def0fa46000_e5m2QqNFFlSr0RD6hAU1Ot-oLwVFciPQV7ADu_hs0LE.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb55_63feea2457c34d4bf3a45ffe_LXpvMtqEqBLzVNO-d3DIOwGT3kcS4W6EsJhPA8U6dcY.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Virtual Reality"
+   ]
+  },
+  {
+   "name": "Interactive Play System",
+   "category": "Extreme Games",
+   "categorySlug": "extreme-games",
+   "params": [
+    "10-20 Players",
+    "20x20 ft."
+   ],
+   "prices": {
+    "staffed": 899.0
+   },
+   "units": {
+    "staffed": "For 2 hours"
+   },
+   "baseHours": 2.0,
+   "overtime": [
+    30,
+    50.0
+   ],
+   "description": "The Interactive Play System turns any open space into a competitive, light-up arena that draws a crowd and keeps every age group engaged. Wireless hit-sensitive pucks respond to strikes, triggering real-time score updates on the digital scoreboard while a music system keeps the energy at full volume.\nWhat makes IPS unlike anything else: the pucks are multifunctional . Players use their hands or bring soccer balls, basketballs, Nerf guns, and more. With 100+ game modes and 2 party coaches running the show, it's perfect for schools, corporate events, and festivals.\nConcierge service starts at $899 for 2 hours , with each additional hour at $100.",
+   "includes": [
+    "(1) Interactive Play System Unit",
+    "Light Up Interactive Pucks",
+    "Digital Scoreboard For Spectators To Watch",
+    "Music System",
+    "(2) Party Coaches"
+   ],
+   "notes": "See Real Event Photos\n\nConcierge // Freedom does it all.\nWe'll deliver, set up, and host the Play System. 1 hour included, $50 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69ea7e417c52985d130121d7_IPS-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69ea7e877c52985d130146b0_IPS_inside-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69ea7f2ff2ede26d557e4e94_1f08fb73f929f843d30e3ee5.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f747_64448f9520d4dfddd68efa5f_interactive-play-system-carnival-game-at-an-event.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/6444801b4b3db85e103aed47_interactive-play-system-720x405.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Santa's Workshop",
+   "category": "Extreme Games",
+   "categorySlug": "extreme-games",
+   "params": [
+    "10-20 Players",
+    "20x20 ft."
+   ],
+   "prices": {
+    "staffed": 899.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": [
+    60,
+    100.0
+   ],
+   "description": "Santa's Workshop is a must-have at any holiday party. Kids will step inside Santa's Workshop and play a competitive, fun game called light hunter! They will run inside Santa's workshop and try to hit pucks that light up - filled with music, laughter and a digital scoreboard!",
+   "includes": [
+    "(1) Santa's Workshop Inflatable",
+    "Light Up Interactive Pucks",
+    "Digital Scoreboard For Spectators To Watch",
+    "Music System",
+    "(2) Party Coaches"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe'll deliver, set up, and host the holiday game. 2 hours included, $100 each additional hour.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f918_64ff48a7bc596cf095a1d13c_santa-s-workshop-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f91b_64ff4a632522a33e2f537f99_freedom-fun-usa-santa-s-workshop-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f91a_64ff49d8a53acba2fd7b61e2_santas-workshop-inflatable-rental-with-coach.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f919_64ff495dc36c5eb6e9f00e29_santa-s-workshop-interior.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f91b_64ff4a632522a33e2f537f99_freedom-fun-usa-santa-s-workshop-inflatable-rental.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Globes",
+    "Specials",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Nutcracker Christmas Combo",
+   "category": "Extreme Games",
+   "categorySlug": "extreme-games",
+   "params": [
+    "5-8 Kids",
+    "22 x 16 x 17 ft."
+   ],
+   "prices": {
+    "dropoff": 499.0
+   },
+   "units": {
+    "dropoff": "4 hours"
+   },
+   "baseHours": 4.0,
+   "overtime": null,
+   "description": "The Nutcracker Combo is a standout holiday inflatable that captures the classic charm of Christmas. Featuring two life-sized nutcracker soldiers standing guard at the entrance, this unit is both festive and elegant - perfect for winter events, school celebrations, and community festivals.\n$499 for 4 hiours.",
+   "includes": [
+    "1 Nutcracker Christmas Inflatable",
+    "1 50ft. Extension Cord",
+    "1 Blower",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/692b98e4751d88956ec57535_nutcracker-old-christmas-town-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/692b9d05751d88956ec746de_Copy-of-nutrcracker-side.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6918d08278f191091260bd2c_nutcracker-3.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6918d08278f191091260bd23_nutcracker-4.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6918d08278f191091260bd26_nutcracker.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Globes",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Foam Party",
+   "category": "Foam Parties",
+   "categorySlug": "foam-parties",
+   "params": [
+    "Great for Birthdays & School Events",
+    "Hosted Experience, We Run It!"
+   ],
+   "prices": {
+    "staffed": 325.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "Imagine this: kids screaming with joy, foam up to their elbows, and you, actually relaxed, phone out, capturing the moment.\nThat's a Freedom Fun Foam Party. We bring the professional Foam Cannon , the music, and a trained Foam Party Host who runs the whole show. You bring the guests. We bring the magic, plus a mountain of clean, kid-safe, naturally derived foam.\nNo stress. No setup. No \"wait, where's the music?\" panic. Just a party that works.\nWe've got this. Fast responses, clear communication, and a celebration your kids will talk about for weeks.",
+   "includes": [
+    "Professional-grade Foam Cannon, filling your space with mountains of clean, kid-safe foam.",
+    "Trained Foam Party Host on-site, running the equipment and keeping the fun flowing from start to finish.",
+    "Music with Bluetooth speaker included, so your party has energy, movement, and great vibes.",
+    "Fully hosted setup and operation, so you can relax, take photos, and enjoy your guests instead of managing the party.",
+    "Clean, naturally derived foam solution, safe for kids and trusted by schools and families."
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe deliver, set up, and host. Includes 1 hour of foam.\n$75 each additional 30 minutes.\n\nFoam Pit Upgrade, starting at $99.\nContain the foam in style with our branded inflatable foam pit.\n\nGlow Foam Party Upgrade, starting at $100.\nAdd LED lighting and multi-color effects for a glowing foam experience.\nEvening only.\n\nSee the Foam Cannon in action",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962bb4d4d66c3471f0ab30b_FreedomFunUSA-Sarasota-Foam-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69ec53405e214f24a62e395f_foam-ATF-Cropped-16-9-Desktop---final-JPEG-460KB.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00af8ecb927bacdf686c6c_best%20birthday%20ever%20foam%20party.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69e31dc336d5dea6baf99612_IMG-20220921-WA0003.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00afc1ec461a2c052760e3_FD_Jun-11-2024_DSC00498cc.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Water Fun"
+   ]
+  },
+  {
+   "name": "Large Event Foam Experiences",
+   "category": "Foam Parties",
+   "categorySlug": "foam-parties",
+   "params": [
+    "20-1,000+",
+    "Custom Event Setup"
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Picture hundreds of guests, foam flying, music pumping, and your event running like clockwork while you actually enjoy it.\nThat's a Freedom Fun Large Event. We've delivered foam at scale for Fortune 500 companies, major universities, schools, cities, and community celebrations nationwide. Big crowds. Big moments. Zero stress.\nEvery event starts with a Freedom Fun Site Visit\u2122 . We walk your space, plan the layout, and handle every detail.\n Custom Pricing, Built Around Your Event. Schools, churches, HOAs, festivals, corporate events. Big or small, we'll build the right package for you.\n Fill out our quote form or call/text us today.",
+   "includes": [
+    "Dedicated Event Consultant from start to finish",
+    "Freedom Fun Site Visit\u2122 with pre-event walkthrough",
+    "Pro-grade Foam Cannon systems built for large crowds",
+    "Experienced on-site Foam Team managing setup, timing, and flow",
+    "Custom layout, safety, and foam zone planning",
+    "Clean, naturally derived foam, trusted by schools, cities, and Fortune 500s"
+   ],
+   "notes": "Proven At\n Fortune 500 Corporate Events\n Major Universities & Greek Life\n City Festivals & Community Days\n Races, 5Ks & Charity Events\n Large Church & School Functions\n\nSee the Foam Cannon in action",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962c250dbc6110de6a4f533_stormtrooper%20foam%20party.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962c23b9924a1df06a5370a_240617-FD-COLLEGE-DSC01881.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962c2dd898efecdbf088aa8_shorelinefoam3.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962c31f697846755ef58c57_FB_IMG_1727562276592.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6962c268ecf1b347f8c1a2c3_FreedomFunUSA-46.webp"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "3 Lane Sports Shooting Game",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "3 Players At Once",
+    "10x20 ft."
+   ],
+   "prices": {
+    "dropoff": 299.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Our interactive sports shooting game features 3 lanes for triple the fun! Baseball, soccer & football themes for all the kids to play!",
+   "includes": [
+    "(1) 3 Lane Sports Shooting Unit",
+    "(1) Set of Sports balls for all 3 lanes",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8d6_64e03598733c8fcc2ed58de8_3_lane_sports_inflatable_game_rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb39_63f8842b625dd089802f3ff9_lER--fk0kKjw7jSNsgTfkID75OGodiz4N2R57YAmmnU.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f73c_644354fde70c17e96f9fd373_sports-interactive-inflatable-rental-at-a-school-event.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f73b_644354adc6b22f0b14a416e2_3-lane-sports-throwing-interactive-inflatable-rental-side-view.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f73a_6443540bf3608c69d3b38a17_ezgif.com-gif-maker.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Inflatable Axe Throw",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "Up To 4 Players At Once",
+    "19x21 ft."
+   ],
+   "prices": {
+    "dropoff": 399.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Our most popular carnival game! WOW your guests with safe axe-throwing at your next event!",
+   "includes": [
+    "(1) 2 Lane Axe Throwing Unit",
+    "(6) plush axes to throw at the targets",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d81295ece53e5d042da_ooDi-wHt94QZ5pO8WR1P-fHOhfdahGc3PyIgSguQtY0.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb6c_63ff2d81295ece8794d042f1_qvl-6TUSeJypbysWOg2wozqZ-fnDX21xKLocBcbWD2o.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb69_63ff2d81295ece9b50d042d2_BoOtQ6mooE4TmTGJ5t1AhsOL5SYyLqcveFibtmRwvgg.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb68_63ff2d81295ece7e38d042f0_aVsNDvwTOpAgu_CW4dKN4Dlb-yzRLnX-b9sMX1P95Mw.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb6a_63ff2d81295ece36b8d042d9_RQrQ3y9IiABEX3KzDCNQU0P_0o-dkrXk5EfVB5NckFE.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Inflatable Soccer Darts",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {
+    "dropoff": 350.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A fun interactive game where players attempt to kick the soccer ball at the dartboard and hit a bullseye.",
+   "includes": [
+    "(1) Soccer Darts Unit",
+    "(4) Velcro Soccer Balls"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69839e7bf16b7ecac4f38229_feature-soccer-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69839f7d6f4e7612fc8f7983_soccer-dart-photo-5-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69839ee3df2c5c805d938775_event-soccer-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/686e9391f8e39a05967dd1c6_6680799fe06f85333969eb6e_63ff2d8c281dbd01b3e13e1a_Bkv9Ck4OZlisTVlS8LfqBMiBenfdyO9TmtE46D71wuQ.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69840ab113ccdeefc5a9972a_FreedomFunUSA-112-webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Wrecking Ball",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "4 kids",
+    "20x20 ft."
+   ],
+   "prices": {
+    "dropoff": 299.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "4 Players will stand atop their pedestal and try to knock each other down by swinging the giant wrecking ball at their opponents. Last person standing wins!",
+   "includes": [
+    "(1) Wrecking Ball Unit",
+    "We deliver, setup & pickup",
+    "Attendants Available"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb9a_63ff2eeab9c597906f31fc0f_BNTuraAO9KcpryXn6u_KY_Sf-rdGfEH92LfTDoPRT14.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb97_63ff2eeab9c5975c8f31fc0e_dWVcyLe2mA5wCgHf9W9rPkAKQUlw04odfK-8pUaemxU.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb99_63ff2eeab9c597e68e31fc11_wIke9q6etTgTMKWtuysPunCyb9oDjWIiiOBrrcLHCrQ.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb9c_63ff2eeab9c5971c6731fc12_hm64OnFBZOsyE3qGpSr6_XMlgIu-dZLm7ZVBpTGf0h4.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb98_63ff2eeab9c5973a6b31fc10_MHrjbHOIgJmgloXO-d-gawYZn0DTbpfMIPprtfGfxls.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Gaga Ball Pit",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "10 kids at once",
+    "15 ft. diameter"
+   ],
+   "prices": {
+    "dropoff": 299.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A trendy, fun game that all kids know and love. Fun for all ages. Recommended for ages 6+.",
+   "includes": [
+    "(1) Gaga Ball Unit",
+    "(4) Gaga Balls",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n Add A Host\nWe can stay & supervise the game for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d31fd674ed61bfa715d_NaO5VHbNW8Lw4KLEaTmhz8pP1ZEz7qIHColDf3bugcs.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb5c_63ff2d30fd674e1f60fa715c_N0bZ508XMApmqUyJS0wPPYq8hqmNfATlGl-s_gqV3gU.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb5d_63ff2d31fd674ec17ffa7160_wVQ2nmvItjDnq0Szcd-AGxaefEQrbDrtNgfV5vhkzyI.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb60_63ff2d31fd674e238dfa715f_ESixi4csZWwSIUkgB-6-Ujan72cXrcG5FerDtwjk_ss.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d31fd674ed61bfa715d_NaO5VHbNW8Lw4KLEaTmhz8pP1ZEz7qIHColDf3bugcs.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Yard Games"
+   ]
+  },
+  {
+   "name": "2 Lane Bungee Run",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "2 kids at once",
+    "33x11 ft."
+   ],
+   "prices": {
+    "dropoff": 399.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "2 Players race while strapped to a bungee cord in this thrilling interactive! Perfect for kids & teenagers.",
+   "includes": [
+    "(1) Bungee Run Unit",
+    "(1) Set of Velcro Bean Bags",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe07bb5b966a26462a75_gSoAtYByWaKA8Tc1T-rtqOMKRQfg6uh0BVJ1IO0DD3g.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe07bb5b968fc3462a74_0CYtVxIahtAvEg0beei_6-Ot3oZ3F27HwJLipx8cbVE.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe07bb5b963bb7462a77_JnTHhOGyClD0beX669C-XhVIh1LE-3Mosy0xXHskNG4.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe07bb5b96b4d7462a73_COcMjXQP9K-V3U20KDZlLWmWBWqHBBICm9QjNdmUnMI.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe07bb5b96152d462a76_t475AD3aLqMrAYauf2LExT6nHAJ-pnUYoxd7omomt4Y.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Inflatable Joust",
+   "category": "Inflatable Interactives",
+   "categorySlug": "inflatable-interactives",
+   "params": [
+    "2 kids at once",
+    "33x11 ft."
+   ],
+   "prices": {
+    "dropoff": 499.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Battle it out medieval style with our cushioned joust poles and try to knock your opponent off the pedestal! Embrace your inner Gladiator today.",
+   "includes": [
+    "(1) Jousting Unit",
+    "(2) Sets of Cushioned Jousting Poles",
+    "(2) Sets of Headgear",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party.\n$100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/64e029a0e826f7bc35fe740a_inflatable_joust_rental_at_a_church_event.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8d2_DSC03855.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8d3_DSC03813.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8d5_2_kids_playing_on_the_inflatable_joust_rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/64e029a0e826f7bc35fe740a_inflatable_joust_rental_at_a_church_event.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "12' x 7' LED Screen",
+   "category": "LED Screen Rentals",
+   "categorySlug": "led-screen-rentals",
+   "params": [
+    "Entry-Level Screen",
+    "12x7 ft."
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Make Every Seat the Best Seat in the House\nOur 12x7 Mobile LED Screen brings crisp, daylight-visible video and built-in sound to backyards, school events, graduations, and neighborhood watch parties . Compact and self-contained, it delivers big-screen impact without the big footprint. We handle delivery, setup, and a full walkthrough, so it's ready before your guests arrive. All-day rentals included, extra days available.",
+   "includes": [
+    "12ft. x 7ft. Trailer-Mounted LED Screen",
+    "Generator Power",
+    "HDMI & SDI Connections",
+    "Built-In Speaker System",
+    "Available Upgrades: Premium Sound, Wireless Microphone, Starlink, Custom Banners",
+    "Needs a 14' Tall x 20' Wide Clear Access Path"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe arrive early, test all connections and ensure a smooth viewing experience. Your LED specialist will call to confirm the details.\n More on Travel & Add-On Pricing\nEvery quote is priced for your event, not a one-size-fits-all rate. Two things can move the final number: how far we travel to reach you, and any add-ons, like premium sound, a wireless microphone, Starlink internet, or custom trailer banners. Some areas have no travel fee at all. Your LED specialist will confirm exactly what applies before you book, so the price you see is the price you pay. No guesswork, no surprises.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa31_led-screen-rental-3.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b7ed2dc37547e69bd342_12x7-Outdoor-LED-6.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b83af2e8665272e6f3ba_12x7-Outdoor-LED-7.jpeg",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d564697e223befd1378d_gallery-placeholder-04.png",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d570bd00c512db513487_gallery-placeholder-05.png"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "23'x13' LED Screen",
+   "category": "LED Screen Rentals",
+   "categorySlug": "led-screen-rentals",
+   "params": [
+    "The Best There Is",
+    "23x13 ft."
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "The Centerpiece Your Event Deserves\nOur 23x13 Mobile LED Screen commands attention from across the field, built for concerts, festivals, marathons, and stadium-style viewing with brilliant daylight visibility. Perfect for crowds of 750 or more, or a headline-act wow moment. We handle delivery, setup, and a full walkthrough, so it's ready before your guests arrive. All-day rentals included, extra days available.",
+   "includes": [
+    "23ft. x 13ft. Trailer-Mounted LED Screen",
+    "Generator Power",
+    "HDMI & SDI Connections",
+    "Built-In Speaker System",
+    "Available Upgrades: Premium Sound, Wireless Microphone, Starlink, Custom Banners",
+    "Needs a 14' Tall x 20' Wide Clear Access Path"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe arrive early, test all connections and ensure a smooth viewing experience. Your LED specialist will call to confirm the details.\n More on Travel & Add-On Pricing\nEvery quote is priced for your event, not a one-size-fits-all rate. Two things can move the final number: how far we travel to reach you, and any add-ons, like premium sound, a wireless microphone, Starlink internet, or custom trailer banners. Some areas have no travel fee at all. Your LED specialist will confirm exactly what applies before you book, so the price you see is the price you pay. No guesswork, no surprises.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa30_led-screen-rental-2.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b8d47b6079a6186f2e2e_23x13-football.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b8df38b2d18f840376b9_23x13-Golf.jpeg",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d564697e223befd1378d_gallery-placeholder-04.png",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d570bd00c512db513487_gallery-placeholder-05.png"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "17' x 10' LED Screen",
+   "category": "LED Screen Rentals",
+   "categorySlug": "led-screen-rentals",
+   "params": [
+    "Most Popular Screen",
+    "17x10 ft."
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Big Impact, Perfect Fit\nOur 17x10 Mobile LED Screen strikes the balance between size and wow-factor, ideal for corporate events, school celebrations, tailgates, and community festivals . It delivers crisp HD visuals and full daylight visibility without overwhelming your space. We handle delivery, setup, and a full walkthrough, so it's ready before your guests arrive. All-day rentals included, extra days available.",
+   "includes": [
+    "17ft. x 10ft. Trailer-Mounted LED Screen",
+    "Generator Power",
+    "HDMI & SDI Connections",
+    "Built-In Speaker System",
+    "Available Upgrades: Premium Sound, Wireless Microphone, Starlink, Custom Banners",
+    "Needs a 14' Tall x 20' Wide Clear Access Path"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe arrive early, test all connections and ensure a smooth viewing experience. Your LED specialist will call to confirm the details.\n More on Travel & Add-On Pricing\nEvery quote is priced for your event, not a one-size-fits-all rate. Two things can move the final number: how far we travel to reach you, and any add-ons, like premium sound, a wireless microphone, Starlink internet, or custom trailer banners. Some areas have no travel fee at all. Your LED specialist will confirm exactly what applies before you book, so the price you see is the price you pay. No guesswork, no surprises.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881bd6f51507eb26e2fad51_17x10-LED-football.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b7622dc37547e69b86a9_17x10-LED.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6881b791138bf5b7380a18ac_17x10-LED2.jpeg",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d564697e223befd1378d_gallery-placeholder-04.png",
+    "https://cdn.prod.website-files.com/660294dfb6c7fef3fdbf446e/6617d570bd00c512db513487_gallery-placeholder-05.png"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "Advanced Laser Tag",
+   "category": "Mobile Laser Tag",
+   "categorySlug": "mobile-laser-tag",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {
+    "staffed": 345.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    50.0
+   ],
+   "description": "The indoor laser tag center wants $25 a head, gives you 15 minutes, and hands you a vest 200 other kids wore today. Advanced Laser Tag brings the battle to your backyard, your gym, your parking lot. The best mobile laser tag gear on the market - Halo-inspired battle rifles with real LED scopes, haptic feedback on every hit, thumping laser tag music, and game modes that keep everyone locked in.\nThe full setup includes our advanced laser tag guns and super laser barricades to build a real battlefield anywhere. Your coaches run every round while you relax and watch your guests have the time of their lives.",
+   "includes": [
+    "(10) Advanced Laser Tag Guns",
+    "(4) Super Laser Barricades",
+    "(1) Bluetooth Speaker",
+    "(1) Table & (1) Table Cloth"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & a friendly coach for 1 hr. of laser tag fun. $50 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9d3ef07b23f26104346_rLBA9RnhW3GC_Ps61MPD54Jo8IYMwFSu6DFoqh81m3M.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/684a282fc6a39088fffbbe13_6680799fe06f85333969f91f_63fee9d3ef07b2566e104348_1TBV17aGdGEwNUGy7JOx4NkULYT2c3IMqPKndFwZbZk.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb4f_63fee9d3ef07b2e6dc104344_0NfpQvOm9-EnsDSugEdwLI29JMwHc-xMlxY9CKoxM78.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69f057211566849046b6264c_two_kids_barricade-webp.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63fee9d3ef07b2edcf104347_9GJVnNivYT9OEXPC3VFvl9CIxXCRi3h5DWS1rtk1IIM.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Nerf Laser Tag",
+   "category": "Mobile Laser Tag",
+   "categorySlug": "mobile-laser-tag",
+   "params": [
+    "Ages 6-14 - Birthdays & Group Events",
+    "Concierge, Drop-Off & DIY"
+   ],
+   "prices": {
+    "staffed": 299.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    60,
+    100.0
+   ],
+   "description": "The indoor laser tag center has one thing going for it: air conditioning. Everything else? Cramped arenas, worn out gear, and 12-minute rounds that end just when it gets good. Nerf Laser Tag puts the fun back in your hands, in your space, with your people.\nPerfect for younger kids, this kid-safe laser tag experience delivers team battles or free-for-all chaos right in your backyard or gym. No running out of ammo. No sweaty shared equipment. Just clean, sanitized gear and a coach keeping the competition fired up from start to finish.",
+   "includes": [
+    "10 Nerf Laser Tag Guns",
+    "4 Super Laser Barricades",
+    "Bluetooth Speaker",
+    "Table & Table Cloth"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe deliver, set up, and run the entire Nerf party. Our trained Event Coach hosts structured games and keeps the energy high from start to finish. 1 hour included, $100 each additional hour.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2df18fddea0df977fcc5_RgA6eKzuZ1pp24-7EjAAhTcHrTccRKRMZFS9YGlYL7o.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88a_644e893c787edd501078ae6b_nerf-laser-tag.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb80_63ff2df18fddea306b77fcc2_wx6jbcWiT-F98Axl7MowDyql9fP3EVWGA4Aa1yv8Eec.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb7f_63ff2df18fddea718577fcc4_-47Gpk8rOj4V16gKkU2f-T2LB5Q7NhuZi7cEFVMBr6s.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb81_63ff2df18fddeabf8c77fcc3_KmEZ81tqnlCsduiDebwiizk_LTvsP38w5GJzWUHm-Y8.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Battle Royale Laser Tag",
+   "category": "Mobile Laser Tag",
+   "categorySlug": "mobile-laser-tag",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {
+    "staffed": 399.0
+   },
+   "units": {
+    "staffed": "For 1 Hour"
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    30,
+    50.0
+   ],
+   "description": "Battle Royale is Freedom Fun's most intense laser tag experience, built for players who want more than just point-and-shoot. Premium software drives every match, delivering killstreaks, rotating weapons, live stats, and multiple game modes that keep every round fresh and competitive.\nThe full setup includes 10 Halo-inspired battle rifles , 4 super barricades to build your battlefield, a live TV feed showing real-time gameplay and stats, and a Bluetooth speaker to keep the energy high. Your coaches run the entire event from start to finish.",
+   "includes": [
+    "(10) Advanced Laser Tag Guns",
+    "(4) Super Laser Barricades",
+    "Premium Software for killstreaks, stats & different game modes.",
+    "TV to show gameplay and stats.",
+    "(1) Bluetooth Speaker",
+    "(1) Table & (1) Table Cloth"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & a friendly coach for 1 hr. of laser tag fun. $50 each additional 30 min.\n\nLearn all about Battle Royale Laser Tag",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/683dbcc9b2664dea1ae72a61_Edge_5_0_Bnnr.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/683dbdd24012137d7dc3d434_Medals-screen.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/683dbe3dedf1b634b4479cc6_edge-laser-tag-battle.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6717f5b302603c2127cc1fe7_6717f595dba057c16a29e9d9_battle%2520rifle%2520pro%2520laser%2520tag.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/684a282fc6a39088fffbbe13_6680799fe06f85333969f91f_63fee9d3ef07b2566e104348_1TBV17aGdGEwNUGy7JOx4NkULYT2c3IMqPKndFwZbZk.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Signature Laser Tag Events",
+   "category": "Mobile Laser Tag",
+   "categorySlug": "mobile-laser-tag",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Planning a large group, campus, or corporate event? Our Signature Laser Tag Events with Edge are built for clients who want the most immersive tactical event we offer . Powered by the Edge gaming system with real-time scoring, live mission objectives, killstreaks, rotating weapons, and post-game stats every player takes home. Halo-inspired battle rifles , production-grade sound and lighting , and a live TV feed so every round feels like a tournament.\nBuilt for school championships, corporate team-building, military unit competitions, and multi-day tournaments. Our certified coaches run the entire experience while you watch your guests get fully locked in.\nGet a custom quote and let's build the event everyone will be talking about.",
+   "includes": [
+    "Halo-Inspired Battle Rifle Pro Taggers. Real LED scopes, recoil feedback, and tactical effects.",
+    "Edge Gaming System. Real-time scoring, killstreaks, rotating weapons, and post-game stats.",
+    "Mission-Based Gameplay. Capture the flag, protect the president, team battles, and custom objectives.",
+    "On-Site Live TV Feed. Real-time scoreboard displays so every round feels like a tournament.",
+    "Sound & Lighting Production. Blacklights, fog, immersive soundtracks, and tactical audio.",
+    "Tournament Packages. Built for school championships, corporate teams, military units, and large-scale events."
+   ],
+   "notes": "Scales from\n30\nto\n200+ players\n. We build to your event size and space.\n Trusted by\nschools, universities, HOAs, corporate teams\n, and\nmilitary bases\n.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69f05287650b00ad311a4a0b_kid_BRP_sunset_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/683dbcc9b2664dea1ae72a61_Edge_5_0_Bnnr.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69f052b67528186c7ca16751_edge_overwatch_software_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69f052e5cc4135c1b392a992_preview-(1).webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69f052ffde91ca5e23d58d44_Medals-screen.png"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "Nerf Wars",
+   "category": "Nerf Wars",
+   "categorySlug": "nerf-wars",
+   "params": [
+    "Ages 6-14 - Birthdays & Group Events",
+    "Concierge & DIY"
+   ],
+   "prices": {
+    "staffed": 299.0,
+    "dropoff": 299.0
+   },
+   "units": {
+    "staffed": "For 1 Hour",
+    "dropoff": ""
+   },
+   "baseHours": 1.0,
+   "overtime": [
+    60,
+    100.0
+   ],
+   "description": "Party rental companies hand you a bag of blasters and wish you luck. Nerf Wars is a fully coached, fully set up battlefield delivered to your backyard, park, or gym. Blasters, darts, and inflatable barricades included. Your coaches run every round from first blaster to final eliminations.\nPerfect for birthday parties, school events, and group celebrations where you want something everyone actually participates in. No waiting in line. No strangers. Just your crew, your space, and nonstop action from start to finish.",
+   "includes": [
+    "10) Nerf Blasters for all players, loaded and ready for battle.",
+    "20) Nerf Darts per player.",
+    "(10) Pairs of Protective Eyewear",
+    "4) Super Nerf Barricades for battlefield cover.",
+    "1) Bluetooth speaker pumping epic battle soundtracks throughout your mission.",
+    "1) Table & 1) Table Cloth"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe deliver, set up, and run the entire Nerf party. Our trained Event Coach hosts structured games and keeps the energy high from start to finish. 1 hour included, $100 each additional hour.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nPick up from our store and return the next day. Instructions provided - you got this.\n\nUpgrade to Glow Nerf Battle - starting at $329\nTake your Nerf party to the next level with UV blacklights, glow-in-the-dark netting over barricades, and glow blasters that light up the night. Perfect for evening and indoor events.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00b1c293c228030dca8499_freedom_fun_best_birthday_ever_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00b1ef7e9f9ffbb5d5d7ef_ginger-phelps-mom-coach-laser-tag-sarasota-freedom-fun-usa.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00b20619ead77f7bd9a498_boy%20nerf%20webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a00b2124e9ae1721c903fde_girl%20nerf%20webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969edf2_63ff2dfcd5b6d0e9acaf3abc_u6niF8fpCQZMcRwc1czCme5vgYv4GsT4Aud0Sfn0qHs.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Nerf Shooting Range",
+   "category": "Nerf Wars",
+   "categorySlug": "nerf-wars",
+   "params": [
+    "2 Players At Once",
+    "5x10 ft."
+   ],
+   "prices": {
+    "dropoff": 229.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": [
+    60,
+    100.0
+   ],
+   "description": "Kids & adults will try to master their nerf shooting skills & shoot the floating targets that hover in the air! This is a one-of-a-kind carnival game that will attract a large crowd & keep your guests entertained for hours!",
+   "includes": [
+    "(1) Inflatable Shooting Range",
+    "(4) Floating Targets",
+    "(2) Nerf Blasters"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe deliver, set up, and run the entire Nerf party. Our trained Event Coach hosts structured games and keeps the energy high from start to finish. 1 hour included, $100 each additional hour.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nPick up from our store and return the next day. Instructions provided - you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6727fdd737d51dffc46d92ec_nerf-shooting-range-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/67004ce30e7b66e7181b6972_archery-tag-hoverball-rental-inflatable.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6727fe276d3bba2b9e49b79c_inflatable-nerf-shooting-range-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6727fdd737d51dffc46d92ec_nerf-shooting-range-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/67004ce30e7b66e7181b6972_archery-tag-hoverball-rental-inflatable.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Kids Obstacle Course",
+   "category": "Obstacle Courses",
+   "categorySlug": "obstacle-courses",
+   "params": [
+    "2 Kids at once",
+    "31x10 ft."
+   ],
+   "prices": {
+    "dropoff": 349.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A fun, small obstacle course for all ages. Every party needs an obstacle course! Features multiple obstacles, a wall to climb & a slide at the end.",
+   "includes": [
+    "(1) Obstacle Course Unit",
+    "We deliver, setup & pickup"
+   ],
+   "notes": "See Real Event Photos\n\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host - We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe147bbf5217f6b1f29c_M5WLJR_f6Ts1Esh9IuMZLyD6yPfc2VTqm7M4ZlmrPsU.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63febe147bbf52ccc8b1f29a_mwHEHfYph1Ewh97s9_D473-zsKMOEFZx3p7Vz2l6qNE.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69881f373781bbc1e54e128b_IMG-20220422-WA0011.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69881ee93e80f61de26a23fd_20230704_174328-resizedjpeg.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69e87955c0684277c5212727_danger_zone_obstacle_course.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Freedom Extreme Obstacle Course",
+   "category": "Obstacle Courses",
+   "categorySlug": "obstacle-courses",
+   "params": [
+    "2 kids at once",
+    "60x15 ft."
+   ],
+   "prices": {
+    "dropoff": 549.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A custom obstacle course designed by us so you know it's epic. It features a variety of exciting obstacles, including a towering slide, a challenging rock wall, & numerous other thrilling elements.",
+   "includes": [
+    "(1) 60ft. Obstacle Course",
+    "(1) Extension Cord",
+    "We deliver, setup & pickup",
+    "Ask Us About Renting The Pieces Separately For Only $349!"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host\nWe can stay & supervise the inflatable for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/64a728838efdac73ba5c91f5_freedom-fun-inflatable-obstacle-course-rental-720x400.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f89d_64a7297b088fac2801c7c3fb_entrance-to-60-foot-inflatable-obstacle-course-rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644412678606eef93fe8be6a_Freedom-X-Treme-Obstacle-Course-Gallery-02.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/684a282fc6a39088fffbbde5_girl-in-front-of-an-inflatable-obstacle-course-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/69881ae33d5144f6ae18b8df_Freedom-X-Treme-Obstacle-Course-Product-webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "16' Projecto Screen",
+   "category": "Outdoor Movie Screens",
+   "categorySlug": "outdoor-movie-screen",
+   "params": [
+    "25+ Guests",
+    "10x6 ft."
+   ],
+   "prices": {
+    "staffed": 349.0,
+    "dropoff": 349.0
+   },
+   "units": {
+    "staffed": "For 2\u00bd Hours",
+    "dropoff": ""
+   },
+   "baseHours": 2.5,
+   "overtime": null,
+   "description": "Your backyard. Hollywood quality. Zero hassle.\nThe Projecto is our entry-level indoor or outdoor cinema setup, perfect for backyard birthdays, intimate gatherings, and corporate presentations up to 25 guests. The 10x6 ft. viewable screen pairs with a true HD projector and dual PA speakers, so every scene looks crisp and every line lands clearly, even with kids sprawled on blankets and parents in the back row.\nThis isn't a bedsheet stretched between two poles. It's a commercial-grade, wrinkle-free screen built for real outdoor conditions, delivered by a team that's guaranteed to show up, early, every time. No no-shows. No scrambling. No washed-out picture from some Amazon special.\nWe've delivered thousands of outdoor movie events across the country, and we know exactly what makes a night like this unforgettable. Fully insured, SIOTO-certified, and family-owned. Weather backup? Reschedule anytime, no questions asked.\nWe've got this. Fast responses, clear communication, and a movie night your guests will talk about for weeks.",
+   "includes": [
+    "10ft. x 6ft. fixed-frame projector screen, ideal for calm outdoor settings, covered patios, and indoor events",
+    "HD projector with a bright, crystal-clear picture after sunset",
+    "2 pro PA speakers for full-yard sound without rattling the neighbors",
+    "Blu-Ray player included, or stream from any device",
+    "Pro Rolls audio mixer with all cables, fully dialed in",
+    "Movie table & table cloth for that real theater feel"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe'll deliver, set up, and host the movie. 2.5 hours included. $50 each 30 min.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all...\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n\nCustom Plans // Built around your event.\nHosting something bigger or longer? Call or text a Movie Pro for a custom quote. Multi-day, large-scale, and extended rental packages available.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6697e5585eeaf805e44970f8_6680799fe06f85333969eb8d_63ff2e449cb17a2399667fa9_zzPB-dQDY9kxhDCU6GoDRYB1ZUANurD9j21WuqZCFZA.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a06ab60b9b4fa01453d59e6_masters-92-500kb_50_anniversary_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb92_63ff2e449cb17aee96667faf_MvkujtS40-h4IrLPbY83WB3lXoz_UEHEL0UrQ4sKPTo.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a06ad8274f2c206dcf5fb13_projector_austin_screen_website_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a06abf6a44d4099c93e5a93_projector_screen_backyard_movie_webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "18' Backyard Screen",
+   "category": "Outdoor Movie Screens",
+   "categorySlug": "outdoor-movie-screen",
+   "params": [
+    "50+ Guests",
+    "12x7 ft."
+   ],
+   "prices": {
+    "staffed": 399.0,
+    "dropoff": 399.0
+   },
+   "units": {
+    "staffed": "For 2\u00bd Hours",
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": 2.5,
+   "overtime": null,
+   "description": "More screen. More wow. Same stress-free promise.\nOur 18' Backyard Screen is our most popular outdoor cinema setup , and it's easy to see why. The 12x7 ft. commercial-grade inflatable screen commands attention the moment it goes up, perfect for backyard birthdays, HOA community nights, and church or school events where you need to wow a crowd.\nBigger screen means bigger impact. Whether it's a Disney classic for the kids, a UFC fight night for the dads, or a championship game under the stars, the 18' delivers a true cinematic experience that a smaller setup simply can't match. Crystal-clear HD projection. Pro-grade sound. A crowd that actually gasps when the picture comes on.\nWe've delivered thousands of outdoor movie events across the country and we know exactly what separates a good movie night from one people talk about for years. Fully insured, SIOTO-certified, and family-owned. Weather backup? Reschedule anytime, no questions asked.\nWe've got this. Fast responses, clear communication, and a movie night your guests will talk about for weeks.",
+   "includes": [
+    "12ft. x 7ft. commercial-grade inflatable screen. Stays taut even in a breeze.",
+    "HD projector with a bright, crystal-clear picture after sunset",
+    "2 pro PA speakers for full-yard sound without rattling the neighbors",
+    "Blu-Ray player included, or stream from any device",
+    "Pro Rolls audio mixer with all cables, fully dialed in",
+    "Movie table & table cloth for that real theater feel"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe'll deliver, set up, and host the movie. 2.5 hours included. $50 each 30 min.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all...\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n\nCustom Plans // Built around your event.\nHosting something bigger or longer? Call or text a Movie Pro for a custom quote. Multi-day, large-scale, and extended rental packages available.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a068a73cf1fa5a8e6373462_backyard_movie_gold_series_600kb_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a068a8565db8feebbaa93a9_freedom_fun_pool_movie_night_webp_austin_motel.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a068aa550fb14eea5b07cd7_freedom_fun_movie_event_500kb_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0693f97c4899a45aa11b9c_freedom_fun_football_movie_night_500kb_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0699fb70f190672c6b1f9d_christmas_elf_backyard_movie_webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "25' Gold Series Screen",
+   "category": "Outdoor Movie Screens",
+   "categorySlug": "outdoor-movie-screen",
+   "params": [
+    "150+ Guests",
+    "16x9 ft."
+   ],
+   "prices": {
+    "staffed": 499.0,
+    "dropoff": 499.0
+   },
+   "units": {
+    "staffed": "For 2\u00bd Hours",
+    "dropoff": ""
+   },
+   "baseHours": 2.5,
+   "overtime": null,
+   "description": "This is where movie night becomes a real event.\nThe 25' Gold Series is our most popular choice for larger gatherings. The 16\u00d79 ft. commercial-grade inflatable screen delivers a crystal-clear picture with rich color and upgraded sound that fills the space and keeps every guest locked into the experience.\nThis is where the upgrade really shows. Our 6,000-lumen HD projector delivers a bright, crisp image even as dusk settles in, while upgraded large-format PA speakers create the feel of a true outdoor cinema production.\nCrystal-clear picture. Rich, deep sound. A setup that signals this is not your average movie night.\nWe've delivered thousands of outdoor movie events across the country and we know exactly what separates a good movie night from one people talk about for years. Fully insured, SIOTO-certified, and family-owned. Weather backup? Reschedule anytime, no questions asked.\nWe've got this. Fast responses, clear communication, and a movie night your guests will talk about for weeks.",
+   "includes": [
+    "16ft. x 9ft. commercial-grade inflatable screen. Built for crowds up to 150+ guests.",
+    "6,000-lumen HD projector for a bright, crystal-clear picture even at dusk",
+    "Upgraded large-format PA speakers for rich, full sound across the entire venue",
+    "Blu-Ray player included, or stream from any device",
+    "Pro Rolls audio mixer with all cables, fully dialed in",
+    "Movie table & table cloth for that real theater feel"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe'll deliver, set up, and host the movie. 2.5 hours included. $50 each 30 min.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all...\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n Custom Plans // Built around your event.\nHosting something bigger or longer? Call or text a Movie Pro for a custom quote. Multi-day, large-scale, and extended rental packages available.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0749d7e111c5df8641edcc_houston_skyline_movie_night_500kb_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8a8_64beb8f7de3498288c3e9aa5_gold-series-screen-02.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d4b7401438befdfea9e_G6o89H8NkzuMUETEr1wYgDvDkVZV0A_PObUqdBcdv9I.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f8a7_64beb8f7de3498288c3e9aa1_gold-series-screen-04.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0750512412d5eed60f45ce_freedom_fun_movie_night_founder_tim_masters_wife_amy.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "32' Blockbuster Screen",
+   "category": "Outdoor Movie Screens",
+   "categorySlug": "outdoor-movie-screen",
+   "params": [
+    "300+ Guests",
+    "20x12 ft."
+   ],
+   "prices": {
+    "staffed": 999.0
+   },
+   "units": {
+    "staffed": "For 2\u00bd Hours"
+   },
+   "baseHours": 2.5,
+   "overtime": [
+    30,
+    50.0
+   ],
+   "description": "When the event is big enough to need its own landmark.\nThe 32' Blockbuster is our second largest and most versatile outdoor cinema setup, built for events where scale matters and presence is everything. The 20x12 ft. commercial-grade inflatable screen towers over any venue, creating an instant focal point that stops people in their tracks the moment they arrive. This is not a backyard setup. This is a production.\nAt 300+ guest capacity , the Blockbuster is purpose-built for the events that define a community. Large school fundraisers that pack the lawn, HOA signature events that bring an entire neighborhood together, corporate appreciation nights, and church festivals where the whole congregation shows up. When the occasion calls for something truly unforgettable, this is the screen that delivers it.\nThis is where size changes everything. A screen this large doesn't just show a movie, it commands the night. Guests arriving from across the parking lot stop in their tracks. Kids point. Adults pull out their phones. The moment the picture comes on, the crowd goes quiet. That reaction is what separates a Blockbuster event from everything else.\nWe've delivered thousands of outdoor movie events across the country and we know exactly what it takes to execute at this level. Fully insured, SIOTO-certified, and family-owned. Weather backup? Reschedule anytime, no questions asked.\nWe've got this. Fast responses, clear communication, and an event your entire community will talk about for years.\n Working on something bigger? We regularly partner with organizations, schools, churches, HOAs, and corporate clients on custom event packages, extended engagements, and multi-night experiences. If your event has unique needs, we'd love to talk. Contact us and one of our Movie Pros will be happy to discuss what's possible.\"",
+   "includes": [
+    "20ft. x 12ft. commercial-grade inflatable screen. Built for crowds of 300+ guests.",
+    "6,000-lumen HD projector for a bright, crystal-clear picture even at dusk",
+    "Upgraded large-format PA speakers for rich, full sound across the entire venue",
+    "Blu-Ray player included, or stream from any device",
+    "Pro Rolls audio mixer with all cables, fully dialed in",
+    "Movie table & table cloth for that real theater feel"
+   ],
+   "notes": "See Real Event Photos\n\nConcierge // Freedom does it all.\nWe'll deliver, set up, and host the movie start to finish. Sit back, grab the popcorn, and actually enjoy the party. 2.5 hours included. $50 each additional 30 min.\n\nWorking on something bigger?\nWe regularly partner with organizations, schools, churches, HOAs, and corporate clients on custom event packages, extended engagements, and multi-night experiences. If your event has unique needs, we'd love to talk. Contact us and one of our Movie Pros will be happy to discuss what's possible.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a08023b6b3000f102885cc8_school_movie_night_blockbuster_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a08044fb8b9f44ab8e6d0ae_company-blockbuster-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a08050cd75b5475b7968314_church-final-blockbuster-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a08057d5727ff850052bf81_HOA-Event-blockbuster-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0806045727ff850052e455_32-blockbuster-park-webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Skyline Screen",
+   "category": "Outdoor Movie Screens",
+   "categorySlug": "outdoor-movie-screen",
+   "params": [
+    "50 to 2000+",
+    "30x17 ft."
+   ],
+   "prices": {
+    "staffed": 2099.0
+   },
+   "units": {
+    "staffed": "For 2\u00bd Hours"
+   },
+   "baseHours": 2.5,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "This is not a screen. This is a skyline.\nThe Skyline is our largest and most extraordinary outdoor cinema experience, engineered for events where nothing less than breathtaking will do. The 30x17 ft. commercial-grade inflatable screen stands 30 feet tall. The viewable screen surface doesn't even begin until 15 feet off the ground. Visible from hundreds of yards away, it transforms any open space into a full-scale outdoor cinema destination. When the Skyline goes up, people stop what they're doing and stare.\nWhether you're hosting an intimate drive-in for 20 cars or a large-scale community event for thousands, the Skyline scales to fit the moment. City festivals, corporate productions, school and church gatherings, landmark HOA experiences, and everything in between. This is the screen that has guests asking \"how did you pull this off?\" before the opening credits even roll.\nThis is where outdoor cinema becomes something else entirely. The sheer scale of a 30-foot screen changes how people experience a film. Families spread across an entire field, all locked in together. The sound carries. The picture commands. There is nothing in the rental world that comes close to this.\nWe've delivered thousands of outdoor movie events across the country and we know exactly what it takes to execute at this level. Fully insured, SIOTO-certified, and family-owned. Weather backup? Reschedule anytime, no questions asked.\nWe've got this. Fast responses, clear communication, and an experience nobody who was there will ever forget.\n See Real Event Photos",
+   "includes": [
+    "30ft. x 17ft. commercial-grade inflatable screen. Thirty feet tall and visible from hundreds of yards away.",
+    "6,000-lumen HD projector for a bright, crystal-clear picture even at dusk",
+    "Upgraded large-format PA speakers and subwoofer for rich, deep, full sound across the entire venue",
+    "Blu-Ray player included, or stream from any device",
+    "Pro Rolls audio mixer with all cables, fully dialed in",
+    "Movie table & table cloth for that real theater feel"
+   ],
+   "notes": "See Real Event Photos\n\nConcierge // Freedom does it all.\nWe'll deliver, set up, and host the movie start to finish. Sit back, grab the popcorn, and actually enjoy the party. 2.5 hours included. $75 each additional 30 min.\n\nWorking on something bigger?\nWe regularly partner with organizations, schools, churches, HOAs, and corporate clients on custom event packages, extended engagements, and multi-night experiences. If your event has unique needs, we'd love to talk. Contact us and one of our Movie Pros will be happy to discuss what's possible.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0a501a023291a3d4723314_community_movie_night_enhanced_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0a501b023291a3d4723326_freedom_fun_aerial_webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0a501a023291a3d4723317_skyline-drive-in-aerial-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0a501b023291a3d472331d_skyline_person_standing_next_to_it.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a0a52a93b81a6a5572abbcd_drive_in_movie_event_enhanced_abq_webp.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Photo Booth",
+   "category": "Photo Booths",
+   "categorySlug": "photo-booths",
+   "params": [
+    "For Small & Large Events",
+    "5x5 ft."
+   ],
+   "prices": {
+    "dropoff": 399.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Capture memories that last. Our photo booth rental is a compact self-serve setup that guests love. Instant digital sharing via text or email, GIF and boomerang modes, digital props, and a custom branded overlay with your event name or logo. Simple iPad touchscreen interface so every guest can use it, from kids to grandparents. Drop-off service is standard. Add an attendant for larger events or when you want a fully hands-off experience.",
+   "includes": [
+    "(1) Halo Photobooth",
+    "(1) Black Tri-Pod Stand"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb82_63ff2e087401430dd3e0e708_ufe_Gk1xDaL1RuJ5eu8MY8YE1EV_Mu_2h7zpJeUXktc.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88f_645eb0324baa0eceaf50e5a0_photo-booth-rental-(2).jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f890_645eb0fbfb321e34d7db68c0_photo-booth-rental-at-a-wedding.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb8b_63ff2e08740143f1d3e0e70b_3j1CQRLox1fzxAth1BgOrdzTyufkWlXtESH7UVKNxLU.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb88_63ff2e0874014313d7e0e70a_xJhAVeP1gwohRxIwMIpwM5QVt4TmjvYwxhv1TBieV9A.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Event Speaker Systems",
+   "category": "Projector Screens",
+   "categorySlug": "projector-screen-rentals",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Great sound makes every moment memorable. Our professional PA speaker systems deliver crisp, powerful audio for any event, indoors or out.\nDrop-Off or DIY, both starting at $159. Every package includes 2 PA speakers, 2 power cables, 2 XLR cables, and a mixer box. Basic and premium speaker options available. Contact us for specific models and brands.",
+   "includes": [
+    "(2) PA Speakers",
+    "(2) Power Cables",
+    "(2) XLR Cables",
+    "(1) Mixer Box",
+    "Basic and premium speaker options",
+    "Contact Us For Specific Models / Brands"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88e_complete-pa-speaker-system-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88c_rolls-mixer-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88d_large-pa-speakers-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88b_xlr-cables-and-speaker-power-cables-for-rent.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f88c_rolls-mixer-rental.webp"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "Projection & Inflatable Screen Rentals",
+   "category": "Projector Screens",
+   "categorySlug": "projector-screen-rentals",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Our 10' x 6' pop-up projection screen ($149) is perfect for corporate events, classrooms, and smaller indoor gatherings.\nOur 12' x 7' ($199) and 16' x 9' ($299) inflatable screens are ideal for backyard movie nights, HOA events, and large outdoor parties. All screens include delivery and setup. Projector and sound available as an add-on.",
+   "includes": [
+    "(1) Screen Of Your Choice",
+    "(1) Blower (if applicable)",
+    "Stakes or Sandbags",
+    "Contact Us For Delivery Or DIY Options"
+   ],
+   "notes": "See Real Event Photos\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all...\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969ebc0_640148d81572e40bf46cf75b_T6Pp5HlK_i2T4oGiXJ1irqmFr52dabvWbjDSfbcOfGg.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb9d_640147ded483d169e4a27ec5_QcKKa1yM7lAAAC7PQd4OdaFGA0bId-Qs0YhGoCYWkRg.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb9e_6401484677c3a260fffe7a14_U08QZkApdXDb5kCeuC3sxNhTVxTNGMPtGfdmtPT1DEY.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb8d_63ff2e449cb17a2399667fa9_zzPB-dQDY9kxhDCU6GoDRYB1ZUANurD9j21WuqZCFZA.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb8c_63ff2e449cb17ad758667fa8_DIYbELo-Oqau8K-KEIBnHkDVXsI94PdUlF_G2t1zbcU.webp"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "Projector Rentals",
+   "category": "Projector Screens",
+   "categorySlug": "projector-screen-rentals",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {},
+   "units": {},
+   "baseHours": null,
+   "overtime": null,
+   "description": "Your event deserves crystal-clear picture. Freedom Fun delivers high-lumen HD projectors with everything you need, set up and ready to go.\nChoose your projector:\n3,500 Lumen, starting at $149 | 4,000 Lumen, starting at $179 | 6,000 Lumen, starting at $249\nEvery rental includes the HD projector, power cable, and all media cables needed. Short-throw projectors available on request. Contact us for specific models and brands.\n Drop-Off // We do the running, you make it happen. We deliver, set it up, and pick it up the next day. You host and tear down.\n DIY // You do it all. Pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "includes": [
+    "(1) HD Projector",
+    "(1) Power Cable",
+    "Media Cables As Needed",
+    "We Have Short Throw Projectors Available Per Request",
+    "Contact Us For Specific Models / Brands"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644f0f71a8be18a0f56cd3d3_epson-6000-lumen-projector-rental-720x400.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644f103efa78302c5ef6c033_optoma-short-throw-projector-rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644f10ea6f96d7ec55d00b87_hitachi-projector-rental.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644f0f71a8be18a0f56cd3d3_epson-6000-lumen-projector-rental-720x400.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/644f103efa78302c5ef6c033_optoma-short-throw-projector-rental.webp"
+   ],
+   "customPricing": true
+  },
+  {
+   "name": "Human Snow Globe",
+   "category": "Snow Globes",
+   "categorySlug": "snow-globes",
+   "params": [
+    "Families of 7",
+    ""
+   ],
+   "prices": {
+    "dropoff": 799.0
+   },
+   "units": {
+    "dropoff": "4 hours"
+   },
+   "baseHours": 4.0,
+   "overtime": [
+    60,
+    100.0
+   ],
+   "description": "A larger-than-life holiday attraction perfect for Christmas events. Entire families can walk inside & take an unforgettable photo. Up to 5 people inside at once. Walk-in tunnel for easy in & out access.",
+   "includes": [
+    "(1) Human Snow Globe",
+    "(1) Holiday Themed Backdrop",
+    "(1) Set of Fake snowball props made of cotton",
+    "Bundle & Save - Pair with any snow machine, signature or marquee event and save $100"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe'll deliver, set up, and host the inflatable snow globe. 1 hour included, $100 each additional hour.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Bundle & Save\nPair with any snow machine, signature or marquee event and save $100",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d772646b96a78fa89af_ynlp59voYFaKWygBzmuVr4S1Zqh5QiCjjm41jj0N3ho.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d772646b912f1fa89b0_UF00J19ljlxVeO55u2KzROHEvuss-xuidHfWVyrkR9I.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2d772646b95a3efa89b2_OJY6GnNdhELa1SFkJbHh33K_Ei19GKjU5aSH6n4V--A.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb66_63ff2d772646b935c2fa89b1_GSQeASJTMcmwfrsRFxWOhYgxbur2cmO4Vf2G4eBLbDM.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb67_63ff2d772646b93749fa89b3_SypBefXsjAB6Z-hGFX0upK4d4OxwJvSrIHIPC7zKmKs.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Machines",
+    "Specials"
+   ]
+  },
+  {
+   "name": "Silent Night Snow Machine",
+   "category": "Snow Globes",
+   "categorySlug": "snow-globes",
+   "params": [
+    "20+ Guests",
+    "30 foot hose"
+   ],
+   "prices": {
+    "dropoff": 599.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": [
+    60,
+    150.0
+   ],
+   "description": "The best snow machine on the market. It's ultra-quiet so your guests won't even know it's there. Includes a 30ft mountable hose making it ideal for large events that need to cover a lot of space with snow. Almost double the snow output of standard machines & includes 2 hours of snow!!",
+   "includes": [
+    "1 Silent Night Snow Machine Unit",
+    "2 Hours Worth of Snow Solution",
+    "30ft. Hose To Mount Anywhere At Your Venue",
+    "We deliver, setup & pickup",
+    "$150 Per Additional Hour of Snow Solution"
+   ],
+   "notes": "Concierge // Freedom does it all.\nWe'll deliver, set up, and run the snow machine.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n*Select stores may require concierge only!",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6940df74eb2ca2ef76c7499a_Silent-night-hose-stretch-(2)-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f9ea_65585d78d1df8d59422e8739_antari-snow-machine-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f9e5_65585e338302712bae0c930f_antari-snow-machine-rental-hose.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6940dbaba3440ef26e743465_Silent-Night-with-logo-png.png",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f9ea_65585d78d1df8d59422e8739_antari-snow-machine-rental.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Machines",
+    "Specials",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Freedom Frosty",
+   "category": "Snow Globes",
+   "categorySlug": "snow-globes",
+   "params": [
+    "",
+    ""
+   ],
+   "prices": {
+    "dropoff": 279.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Freedom Frosty is our most popular provider of fake snow! Watch as people line up to take pictures & videos of this magical snowman. Stands 3 feet tall & sprays artificial snow up to 20 feet in the air. Lightweight & easy to use.",
+   "includes": [
+    "(1) 3ft. Freedom Frosty Snowman",
+    "(1) Hour Worth of Snow Juice",
+    "Need more snow? $49 per gallon (1 hour)"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry. $100/hr.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb59_63feea31653e74eb4797ba15_6CXiLQDG-Fs6Fs7EjVd2SSt9cxCsrklnkiiSRh17pLs.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb5b_63feea31653e740e0c97ba18_dosrCnWtULoBC92TJQm9I6kHjxhCQ0i-LqlAqvSLSvY.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb5a_63feea31653e74278897ba16_UyrgGgD2Yv1YuppfcEBJ-g_Q39TyDKoGl5NuKgSZZDM.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb5e_63feea31653e74360d97ba17_gClaN_hnf4FJ_GOsVolT8xjeRMN64zxnuirBL17yK6w.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb61_63feea31653e74d81c97ba3d_a2Cz1_ZGd1EHZtTrQwJgM7rIXN8zX_f6rR8umfNKbLU.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Machines",
+    "Specials"
+   ]
+  },
+  {
+   "name": "Snow Machine",
+   "category": "Snow Globes",
+   "categorySlug": "snow-globes",
+   "params": [
+    "20+ Guests",
+    "20 ft. Snow radius"
+   ],
+   "prices": {
+    "dropoff": 249.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A small, subtle snow machine that shoots fake snow over a 20 foot area! You can place it anywhere making it a favorite amongst wedding & event planners. Sprays fake snow 20 feet in the air. Lightweight & easy to use. Small & easy to place in any space provided.",
+   "includes": [
+    "(1) Snow Machine Unit",
+    "(1) Hour Worth of Snow Juice",
+    "Need more snow? $49 per gallon (1 hour)"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry. $100/hr.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e9ec230ae7f0510089c_taN3geBL9cqifPUhAgqfwWfcgCML-CZEfTyirqXhiww.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e9ec230aedb97100894_dDgWOSfflGAZzBtX1DeG2z_IuqraiVDN4C1mtju_G2I.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e9ec230aefb9b100893_vKGkjSvYQslBrboqk7gytpD0a7AVJhvVCBPpjuCye14.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/6444e2e98391b48b44dc0ffb_Snow-Machine-Wedding-First-Dance-01.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2e9ec230ae7f0510089c_taN3geBL9cqifPUhAgqfwWfcgCML-CZEfTyirqXhiww.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Snow Machines",
+    "Specials"
+   ]
+  },
+  {
+   "name": "Racing & Flight VR Bundle",
+   "category": "Virtual Reality",
+   "categorySlug": "virtual-reality",
+   "params": [
+    "Ages 8+",
+    "Indoors Or Covered Area"
+   ],
+   "prices": {
+    "staffed": 799.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": [
+    30,
+    75.0
+   ],
+   "description": "Our Racing and Flight VR Bundle is the ultimate VR experience for corporate events, birthday parties, and large gatherings.\nYour guests can soar through the skies in a VR flight simulator , race head to head in a VR racing simulator , and jump into immersive worlds with standalone VR headsets so everyone gets in on the action. Two 32\" TVs keep the crowd entertained as spectators, and two on-site VR Party Hosts manage the entire experience from start to finish.\nConcierge service starts at $799 for 2 hours. Need more time? Add an extra hour for just $150.",
+   "includes": [
+    "(1) VR Flight Simulator",
+    "(1) VR Racing Simulator",
+    "(2) Standalone VR Headsets",
+    "(2) 32'' TV's",
+    "(2) VR Party Hosts",
+    "Over $200 in Savings!"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nDelivery, setup & 2 VR Operators for 2 hours. $75 each additional 30 min.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a808218cc493b5cb7296f7_45983024384_31c8c1e807_o.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a808270cf3a94920e802c5_vr-flight-simulator-party-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a8205551fa382e5861c25c_667ca5bc21f8a59cb96daef9_IMG-20240626-WA0033.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6697e61e4aa058c84896b628_VR-station-update.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a8209567a79fd928dc33b5_63ff2eb28544d806c485dff1_BJYbBJPY-_sU9cP9iebptqoQ7_5IydpSsLZ7XBRGRbo.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Princess Birthday Party",
+   "category": "Specials",
+   "categorySlug": "specials",
+   "params": [
+    "Ages 3+",
+    "20 x 20 ft."
+   ],
+   "prices": {
+    "dropoff": 399.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Create a magical day for your princess with her very own castle & bubbles filling the air. Your princess & her friends will revel in a world of play & enchantment, making treasured memories.",
+   "includes": [
+    "(1) Princess Bounce House",
+    "(1) Cotton Candy Machine",
+    "(1) Jumbo Connect 4",
+    "(1) Bubble Machine",
+    "Over $80 in Savings!"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7eea33be196779f1df287_princess-birthday-party.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7f1051a655f4cddfcd826_cotton-candy-machine-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7f1051a655f4cddfcd82a_princess-bounce-house-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7f152261530e0825ee6be_bubble-machine-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7f1becf736ac2fd8d3da5_jumbo-connect-4-yard-game-rental.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Coaches Special",
+   "category": "Specials",
+   "categorySlug": "specials",
+   "params": [
+    "Ages 4+",
+    "Versatile Setup"
+   ],
+   "prices": {
+    "dropoff": 1197.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Our coaches came up with this special specifically for our HOA, Church & School customers. A combination of our most popular inflatables that gets you a free bounce house.",
+   "includes": [
+    "(1) 3-Lane Sports Game Inflatable",
+    "(1) Bounce House Combo w/ Slide",
+    "(1) 60ft. Obstacle Course",
+    "FREE Bounce House"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host\nWe can stay & supervise the inflatable for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a6f230a45089985a8f5116_coaches-special-inflatable-special-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66996f41485fccee11e82ec3_freedom-fun-inflatable-rentals.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/669835e1cfb8f3907346d13f_freedom-fun-bounce-house-waterslide-combo-unit.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6699396ca2d7a105b136e44d_freedom-fun-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a6ee7422213a14b0ccf05a_bounce-house-rentals.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Field Day Games Bundle",
+   "category": "Specials",
+   "categorySlug": "specials",
+   "params": [
+    "All Ages",
+    "Versatile Setup"
+   ],
+   "prices": {
+    "dropoff": 1699.0
+   },
+   "units": {
+    "dropoff": "for 4 hours"
+   },
+   "baseHours": 4.0,
+   "overtime": null,
+   "description": "Our field day games bundle includes the most popular inflatable games for any event size. This is great for event planners with lots of people to entertain and keep busy!",
+   "includes": [
+    "(1) 60ft. Obstacle Course",
+    "(1) 3-Lane Sports Throwing Game",
+    "(1) 2-Lane Axe Throwing Game",
+    "(1) Archery Hoverball",
+    "(1) Giant Wrecking Ball",
+    "Over $175 in Savings!"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7fa14ce927e24eb6525de_field-day-games-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7fa1e3e8c5137ccd42eac_giant-wrecking-ball-inflatable-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7fa1e3e8c5137ccd42eb0_archery-hoverball-game-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7fa68ebf2a182b3017a2c_inflatable-axe-throw-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7fa9adf170cb87269377d_freedom-extreme-obstacle-course-rental.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Winter Wonderland",
+   "category": "Specials",
+   "categorySlug": "specials",
+   "params": [
+    "Holiday Parties",
+    "Includes 2 hrs. of Snow Juice"
+   ],
+   "prices": {
+    "dropoff": 1599.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "We made planning for the holidays simple this year with our complete Winter Wonderland special. This is a culmination of our most popular holiday products wrapped into one easy, affordable package for you.",
+   "includes": [
+    "(1) Giant Snow Globe w/ Holiday Backdrop & Snowballs",
+    "(1) Silent Night Snow Machine",
+    "(1) Freedom Frosty Snow Machine",
+    "(1) Christmas Themed Bounce House",
+    "Over $250 in Savings!"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add A Host // Our friendly coaches will stay & host the event.\nWe'll deliver, setup & stay throughout the event so you don't have to stress or worry.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7e48a10fa0adda91cd271_Winter-wonderland-party-rental-special.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7e4ce76351c51bcc572d5_inflatable-snow-globe-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6940df74eb2ca2ef76c7499a_Silent-night-hose-stretch-(2)-webp.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7e7cfd97919f2bf372fab_snow-man-snow-machine-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a7e81622d3919528204ad4_bounce-house-christmas-themed-with-snow-machines-and-snow-globes.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Meta Quest VR Headsets",
+   "category": "Virtual Reality",
+   "categorySlug": "virtual-reality",
+   "params": [
+    "Ages 8+",
+    "Indoors Or Covered Area"
+   ],
+   "prices": {
+    "dropoff": 99.0
+   },
+   "units": {
+    "dropoff": "Per Headset"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "VR arcades want $30 a head, give you ten minutes, and hand you a headset that has been on 200 other faces today. Meta Quest VR Headsets come to your event sanitized and charged, with no clock running and no strangers in line.\nLoaded with crowd favorites. Beat Saber, Job Simulator, Walkabout Mini Golf, Gorilla Tag, Ocean Rift and Mission: ISS are the ones everyone asks for. Want something specific? We can load almost any title on the Meta Quest store, and we filter the lineup by age. See the VR Game Guide .\nMake it a night. VR warms up the crowd, laser tag burns the energy, and an outdoor movie brings everyone back together. Bundle with laser tag or an outdoor movie and save 10%.\nDrop-Off from $99 per headset. DIY from $50 per headset. VR Pro host $100 per hour.",
+   "includes": [
+    "(1) Meta Quest VR Headset, sanitized and fully charged",
+    "Crowd favorites ready to play: Beat Saber, Gorilla Tag, Walkabout Mini Golf and more",
+    "Almost any Meta Quest title available on request",
+    "Age-filtered lineup, mature titles locked out for kids",
+    "Charger, quick-start card and VR Game Guide",
+    "Add a VR Pro host for $100 per hour"
+   ],
+   "notes": "See Real Event Photos\n\nSee the VR Game Guide\nCrowd favorites, themed packs and titles on request, rated by age.\n\nDrop-Off - We do the running, you make it happen.\nWe deliver, set up, show you the ropes and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs. Final quote provided before booking.\n DIY // You do it all.\nPick up from our store and return the next day. Quick-start card included. You got this.\n Add a VR Pro // We run it.\nA trained host fits every guest, picks the right game and keeps turns moving. $100 per hour.\n\nBundle & Save 10%\nAdd laser tag, Nerf Wars or an outdoor movie and save on the total. Ask your Fun Sales Rep.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6697e61e4aa058c84896b628_VR-station-update.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2eb28544d8193b85dfee_gZ7dnKAer9StX5knmwIlZyjbBKJzz478TGNv9MZt12w.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969edd0_63ff2eb28544d819bd85dff0_XyMhqbCU5EK633LGXTK20jW-3UVYKz2sAv_ITIVk-3I.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969ede1_63ff2eb28544d8d6d385dff2_5tWn7j8M9qAQF2flYzTOCDtqNaCHkiHDbLlJ4AJXGbg.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2eb28544d806c485dff1_BJYbBJPY-_sU9cP9iebptqoQ7_5IydpSsLZ7XBRGRbo.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Redbull VR Racing Simulator",
+   "category": "Virtual Reality",
+   "categorySlug": "virtual-reality",
+   "params": [
+    "Small Or Large Events",
+    "Indoors Or Covered Area"
+   ],
+   "prices": {
+    "staffed": 499.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": null,
+   "description": "Racing simulators at the mall cost $20 for 5 minutes and have a line 12 people deep. The Red Bull VR Racing Simulator shows up at your event fully set up, with a trained attendant running every race. Guests strap on the PS5 VR2 headset , grab the Logitech racing wheel and pedals , and suddenly they are on a real circuit.\nA spectator TV keeps the crowd locked in between turns, so it is as fun to watch as it is to race. Perfect for corporate events, community gatherings and large parties that want one attraction everyone gravitates toward. Want to keep the line moving? Add a second station for $199.\nConcierge service starts at $499 for 2 hours , with each additional hour at $100.",
+   "includes": [
+    "(1) Playstation 5 w/ VR2 headset",
+    "(1) Logitech Steering Wheel & Pedals",
+    "(1) 32'' TV",
+    "(1) Table",
+    "(1) Trained Party Host",
+    "Gran Turismo 7 Racing Experience Game"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe provide at least one trained Racing Operator to host your event. Includes 2 hours, each additional hour is $100",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa96_IMG-20240626-WA0030.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa97_IMG-20240626-WA0033.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa98_IMG-20240626-WA0034.jpg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa99_IMG-20240626-WA0026.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969fa9a_IMG-20240626-WA0027.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Flight VR Simulator",
+   "category": "Virtual Reality",
+   "categorySlug": "virtual-reality",
+   "params": [
+    "Small Or Large Events",
+    "Indoors Or Covered Area"
+   ],
+   "prices": {
+    "staffed": 499.0
+   },
+   "units": {
+    "staffed": "For 2 Hours"
+   },
+   "baseHours": 2.0,
+   "overtime": null,
+   "description": "Flight simulators cost thousands of dollars to experience and usually need a reservation weeks out. The Flight VR Simulator delivers the full experience to your event. Strap on the PS5 VR2 headset , grab the Thrustmaster flight controls , and take off across a wide variety of planes and environments, no experience required.\nA standout attraction for corporate events, school fundraisers and festivals where you want something that stops people mid-stride. Our coaches set up, calibrate and guide every player from first flight to landing. Want a full pit lane? Pair it with the racing simulator for a two-station Premium VR Zone.\nConcierge service starts at $499 for 2 hours , with each additional hour at $100.",
+   "includes": [
+    "(1) Playstation 5 w/ VR2 headset",
+    "(1) Thrustmaster Flight Controls",
+    "(1) 32'' TV",
+    "(1) Table",
+    "(1) Trained Party Host",
+    "Flight Experience Games"
+   ],
+   "notes": "See Real Event Photos\n Concierge // Freedom does it all.\nWe provide at least one trained Flight Operator to host your event. Includes 2 hours, each additional hour is $100.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a808218cc493b5cb7296f7_45983024384_31c8c1e807_o.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a808270cf3a94920e802c5_vr-flight-simulator-party-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a80ad9c13bae17664eebbc_vr-flight-controls.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a8097002e8c56faf4371ff_ultrawings-vr-flight-simulator.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66a808218cc493b5cb7296f4_virtaul-reality-flight-simulator.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Freedom Extreme 24 ft. Waterslide",
+   "category": "Water Fun",
+   "categorySlug": "water-fun",
+   "params": [
+    "2 Kids at Once",
+    "24' Drop"
+   ],
+   "prices": {
+    "dropoff": 799.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Picture this: a towering 24' drop, riders launching an extra 20' across the splash pool, and the whole party lined up to go again.\nThat's the Freedom Extreme, the slide we designed ourselves for kids who like to go fast. Climb the tower, drop, and skim across an extended pool for the softest landing of the day. Perfect for birthdays, schools, churches, and HOAs, it's the showstopper that makes a party unforgettable.\nBig air. Soft landings. The one everyone remembers.\nWe've got this. SIOTO Platinum Certified, the highest national safety standard and a credential almost no other rental company carries. Every unit arrives fully dried, sanitized, and inspected, so kids play freely and you relax with confidence.\n Dimensions: 55' long \u00d7 12' wide \u00d7 24' tall",
+   "includes": [
+    "24' Freedom Extreme Waterslide, two riders at once",
+    "20' splash runout for a fast, soft landing every run",
+    "Built-in splash pool finish at the bottom",
+    "SIOTO Platinum setup and safety inspection",
+    "We deliver, setup & pickup",
+    "Fully insured, commercial-grade equipment"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host: We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919d651512525756f74be1_waterslide-1.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919d651512525756f74bec_waterslide-2.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919ddcc25c3a7a34d2b216_waterslide-3.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919d651512525756f74be1_waterslide-1.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919d651512525756f74bec_waterslide-2.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Freedom Slip N Slide",
+   "category": "Water Fun",
+   "categorySlug": "water-fun",
+   "params": [
+    "1 Kid At A Time",
+    "Big Splash Finish"
+   ],
+   "prices": {
+    "dropoff": 299.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Picture this: a long, slick lane of splashing fun, kids taking a running start and skimming straight into a refreshing pool.\nThat's the Freedom Slip N Slide, the backyard thrill kids beg to do again and again. Cool off, race a friend, and finish with a soft splash-pool landing every time. Perfect for birthdays, schools, churches, and HOAs, it keeps the whole crew cool and laughing.\nSimple to run. Easy to love. All-day fun.\nWe've got this. SIOTO Platinum Certified, the highest national safety standard and a credential almost no other rental company carries. Every unit arrives fully dried, sanitized, and inspected, so kids play freely and you relax with confidence.\n Dimensions: 28' long \u00d7 8' wide",
+   "includes": [
+    "Slip-N-Slide lane built for a fast, slick ride",
+    "Splash pool landing for a cool, soft finish every run",
+    "Great for hot days and all-ages backyard fun",
+    "SIOTO Platinum setup and safety inspection",
+    "We deliver, setup & pickup",
+    "Fully insured, commercial-grade equipment"
+   ],
+   "notes": "See Real Event Photos\nSee real setups from actual Freedom Fun parties.\n\nDrop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n Add a Host: We run it!\nOur friendly coaches stay & supervise so you can relax and enjoy the party. $100/hour",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/669199e84d347e229f99badb_freedom-slip-n-slide-2.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66919ab1cff5cd9ac46d933c_freedom-slip-n-slide-4.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/669199aea5f3c6cb0d884aa1_94a62c85-210e-4048-996e-bdb67f3b4711.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/669199d9690726b6f39359fa_9efa3c6b-2a83-46ac-9850-e5be4010ab67.jpeg",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/669199e84d347e229f99badb_freedom-slip-n-slide-2.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Water Tag",
+   "category": "Water Fun",
+   "categorySlug": "water-fun",
+   "params": [
+    "10-20 Kids",
+    "Works In Any Space"
+   ],
+   "prices": {
+    "dropoff": 229.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Think laser tag, but soaked. Teams grab super soakers and battle it out in the ultimate hot-weather showdown, and all we need is a water source. A guaranteed hit at birthdays, schools, churches, and HOAs, it keeps 10 to 20 kids cool and laughing for hours.\nSIOTO Platinum Certified, the highest national safety standard, and a credential almost no other rental company carries. Every setup is sanitized, inspected, and run with care, so the kids go wild and you relax.",
+   "includes": [
+    "10 Super Soakers & Tag Vests so every player gears up and gets in the action",
+    "2 Refill Stations that keep the water flowing and the battle nonstop",
+    "4 Battle Barricades for cover, strategy, and epic ambushes",
+    "10 Protective Eyewear so the only thing flying is water"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a8662be74488136e8c7f21b_water-tag-freedom-fun-usa.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66ff561a352b9d932086c9bf_651879f6289e65ed8db1e044_63ff2ed172a3d330feb88001_1m00GMgyx-cVgDwFyv_ZvxskmxljQSoYzfcuBs9asFY.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6a8662776582dcd57b8d355e_6680799fe06f85333969eb9b_63ff2ed172a3d35749b88011_VmLiF7EB-TRcvSD0Oawnij_LZ8VriuI7ojd_agqzji4.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2ed172a3d338b3b8801f_MkI8lXXAl0S9ooNmx_6B8DIo9RGKA-RbAA6sLe9i-fo.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb96_63ff2ed172a3d3ccffb88000_kmF9T-Nry4CKXWPSkpHdtQ9oyR5qKoTvPM-7_jgPixo.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Dunk Tank",
+   "category": "Water Fun",
+   "categorySlug": "water-fun",
+   "params": [
+    "2 Players",
+    "Works In Any Space"
+   ],
+   "prices": {
+    "dropoff": 399.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Make a splash with this interactive, laughter-filled classic for all ages, aim, hit the target, and send a friend straight into the water. Perfect for birthdays, schools, churches, and HOAs, it's the high-energy centerpiece that draws a crowd all day.\nSIOTO Platinum Certified, the highest national safety standard, and a credential almost no other rental company carries. Every rental arrives fully dried, sanitized, and inspected, with clear operating guidelines for safe, supervised fun.",
+   "includes": [
+    "Classic Dunk Tank with target seat for nonstop laughs",
+    "Clear, Refreshing Water Fun for players and crowd alike",
+    "Fully Insured & Commercial-Grade, properly inspected before every event"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f893_6477589aa3c78a18c191911f_dunk-tank-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f892_6477592fcacaba73c65ccf8f_community-dunk-tank-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f74c_6445556b3a3eec5bede02864_inside-dallas-texas-dunk-tank-rental.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f74d_64455595371e2454a7ee605b_dunk-tank-rental-setup-outside-in-dallas-texas.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969f74b_644554989a066624c51a048a_portable-dunk-tank-rental-dallas-texas.webp"
+   ],
+   "customPricing": false,
+   "alsoIn": [
+    "Yard Games"
+   ]
+  },
+  {
+   "name": "Jumbo Connect 4",
+   "category": "Yard Games",
+   "categorySlug": "yard-games",
+   "params": [
+    "2 Players",
+    "1x3 ft."
+   ],
+   "prices": {
+    "dropoff": 69.0
+   },
+   "units": {
+    "dropoff": "Flat Rate"
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A jumbo twist on the classic game! Fun for any party!",
+   "includes": [
+    "(1) Jumbo Connect 4 Unit",
+    "(1) Set of Jumbo Connect 4 Discs"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n Add A Host\nWe can stay & supervise the inflatable for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2dabd9fd65a9b9db65e9_PRBwZpC4fN23hU2TbmBxLIbQ3BkE3Mm9afurjtm8qn8.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb70_63ff2dabd9fd655aa2db65ea_vXKOlwTy_GMKCzi64gUtw2v5Zblj3FMCC7S33SQFeI4.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2dabd9fd654d39db65e7_SXnKtiir2vpxOgAITy9xmxAupV9iwuAGuVN27XK2Rvw.webp",
+    "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63ff2dabd9fd65276ddb65e8_EJuFUsiynqx9Y_EH6gZMtVHcGBqVXmMIOui8r6-VdaI.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb71_63ff2dabd9fd656cc9db65eb_AYrRoWPYtitWKFZKJC4d-54DHGvcYA9fsj-rH-uv5sQ.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "LED Outdoor Cornhole",
+   "category": "Yard Games",
+   "categorySlug": "yard-games",
+   "params": [
+    "4 Players",
+    "10x15 ft."
+   ],
+   "prices": {
+    "dropoff": 50.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "Cornhole with LED lights around the hole. Use during the day or at night at your party. Perfect for outdoor movie nights & school carnivals!",
+   "includes": [
+    "(1) Set of Cornhole Boxes",
+    "(8) Bean Bags",
+    "(1) Set of LED Lights Around Hole"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n Add An Attendant\nWe can stay & supervise the game for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66aec89267feb8f06fc05ad2_6680799fe06f85333969eb78_63ff2db5740143862ee07c7b_PL-LbzV6eJCi3hzOWAfARAETXDp1rVhq9jXqH6qhEFk.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66aec89267feb8f06fc05ad6_63ff2db57401430b02e07c7c_DhMc4B2IoJWM0AFwh35qkKjl0LcTv3ygglln-xyPWtI.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6680799fe06f85333969eb7b_63ff2db5740143224fe07c5e_Xfm6zeFmigo3jYBMX-80-6oNmVrBcI7Y_NWebbEMaR0.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66aec89267feb8f06fc05aca_6680799fe06f85333969eb74_63ff2db5740143545be07c60_yDo11Dc1L9RRV0ZUFih_zTMV3i_G9Nat0kYRft98t4E.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66aec89267feb8f06fc05acf_6680799fe06f85333969eb78_63ff2db5740143862ee07c7b_PL-LbzV6eJCi3hzOWAfARAETXDp1rVhq9jXqH6qhEFk.webp"
+   ],
+   "customPricing": false
+  },
+  {
+   "name": "Giant Jenga",
+   "category": "Yard Games",
+   "categorySlug": "yard-games",
+   "params": [
+    "2 Players",
+    "1x3 ft."
+   ],
+   "prices": {
+    "dropoff": 69.0
+   },
+   "units": {
+    "dropoff": ""
+   },
+   "baseHours": null,
+   "overtime": null,
+   "description": "A jumbo twist on the classic game! Fun for any party!",
+   "includes": [
+    "(1) Giant Jenga Set"
+   ],
+   "notes": "Drop-Off - We do the running, you make it happen.\nWe'll deliver it, set it up and pick up the next day.\nMileage fees may apply to cover fuel and staffing costs - final quote provided before booking.\n DIY // You do it all.\nYou pick it up from our store and return it the next day. Instructions provided, you got this.\n Add A Host\nWe can stay & supervise the inflatable for $100/hr.",
+   "images": [
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/670486909ab9c6c47bb70b7c_giant-jenga-3.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/67048694d9ffcc125bef5768_giant-jenga-2.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/670486a06a6acd1917fa0420_giant-jenga-1.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/670486909ab9c6c47bb70b7c_giant-jenga-3.webp",
+    "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/67048694d9ffcc125bef5768_giant-jenga-2.webp"
+   ],
+   "customPricing": false
+  }
+ ],
+ "addons": [
+  {
+   "name": "Extra Bow Set",
+   "price": 25.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfdced45f2b965b25ecb_P6u1qbjAOJZc2m4MH08Eg53ZhR-6gnEQeG0rN8cqkQw.webp",
+   "seenIn": [
+    "Archery Games"
+   ]
+  },
+  {
+   "name": "Inflatable Axe Throw",
+   "price": 399.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66becd89b8bf5190f961e388_D-axe-throw.avif",
+   "seenIn": [
+    "Archery Games",
+    "Extreme Games",
+    "Obstacle Courses",
+    "Photo Booths"
+   ]
+  },
+  {
+   "name": "Hoverball",
+   "price": 179.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe3f28d7d436be52999_x21LAXtC9VqGqtkhZgqj4Xy86QLY8W060PCYd6Qrgjg.webp",
+   "seenIn": [
+    "Archery Games",
+    "Mobile Laser Tag",
+    "Photo Booths",
+    "Virtual Reality"
+   ]
+  },
+  {
+   "name": "LED Outdoor Cornhole",
+   "price": 45.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe6345c634c0f1dc646_6qBDMsmaeKha6oBnrLjUlKqj_zyCy70B3eboWULvR-0.webp",
+   "seenIn": [
+    "Archery Games",
+    "Outdoor Movie Screens",
+    "Photo Booths"
+   ]
+  },
+  {
+   "name": "Attendant",
+   "price": 100.0,
+   "unit": "Per Hour",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b8c83e25ad41da05008f_0z2ssQUm17wd4lVKhNy4kveStB8v0L9jmGXbskaqphA.webp",
+   "seenIn": [
+    "Archery Games",
+    "Bounce Houses & Combos",
+    "Concessions",
+    "Extreme Games",
+    "Inflatable Interactives",
+    "Mobile Laser Tag",
+    "Nerf Wars",
+    "Obstacle Courses",
+    "Photo Booths",
+    "Projector Screens",
+    "Snow Globes",
+    "Snow Machines",
+    "Specials",
+    "Virtual Reality",
+    "Water Fun",
+    "Winter Packages",
+    "Yard Games"
+   ]
+  },
+  {
+   "name": "Cotton Candy",
+   "price": 149.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b60cef4ad37151db56f0_9jFl6t09Rt8yVibXcke_6MY825dBFDcI90qHX4s_yDg.webp",
+   "seenIn": [
+    "Bounce Houses & Combos",
+    "Inflatable Interactives",
+    "Outdoor Movie Screens",
+    "Specials",
+    "Virtual Reality",
+    "Yard Games"
+   ]
+  },
+  {
+   "name": "Jumbo Connect 4",
+   "price": 69.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b8d00cb308b6d0688fa4_9BejcoeNQJ0UVISPqrSNcR4KPEoHLhKTC9zhyp0eoJI.webp",
+   "seenIn": [
+    "Bounce Houses & Combos",
+    "Nerf Wars"
+   ]
+  },
+  {
+   "name": "Generator",
+   "price": 150.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b8cca90d0e0955cafaff_N4VmssE6LFgNDSNthb2Ey4vqnLisZpBjk0q07cj2m1w.webp",
+   "seenIn": [
+    "Bounce Houses & Combos",
+    "Concessions",
+    "Obstacle Courses",
+    "Photo Booths",
+    "Snow Globes",
+    "Snow Machines",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Slip n' Slide",
+   "price": 279.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfed26133da6fcc98430_mRs98COnYovEpd6x3M1WVvlraa3T9yaYgndBy1fPRv4.webp",
+   "seenIn": [
+    "Bubble Parties",
+    "Foam Parties",
+    "Water Fun"
+   ]
+  },
+  {
+   "name": "Foam Cannon",
+   "price": 249.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f99095ca7c4bc95315fc_gKkaqXSbfOhO-BrNDNLSydJ7K6olYVXMj47gjPkK2CE.webp",
+   "seenIn": [
+    "Bubble Parties"
+   ]
+  },
+  {
+   "name": "Snow Cone Machine",
+   "price": 149.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7c09baad9bd9a2bd0c046_7uEilYXAD5fMDz7wXZegZXH_KMyNsv9yCdCTsg2Q5l4.webp",
+   "seenIn": [
+    "Bubble Parties",
+    "Inflatable Interactives",
+    "Specials",
+    "Virtual Reality",
+    "Water Fun",
+    "Yard Games"
+   ]
+  },
+  {
+   "name": "+60 Cotton Candy Servings",
+   "price": 25.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b609a41cc35ac9cedeff_tQp_eE_FvXcyOOuIejToLgfok41ESfh_5NSGWtb7eJo.webp",
+   "seenIn": [
+    "Concessions"
+   ]
+  },
+  {
+   "name": "+60 Snow Cone Servings",
+   "price": 25.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b6093e25ad10ee01d815_4Oun3D4Q7gCB6ymbVVWTB9Lk5fd8gyReU4dWwRhPNds.webp",
+   "seenIn": [
+    "Concessions"
+   ]
+  },
+  {
+   "name": "+10 Popcorn Servings",
+   "price": 10.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f9a0e2d265d7a0eedd61_J7_ePf_QFcdBdJzSrbkmAokwZnOXDTqlAthB0QEwbvs.webp",
+   "seenIn": [
+    "Concessions"
+   ]
+  },
+  {
+   "name": "Inflatable Soccer Darts",
+   "price": 250.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66becd97a87a81e6c1e778e9_D-soccerdarts.avif",
+   "seenIn": [
+    "Extreme Games",
+    "Obstacle Courses"
+   ]
+  },
+  {
+   "name": "2 Lane Bungee Run",
+   "price": 350.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/66becd71fae3f0931c473806_D-bungeerun.avif",
+   "seenIn": [
+    "Extreme Games",
+    "Obstacle Courses"
+   ]
+  },
+  {
+   "name": "15x15ft. Foam Pit",
+   "price": 100.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/6446d0557dd636dbb0ef0974_inflatable-foam-pit-rental.webp",
+   "seenIn": [
+    "Foam Parties"
+   ]
+  },
+  {
+   "name": "Water Tag",
+   "price": 79.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f99d072ee581c27f2da4_wN_58FPpgBoMdtAoZtALO7LA0EioXKFPkiQyPnmq6qI.webp",
+   "seenIn": [
+    "Foam Parties",
+    "Water Fun"
+   ]
+  },
+  {
+   "name": "Premium Sound Package",
+   "price": null,
+   "unit": "Priced with your quote",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6ab7539259f40417f13819b5_led-premium-sound-package-square%20(2).webp",
+   "seenIn": [
+    "LED Screen Rentals"
+   ]
+  },
+  {
+   "name": "Starlink Internet",
+   "price": null,
+   "unit": "Priced with your quote",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6ab75374efae1ac1d53b38b0_led-starlink-internet-square%20(1).webp",
+   "seenIn": [
+    "LED Screen Rentals"
+   ]
+  },
+  {
+   "name": "Wireless Microphone",
+   "price": null,
+   "unit": "Priced with your quote",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6ab7534dd6d5e2ec76bd4aca_led-wireless-microphone-square%20(1).webp",
+   "seenIn": [
+    "LED Screen Rentals"
+   ]
+  },
+  {
+   "name": "Custom Trailer Banners",
+   "price": null,
+   "unit": "Priced with your quote",
+   "image": "https://cdn.prod.website-files.com/6680799fe06f85333969e1b9/6ab752bb6c52cff651284b44_led-custom-trailer-banners-square.webp",
+   "seenIn": [
+    "LED Screen Rentals"
+   ]
+  },
+  {
+   "name": "Extra Laser Tag Gun",
+   "price": 35.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7b60a5c21933312f57a6c_OSmMrggqg30IHZtnF-r4XbMz60lJ5cuxIPPn9Vsd4CA.webp",
+   "seenIn": [
+    "Mobile Laser Tag"
+   ]
+  },
+  {
+   "name": "Extra Nerf Laser Tagger",
+   "price": 20.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfeb383e2b0e52367a34_QxawXPu4fBPCmZpQxKCrd6FUejbEW-Hxj08or97Fm3o.webp",
+   "seenIn": [
+    "Mobile Laser Tag"
+   ]
+  },
+  {
+   "name": "4 Inflatable Barricades",
+   "price": 45.0,
+   "unit": "Qty 4",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe4a558b181c613478e_j_VAklNvVQFTKumAm8NrTpvNKpAuEUHsHXGjy-_mR7s.webp",
+   "seenIn": [
+    "Mobile Laser Tag",
+    "Nerf Wars"
+   ]
+  },
+  {
+   "name": "Extra Nerf Gun",
+   "price": 10.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe963c12fa4f2cc6a8d_2C5QUDhnHrPoQrnLlGQ8jlL6BoV-ol5y_VwiZgL38As.webp",
+   "seenIn": [
+    "Nerf Wars"
+   ]
+  },
+  {
+   "name": "Nerf Shooting Range",
+   "price": 229.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe3f28d7d436be52999_x21LAXtC9VqGqtkhZgqj4Xy86QLY8W060PCYd6Qrgjg.webp",
+   "seenIn": [
+    "Nerf Wars"
+   ]
+  },
+  {
+   "name": "Popcorn Machine",
+   "price": 149.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfec02fba51f10d68ba9_Txp0m6t3Sg_PRTbjXYH112JelqhC77dWfSm_umK7M6E.webp",
+   "seenIn": [
+    "Outdoor Movie Screens",
+    "Specials",
+    "Virtual Reality"
+   ]
+  },
+  {
+   "name": "Projecto Screen",
+   "price": 139.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f99f0376a875c22d8165_vWGAYtkWGlQwC5_1sZeie9cHHpd1yeGcAeEJCc-fWME.webp",
+   "seenIn": [
+    "Projector Screens"
+   ]
+  },
+  {
+   "name": "4000 Lumen Event Projector",
+   "price": 129.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f98aba4bb8a302e3ca5e_4_MxGY8sCQw-pC95WPC6q4qiuCiG-4XlWa3jdsbHohg.webp",
+   "seenIn": [
+    "Projector Screens"
+   ]
+  },
+  {
+   "name": "6000 Lumen Large Venue 1080P Projector",
+   "price": 249.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f98a761640184eff978c_ydvyRSHAWCoPgRIFu5NyZve76bkCXZpL6fYyWZQkNh0.webp",
+   "seenIn": [
+    "Projector Screens"
+   ]
+  },
+  {
+   "name": "Freedom Frosty",
+   "price": 199.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7f9916f984a711b97f161_t_4KXNtNQ6IDzYu1iW6gWI2nN6sXlvIu6MHoXFH7Wi0.webp",
+   "seenIn": [
+    "Snow Globes"
+   ]
+  },
+  {
+   "name": "Snow Machine",
+   "price": 149.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7c09ca0dbb82b98301a5a_iT2hPHJxGKnNW-XroOinL9Jp8iBob09qDntTI8nzLqk.webp",
+   "seenIn": [
+    "Snow Globes"
+   ]
+  },
+  {
+   "name": "Halo Photo Booth",
+   "price": 249.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfeb08f6b470aa3dfae4_jiiPRA6t1SOJUC6CzYDle6zcNwk77DDU-eWJSwoiHuY.webp",
+   "seenIn": [
+    "Snow Globes",
+    "Snow Machines",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Snow Solution",
+   "price": 49.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7c09c30a0e7e00d35d36e_U3SQc_91CYgFqXEIh6q4_ZstW2rthFO_Swcyq3_jBmA.webp",
+   "seenIn": [
+    "Snow Machines",
+    "Winter Packages"
+   ]
+  },
+  {
+   "name": "Human Snow Globe",
+   "price": 699.0,
+   "unit": "Daily",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe414f7d74dc9d3c878_VFZItaGjzi5-ryAKgSvTUfMVt_8Gu3Fj2WQFiKnhRXo.webp",
+   "seenIn": [
+    "Snow Machines"
+   ]
+  },
+  {
+   "name": "Oculus Quest 2",
+   "price": 49.0,
+   "unit": "Each",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfe9f28d7d808ce534ac_t5t5TM5XNpyODt9QlhFIjampM6TcnmqdLsSv1NDRV1Q.webp",
+   "seenIn": [
+    "Specials"
+   ]
+  },
+  {
+   "name": "Bounce House",
+   "price": 179.0,
+   "unit": "Flat Rate",
+   "image": "https://cdn.prod.website-files.com/61849fa745d121f8acefbe59/63f7bfdf2660f90feedcd1ac_i1QZZWJ05w2RxG-KCj-PlB8N-rANQ_uKDLtaC2nQyXs.webp",
+   "seenIn": [
+    "Water Fun",
+    "Yard Games"
+   ]
+  }
+ ]
+}

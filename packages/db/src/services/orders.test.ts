@@ -11,7 +11,7 @@ import '../../scripts/env';
 import { createDb } from '../client';
 import { coupons, tenants, users } from '../schema';
 import {
-  addUnit, createCategory, createProduct, duplicateProduct, getProduct, inventoryOverview, listCategories, listProducts, productAvailability, setUnitStatus,
+  addUnit, createCategory, createProduct, deleteCategory, duplicateProduct, getProduct, inventoryOverview, listCategories, listProducts, productAvailability, setUnitStatus,
 } from './catalog';
 import { createCredit, createCustomer, getCustomer, importCustomers, listCustomers, usableCredits, voidCredit } from './customers';
 import { listLocations } from './locations';
@@ -96,6 +96,12 @@ describe('catalog and customers', () => {
     expect(p).toMatchObject({ priceStaffedCents: 22500, pricePickupCents: 17500, baseHours: 4, fromCents: 17500, inventory: { [locationId]: { owned: 2, outOfService: 0 } } });
     expect((await listProducts(db, tenantId)).map((x) => x.name)).toContain('Popcorn Machine');
     expect((await listCategories(db, tenantId))[0]).toMatchObject({ name: 'Bounce houses', count: 1 });
+  });
+  it('removing a category keeps its products, uncategorized', async () => {
+    const cat = await createCategory(db, tenantId, actor, 'Seasonal');
+    const p = await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Snow Machine', categoryId: cat.id, priceStaffed: 249 }));
+    await deleteCategory(db, tenantId, actor, cat.id);
+    expect(await getProduct(db, tenantId, p.id)).toMatchObject({ name: 'Snow Machine', categoryId: null });
   });
   it('duplicates a product as a draft with its stock settings', async () => {
     const copy = await duplicateProduct(db, tenantId, actor, castleId);

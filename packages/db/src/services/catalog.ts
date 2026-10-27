@@ -92,6 +92,8 @@ export function renameCategory(db: Db, tenantId: string, actor: Actor, id: strin
 /** Products in a deleted category become uncategorised (they are not deleted). */
 export function deleteCategory(db: Db, tenantId: string, actor: Actor, id: string) {
   return withTenant(db, tenantId, async (tx) => {
+    // Unlink the products first: the composite foreign key's ON DELETE SET NULL would null their tenant_id too.
+    await tx.update(products).set({ categoryId: null }).where(and(eq(products.tenantId, tenantId), eq(products.categoryId, id)));
     const [c] = await tx.delete(productCategories).where(and(eq(productCategories.tenantId, tenantId), eq(productCategories.id, id))).returning();
     if (!c) throw new OrgError('Category not found.', 'not_found');
     await audit(tx, tenantId, actor, { type: 'category', id }, 'category.deleted', { name: c.name });
