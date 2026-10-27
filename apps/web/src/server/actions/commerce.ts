@@ -270,7 +270,11 @@ async function checkOverrides(ctx: Awaited<ReturnType<typeof requirePermission>>
 
 export type SavedOrder = { id: string; number: string; version: number; status: string; totalCents: number; overpaidCents: number };
 
-export async function saveOrderAction(slug: string, id: string | null, input: unknown, version?: number): Promise<ActionResult<SavedOrder>> {
+/**
+ * Save the order screen. `quiet` skips the page refresh: Payment Options saves first and keeps its
+ * window open (a refresh would remount the order screen under the new version and close it mid-payment).
+ */
+export async function saveOrderAction(slug: string, id: string | null, input: unknown, version?: number, quiet = false): Promise<ActionResult<SavedOrder>> {
   return run<SavedOrder>(async () => {
     const ctx = await requirePermission(slug, 'orders.create');
     const parsed = orderSchema.safeParse(input);
@@ -278,7 +282,7 @@ export async function saveOrderAction(slug: string, id: string | null, input: un
     await checkOverrides(ctx, id, parsed.data);
     if (id) {
       const r = await updateOrder(db, ctx.tenant.id, ctx.actor, id, parsed.data, ctx.prefs, version);
-      refresh(slug);
+      if (!quiet) refresh(slug);
       const o = r.order;
       return {
         ok: true,
@@ -287,7 +291,7 @@ export async function saveOrderAction(slug: string, id: string | null, input: un
       };
     }
     const o = await createOrder(db, ctx.tenant.id, ctx.actor, parsed.data, ctx.prefs);
-    refresh(slug);
+    if (!quiet) refresh(slug);
     return {
       ok: true,
       data: { id: o.id, number: o.number, version: o.version, status: o.status, totalCents: o.totalCents, overpaidCents: 0 },

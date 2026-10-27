@@ -197,7 +197,8 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   };
 
   /** Save quietly; returns the saved order, or null with the error shown. */
-  const persist = async (): Promise<{ id: string; version: number; number: string; overpaidCents: number } | null> => {
+  /** quiet: save without refreshing the page (Payment Options keeps its window; the order reloads when it closes). */
+  const persist = async (quiet = false): Promise<{ id: string; version: number; number: string; overpaidCents: number } | null> => {
     setError(null);
     if (!d.customer) {
       setError('Choose a customer first.');
@@ -208,7 +209,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
       setError('Some items are not free at the new time. Change the time or the quantities first.');
       return null;
     }
-    const r = await saveOrderAction(data.slug, meta.id, toOrderInput(d, { ...data, credits }), meta.id ? meta.version : undefined);
+    const r = await saveOrderAction(data.slug, meta.id, toOrderInput(d, { ...data, credits }), meta.id ? meta.version : undefined, quiet);
     if (!r.ok) {
       const fe = r.fieldErrors ? Object.values(r.fieldErrors)[0] : null;
       setError(fe ? `${r.error} ${fe}` : r.error);
@@ -255,7 +256,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
 
   async function confirmBooking(c: BookChoice): Promise<{ ok: true; number: string } | { ok: false; error: string }> {
     const wasNew = !meta.id;
-    const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
+    const r = dirty || !meta.id ? await persist(true) : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
     if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
     const booking = c.method === 'manual'
       ? { method: 'manual', payMethod: c.payMethod, amount: c.amount, tip: c.tip || 0, reference: c.reference || undefined, receipt: c.receipt, policies: c.policies }
@@ -273,7 +274,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   /** Payment Options saves the order first (a new or changed order), then works on it by id. */
   async function prepareOrder(): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
     const wasNew = !meta.id;
-    const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
+    const r = dirty || !meta.id ? await persist(true) : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
     if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
     if (wasNew) navAfterBook.current = `/${data.slug}/orders/${r.id}`;
     return { ok: true, id: r.id };
