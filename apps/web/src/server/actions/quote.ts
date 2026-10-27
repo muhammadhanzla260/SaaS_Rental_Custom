@@ -40,22 +40,6 @@ async function safe<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult
   }
 }
 
-/** Accept or decline the damage waiver (re-prices the quote, before signing). */
-export async function quoteWaiverAction(token: string, accept: boolean): Promise<ActionResult<{ totalCents: number; depositCents: number; waiverCents: number }>> {
-  return safe<{ totalCents: number; depositCents: number; waiverCents: number }>(async () => {
-    const q = await load(token);
-    if (!open(q) || expired(q)) return { ok: false, error: 'This quote can no longer be changed.' };
-    if (q.order.damageWaiver !== accept) {
-      const full = await getOrder(db, q.tenant.id, q.order.id);
-      const input = orderInputFrom(full!, full!.lines, full!.creditApplications, { damageWaiver: accept });
-      await updateOrder(db, q.tenant.id, { type: 'customer' }, q.order.id, input, parsePreferences(q.tenant.settings), full!.version, accept ? 'Customer accepted the damage waiver' : 'Customer declined the damage waiver');
-    }
-    const after2 = await quoteContext(db, q.tenant.id, q.order.id);
-    const s = (after2!.order.summary ?? {}) as { damageWaiverCents?: number };
-    return { ok: true, data: { totalCents: after2!.order.totalCents, depositCents: after2!.order.depositDueCents, waiverCents: s.damageWaiverCents ?? 0 } };
-  });
-}
-
 export async function quoteRequestChangesAction(token: string, message: string): Promise<ActionResult> {
   return safe(async () => {
     const q = await load(token);
@@ -77,7 +61,8 @@ export async function quoteSignAction(token: string, input: unknown): Promise<Ac
     if (!parsed.success) return invalid(parsed.error);
     const h = await headers();
     const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null;
-    const s = await signAgreement(db, q.tenant.id, q.order.id, parsed.data, { ip, userAgent: h.get('user-agent') });
+    // The waiver is what the salesperson quoted: the signature records it, the customer does not choose it.
+    const s = await signAgreement(db, q.tenant.id, q.order.id, { ...parsed.data, waiverAccepted: q.order.damageWaiver }, { ip, userAgent: h.get('user-agent') });
     return { ok: true, data: { signedAt: s.signedAt.toISOString() } };
   });
 }

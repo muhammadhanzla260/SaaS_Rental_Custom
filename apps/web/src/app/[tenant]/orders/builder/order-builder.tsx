@@ -351,7 +351,6 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
       ...(s.setupSurfaceCents ? [{ label: 'Setup Surface', cents: s.setupSurfaceCents }] : []),
       ...(s.eventLocationCents ? [{ label: 'Event Location Fee', cents: s.eventLocationCents }] : []),
       ...(s.miscFeesCents ? [{ label: 'Other Fees', cents: s.miscFeesCents }] : []),
-      ...(s.extrasCents ? [{ label: 'Extras', cents: s.extrasCents }] : []),
       { label: 'Travel Fee', cents: s.travelFeeCents },
       ...(s.preTaxDiscountCents ? [{ label: `Discount${d.discountKind === 'percent' ? ` (${(parseFloat(d.discountValue) || 0).toFixed(2)}%)` : ''}`, cents: s.preTaxDiscountCents, minus: true }] : []),
       ...(s.couponCents ? [{ label: `Coupon${d.coupon ? ` ${d.coupon.code}` : ''}`, cents: s.couponCents, minus: true }] : []),

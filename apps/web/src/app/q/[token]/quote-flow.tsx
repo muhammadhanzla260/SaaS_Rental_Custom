@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, useTransition, type CSSProperties } from 
 import { ProductArt } from '@/components/catalog/product-art';
 import { Button, Checkbox, cx, Field, Input, Modal, Notice, Spinner, Textarea, useToast } from '@/components/kit';
 import {
-  quoteBookAction, quoteFinishPaymentAction, quoteRequestChangesAction, quoteSignAction, quoteStartPaymentAction, quoteWaiverAction, type StartPayment,
+  quoteBookAction, quoteFinishPaymentAction, quoteRequestChangesAction, quoteSignAction, quoteStartPaymentAction, type StartPayment,
 } from '@/server/actions/quote';
 
 export type QuoteView = {
@@ -102,7 +102,7 @@ export function QuoteFlow({ view }: { view: QuoteView }) {
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <section className={cx('anim-rise min-w-0 rounded-[var(--radius-panel)] border border-subtle bg-surface p-5 transition-opacity sm:p-8', refreshing && 'pointer-events-none opacity-60')} aria-busy={refreshing} key={step}>
                   {step === 'review' && <Review view={v} onNext={() => setStep(v.state === 'balance' ? 'pay' : 'policies')} />}
-                  {step === 'policies' && <Policies view={v} onNext={() => setStep('sign')} onChanged={() => router.refresh()} />}
+                  {step === 'policies' && <Policies view={v} onNext={() => setStep('sign')} />}
                   {step === 'sign' && <Sign view={v} onNext={() => advance('pay')} />}
                   {step === 'pay' && <Pay view={v} onPaid={(p) => { setPaid(p); advance('done'); }} />}
                 </section>
@@ -187,37 +187,34 @@ function Review({ view: v, onNext }: { view: QuoteView; onNext: () => void }) {
 
 // --- policies ------------------------------------------------------------------------------------------
 
-function Policies({ view: v, onNext, onChanged }: { view: QuoteView; onNext: () => void; onChanged: () => void }) {
-  const toast = useToast();
+/**
+ * The customer accepts each policy. Nothing here changes the price: the damage
+ * waiver is shown as the salesperson quoted it (included or not) and is only
+ * acknowledged, like the other policies.
+ */
+function Policies({ view: v, onNext }: { view: QuoteView; onNext: () => void }) {
   const stored = useMemo(() => {
     try { return JSON.parse(sessionStorage.getItem(`q:${v.token}:policies`) ?? '{}') as Record<string, boolean>; } catch { return {}; }
   }, [v.token]);
   const [ticks, setTicks] = useState<Record<string, boolean>>(stored);
-  const [waiver, setWaiver] = useState<boolean | null>(stored.__waiverChosen ? v.order.waiver.on : null);
-  const [busy, setBusy] = useState(false);
   const save = (t: Record<string, boolean>) => {
     setTicks(t);
     try { sessionStorage.setItem(`q:${v.token}:policies`, JSON.stringify(t)); } catch {}
   };
-  async function chooseWaiver(accept: boolean) {
-    setWaiver(accept);
-    save({ ...ticks, __waiverChosen: true });
-    if (accept === v.order.waiver.on) return;
-    setBusy(true);
-    const r = await quoteWaiverAction(v.token, accept);
-    setBusy(false);
-    if (!r.ok) return toast(r.error, 'error');
-    onChanged();
-  }
-  const others = v.agreement.policies.filter((p) => p.key !== 'waiver');
-  const waiverPolicy = v.agreement.policies.find((p) => p.key === 'waiver');
-  const ready = others.every((p) => ticks[p.key]) && (!waiverPolicy || waiver !== null);
+  const items = v.agreement.policies.map((p) => (p.key !== 'waiver' ? p : {
+    ...p,
+    title: v.order.waiver.on ? `${p.title} · included (${v.order.waiver.amount})` : `${p.title} · not included`,
+    text: v.order.waiver.on
+      ? `Your quote includes the ${v.order.waiver.percent}% damage waiver. ${p.text}`
+      : `Your quote does not include the damage waiver, so you pay for repairs or replacement of damaged equipment. To change this, contact us before you sign.`,
+  }));
+  const ready = items.every((p) => ticks[p.key]);
   return (
     <>
       <h1 className="font-display text-[28px] font-extrabold tracking-tight text-fg sm:text-[34px]">A few things to agree on</h1>
       <p className="mt-2 text-fg-2">Tap each one to accept it.</p>
       <ul className="mt-6 flex flex-col gap-3">
-        {others.map((p) => {
+        {items.map((p) => {
           const on = !!ticks[p.key];
           return (
             <li key={p.key}>
@@ -231,25 +228,8 @@ function Policies({ view: v, onNext, onChanged }: { view: QuoteView; onNext: () 
             </li>
           );
         })}
-        {waiverPolicy && (
-          <li className="rounded-[var(--radius-card)] border border-subtle p-4">
-            <p className="font-semibold text-fg">{waiverPolicy.title} <span className="font-normal text-fg-2">· {v.order.waiver.percent}% ({v.order.waiver.amount})</span></p>
-            <p className="mt-0.5 text-[14px] text-fg-2">{waiverPolicy.text}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {[true, false].map((acc) => {
-                const on = waiver === acc;
-                return (
-                  <button key={String(acc)} type="button" aria-pressed={on} disabled={busy} onClick={() => chooseWaiver(acc)}
-                    className={cx('press h-11 rounded-[var(--radius-control)] border text-sm font-semibold transition-colors', on ? 'border-[var(--qb)] bg-[var(--qb)] text-[var(--qon)]' : 'border-control text-fg hover:bg-hover')}>
-                    {busy && on ? <Spinner className="mx-auto size-4" /> : acc ? `Add it (+${v.order.waiver.amount})` : 'No thanks'}
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        )}
       </ul>
-      <Button size="lg" className="mt-6 !bg-[var(--qb)] !text-[var(--qon)]" disabled={!ready || busy} onClick={onNext}>Continue to sign</Button>
+      <Button size="lg" className="mt-6 !bg-[var(--qb)] !text-[var(--qon)]" disabled={!ready} onClick={onNext}>Continue to sign</Button>
     </>
   );
 }
