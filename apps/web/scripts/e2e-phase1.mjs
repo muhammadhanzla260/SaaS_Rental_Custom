@@ -171,7 +171,7 @@ try {
   // --- Acceptance 5: a Sales user cannot override a unit price -----------------------------
   await signIn('sam@demo.tentpole.test');
   await go(orderPath);
-  await waitText('Order lines');
+  await waitText('Shopping cart');
   const locked = await page.$('[aria-label="Price locked"]');
   const taxDisabled = await page.$eval('[aria-label="Tax rate percent"]', (e) => e.disabled);
   check(!!locked && taxDisabled, 'acceptance 5: Sales sees prices and the tax rate locked');
@@ -184,7 +184,7 @@ try {
   await setValue('#p-name', `QA Bubble House ${run}`);
   await setValue('#p-sku', `QA-${run}`.toUpperCase());
   await click('Pricing', '[role="tab"]');
-  await setValue('[aria-label="Staffed base price"]', '199');
+  await setValue('[aria-label="Concierge base price"]', '199');
   await setValue('#p-inc', '3');
   await click('Add product');
   await page.waitForFunction(() => /\/products\/[0-9a-f-]{36}/.test(location.pathname), { timeout: 20000 });

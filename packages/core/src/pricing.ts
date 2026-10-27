@@ -50,6 +50,28 @@ export function basePackageCents(p: ProductPricing, mode: ServiceMode): number {
   return p.priceStaffedCents;
 }
 
+/** How additional time is charged: an hourly rate, or the overtime block ladder. */
+export function extraRateOf(p: ProductPricing): { kind: 'hourly' | 'blocks'; cents: number; minutes: number } {
+  return p.hourlyRateCents && p.hourlyRateCents > 0
+    ? { kind: 'hourly', cents: p.hourlyRateCents, minutes: 60 }
+    : { kind: 'blocks', cents: p.overtimeBlockCents, minutes: p.overtimeBlockMinutes };
+}
+
+/** The product's pricing with the order line's locked base package and additional-time rate on top. */
+export function lockedPricing(p: ProductPricing, mode: ServiceMode, baseCents: number | null, rateCents: number | null): ProductPricing {
+  const out = { ...p };
+  if (baseCents != null) {
+    if (mode === 'pickup') out.pricePickupCents = baseCents;
+    else if (mode === 'dropoff') out.priceDropoffCents = baseCents;
+    else out.priceStaffedCents = baseCents;
+  }
+  if (rateCents != null) {
+    if (extraRateOf(p).kind === 'hourly') out.hourlyRateCents = rateCents;
+    else out.overtimeBlockCents = rateCents;
+  }
+  return out;
+}
+
 /** Charge for started overtime blocks beyond `freeHours` (Odoo _extra_time_charge). */
 export function overtimeBlocksCents(hours: number, freeHours: number, blockMinutes: number, blockCents: number): number {
   if (!hours || hours <= 0) return 0;

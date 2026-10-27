@@ -12,7 +12,7 @@ import {
   transitionOrderAction, travelForOrderAction, usableCreditsAction, validateCouponAction,
 } from '@/server/actions/commerce';
 import { emailInvoiceAction } from '@/server/actions/money';
-import { addMinutes, initialDraft, locationOf, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
+import { addMinutes, initialDraft, locationOf, lockedFor, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
 import { OrderHistory } from './history';
 import { CancelOrderModal, RainCheckModal } from './cancel-modals';
 import { OverpaidModal } from './modals';
@@ -183,7 +183,10 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     }
     const existing = d.lines.find((l) => l.productId === p.id && !l.price);
     if (existing) setLine(existing.key, { quantity: existing.quantity + 1 });
-    else set((x) => ({ lines: [...x.lines, newLine(p, p.pricing.priceStaffedCents > 0 ? 'staffed' : p.pricing.priceDropoffCents ? 'dropoff' : 'pickup')] }));
+    else {
+      const mode = p.pricing.priceStaffedCents > 0 ? 'staffed' : p.pricing.priceDropoffCents ? 'dropoff' : 'pickup';
+      set((x) => ({ lines: [...x.lines, { ...newLine(p, mode), ...lockedFor(p, mode, x.locationId) }] }));
+    }
   }, [avail, d.lines, readOnly, set, setLine, toast]);
 
   // --- save / quote / book ---
@@ -441,7 +444,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <EventSection data={data} d={d} set={set} cleanupMinutes={data.booking.cleanupMinutes} travelTrace={priced.travel.trace} milesBusy={milesBusy}
               onRecomputeMiles={() => computeMiles(true)} unit={loc?.rules.unit ?? 'mi'} />
             <ItemsSection data={data} d={d} avail={avail} availLoading={availLoading} windowLabel={windowLabel} onAdd={addProduct} shake={shake} money={money} />
-            <LinesSection data={data} d={d} quoted={priced.quote.lines} refused={refused} short={short} setLine={setLine}
+            <LinesSection data={data} d={d} set={set} windowLabel={windowLabel} quoted={priced.quote.lines} refused={refused} short={short} setLine={setLine}
               removeLine={(k) => set((x) => ({ lines: x.lines.filter((l) => l.key !== k) }))} addCustom={() => set((x) => ({ lines: [...x.lines, newLine(null)] }))}
               canOverride={data.perms.overridePrice} money={money} />
             <NotesSection d={d} set={set} slug={data.slug} />

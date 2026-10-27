@@ -11,12 +11,12 @@ import '../../scripts/env';
 import { createDb } from '../client';
 import { coupons, tenants, users } from '../schema';
 import {
-  addUnit, createCategory, createProduct, deleteCategory, duplicateProduct, getProduct, inventoryOverview, listCategories, listProducts, productAvailability, setUnitStatus,
+  addUnit, createCategory, createProduct, deleteCategory, duplicateProduct, updateProduct, getProduct, inventoryOverview, listCategories, listProducts, productAvailability, setUnitStatus,
 } from './catalog';
 import { createCredit, createCustomer, getCustomer, importCustomers, listCustomers, usableCredits, voidCredit } from './customers';
 import { listLocations } from './locations';
 import {
-  createOrder, getOrder, listOrders, orderStats, previewOrder, recordPayment, resolveOverpayment, transitionOrder, updateOrder, validateCoupon,
+  createOrder, getOrder, listOrders, orderInputFrom, orderStats, previewOrder, recordPayment, resolveOverpayment, transitionOrder, updateOrder, validateCoupon,
 } from './orders';
 import { setupOrganization } from './organizations';
 
@@ -40,7 +40,7 @@ let exemptId = '';
 // Austin wall time (CST, UTC-6 in November)
 const t = (day: number, hour: number, min = 0) => new Date(Date.UTC(2026, 10, day, hour + 6, min));
 
-type LineIn = { productId?: string | null; quantity?: number; serviceMode?: string; name?: string; overridePrice?: number; taxable?: boolean };
+type LineIn = { productId?: string | null; quantity?: number; serviceMode?: string; name?: string; overridePrice?: number; taxable?: boolean; basePrice?: number; extraRate?: number };
 const orderInput = (start: Date, end: Date, lines: LineIn[], extra: Partial<Record<string, unknown>> = {}): OrderInput =>
   orderSchema.parse({
     customerId,
@@ -48,7 +48,7 @@ const orderInput = (start: Date, end: Date, lines: LineIn[], extra: Partial<Reco
     startsAt: start,
     endsAt: end,
     eventAddress: { line1: '1100 Congress Ave', city: 'Austin', country: 'US', lat: 30.2747, lng: -97.7404 },
-    lines: lines.map((l) => ({ productId: l.productId ?? null, quantity: l.quantity ?? 1, serviceMode: l.serviceMode ?? 'staffed', name: l.name, overridePrice: l.overridePrice, taxable: l.taxable })),
+    lines: lines.map((l) => ({ productId: l.productId ?? null, quantity: l.quantity ?? 1, serviceMode: l.serviceMode ?? 'staffed', name: l.name, overridePrice: l.overridePrice, taxable: l.taxable, basePrice: l.basePrice, extraRate: l.extraRate })),
     ...extra,
   });
 
@@ -156,6 +156,21 @@ describe('orders (acceptance tests)', () => {
     expect(full!.versions[0]!.diff).toHaveProperty('Line 1');
     expect(full!.payments[0]).toMatchObject({ method: 'check', amountCents: 10000 });
     await expect(updateOrder(db, tenantId, actor, o.id, orderInput(t(21, 13), t(21, 19), [{ productId: castleId }]), prefs, booked.version)).rejects.toThrow(/changed this order/);
+  });
+
+  it('locks the base package and additional-time rate on the order (Odoo cart), whatever the product costs later', async () => {
+    const bow = await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Extra Bow Set', kind: 'addon', priceStaffed: 30, baseHours: 1, hourlyRate: 20 }));
+    // Odoo cart: Concierge base $25.00 incl. 1 h + 8.00 h × $15.00 = $145.00
+    const odoo = await createOrder(db, tenantId, actor, orderInput(t(24, 5, 30), t(24, 14, 30), [{ productId: bow.id, basePrice: 25, extraRate: 15 }]), prefs);
+    const [line] = (await getOrder(db, tenantId, odoo.id))!.lines;
+    expect(line).toMatchObject({ unitCents: 14500, baseCents: 2500, extraRateCents: 1500, priceOverridden: false });
+    // A line priced at today's price keeps it after the product's price goes up.
+    const o = await createOrder(db, tenantId, actor, orderInput(t(24, 5, 30), t(24, 14, 30), [{ productId: bow.id }]), prefs);
+    await updateProduct(db, tenantId, actor, bow.id, productSchema.parse({ name: 'Extra Bow Set', kind: 'addon', priceStaffed: 40, baseHours: 1, hourlyRate: 25 }));
+    const full = (await getOrder(db, tenantId, o.id))!;
+    const again = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(full, full.lines, []), prefs, full.version);
+    expect(again.order.totalCents).toBe(o.totalCents);
+    expect((await getOrder(db, tenantId, o.id))!.lines[0]).toMatchObject({ baseCents: 3000, extraRateCents: 2000, unitCents: 3000 + 8 * 2000 });
   });
 
   it('booking at the counter: tip on top, policies confirmed by staff, multi-day billed for the real time', async () => {

@@ -1,8 +1,8 @@
 import {
-  formatPhone, quoteOrder, travelFee, utcToWallTime, wallTimeToUtc, addDays,
+  basePackageCents, extraRateOf, formatPhone, lockedPricing, quoteOrder, travelFee, utcToWallTime, wallTimeToUtc, addDays,
   type OrderFormValues, type ServiceMode,
 } from '@rental/core';
-import type { BuilderData, BuilderLocation, Draft, DraftLine } from './types';
+import type { BuilderData, BuilderLocation, BuilderProduct, Draft, DraftLine } from './types';
 
 let seq = 0;
 export const lineKey = () => `l${Date.now().toString(36)}${(seq++).toString(36)}`;
@@ -59,6 +59,7 @@ export function initialDraft(data: BuilderData): Draft {
       lines: o.lines.map((l) => ({
         key: lineKey(), productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
         price: !l.productId || l.priceOverridden ? dollars(l.unitCents) : '', setupSurface: l.setupSurface,
+        basePrice: l.productId && l.baseCents != null ? dollars(l.baseCents) : '', extraRate: l.productId && l.extraRateCents != null ? dollars(l.extraRateCents) : '',
       })),
       internalNotes: o.internalNotes, customerNotes: o.customerNotes,
       damageWaiver: o.damageWaiver, waiverPercent: String(o.damageWaiverPercent),
@@ -147,9 +148,10 @@ export function priceDraft(d: Draft, data: BuilderData) {
         return { productId: null, name: l.name || 'Custom item', pricing: null, minHours: null, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: true, overrideUnitCents: cents(l.price), setupSurfaceFeeCents: 0, taxable: l.taxable };
       }
       const own = (mode: ServiceMode) => p.branchPrices.find((b) => b.locationId === d.locationId && b.mode === mode)?.priceCents;
+      const branch = { ...p.pricing, priceStaffedCents: own('staffed') ?? p.pricing.priceStaffedCents, pricePickupCents: own('pickup') ?? p.pricing.pricePickupCents, priceDropoffCents: own('dropoff') ?? p.pricing.priceDropoffCents };
       return {
         productId: p.id, name: l.name || p.name,
-        pricing: { ...p.pricing, priceStaffedCents: own('staffed') ?? p.pricing.priceStaffedCents, pricePickupCents: own('pickup') ?? p.pricing.pricePickupCents, priceDropoffCents: own('dropoff') ?? p.pricing.priceDropoffCents },
+        pricing: lockedPricing(branch, l.serviceMode, l.basePrice.trim() === '' ? null : cents(l.basePrice), l.extraRate.trim() === '' ? null : cents(l.extraRate)),
         minHours: p.minHours, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate,
         overrideUnitCents: l.price.trim() === '' ? null : cents(l.price), setupSurfaceFeeCents: surfaceFee(l.setupSurface ?? d.setupSurface), taxable: l.taxable,
       };
@@ -197,6 +199,7 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
     lines: d.lines.map((l) => ({
       productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate, taxable: l.taxable,
       overridePrice: l.price.trim() === '' ? null : num(l.price), setupSurface: l.setupSurface,
+      basePrice: !l.productId || l.basePrice.trim() === '' ? null : num(l.basePrice), extraRate: !l.productId || l.extraRate.trim() === '' ? null : num(l.extraRate),
     })),
     damageWaiver: d.damageWaiver,
     damageWaiverPercent: num(d.waiverPercent),
@@ -219,10 +222,16 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
   } as OrderFormValues;
 }
 
+/** The prices a line locks when it is added or its service option changes: the location's base for that mode, and the rate. */
+export function lockedFor(p: BuilderProduct, mode: ServiceMode, locationId: string): Pick<DraftLine, 'basePrice' | 'extraRate'> {
+  const own = p.branchPrices.find((b) => b.locationId === locationId && b.mode === mode)?.priceCents;
+  return { basePrice: dollars(own ?? basePackageCents(p.pricing, mode)), extraRate: dollars(extraRateOf(p.pricing).cents) };
+}
+
 export function newLine(p: { id: string; name: string; taxable: boolean; pricing: { pricePickupCents: number | null } } | null, mode: ServiceMode = 'staffed'): DraftLine {
   return {
     key: lineKey(), productId: p?.id ?? null, name: p ? p.name : '', serviceMode: mode, quantity: 1, taxable: p ? p.taxable : true, flatRate: false,
-    price: p ? '' : '', setupSurface: null,
+    price: '', setupSurface: null, basePrice: '', extraRate: '',
   };
 }
 

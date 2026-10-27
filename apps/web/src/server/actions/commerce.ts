@@ -254,6 +254,14 @@ async function checkOverrides(ctx: Awaited<ReturnType<typeof requirePermission>>
       if (!l.productId || l.overridePrice == null) continue;
       if (had.get(l.productId) !== Math.round(l.overridePrice * 100)) throw new ActionError('Your role cannot change unit prices. Ask a manager.');
     }
+    // The locked base package and additional-time rate: kept from the order as it was, else the product's price today.
+    const locked = new Map((before?.lines ?? []).filter((l) => l.productId).map((l) => [`${l.productId}:${l.serviceMode}`, l]));
+    for (const l of input.lines) {
+      if (!l.productId) continue;
+      const was = locked.get(`${l.productId}:${l.serviceMode}`);
+      l.basePrice = was?.baseCents != null ? was.baseCents / 100 : null;
+      l.extraRate = was?.extraRateCents != null ? was.extraRateCents / 100 : null;
+    }
   }
   if (!ctx.can('orders.override_tax') && input.taxOverridden) {
     if (!before?.taxOverridden || Number(before.taxPercent) !== input.taxPercent) throw new ActionError('Your role cannot change the tax rate. Ask a manager.');

@@ -400,6 +400,9 @@ export const orderLines = pgTable(
     autoUnitCents: bigint('auto_unit_cents', { mode: 'number' }).notNull(),
     priceOverridden: boolean('price_overridden').notNull().default(false),
     flatRate: boolean('flat_rate').notNull().default(false),
+    /** Locked on the order when the line is priced: the mode's base package and the additional-time rate. */
+    baseCents: bigint('base_cents', { mode: 'number' }),
+    extraRateCents: bigint('extra_rate_cents', { mode: 'number' }),
     setupSurface: text('setup_surface'),
     setupSurfaceFeeCents: bigint('setup_surface_fee_cents', { mode: 'number' }).notNull().default(0),
     lineTotalCents: bigint('line_total_cents', { mode: 'number' }).notNull(),

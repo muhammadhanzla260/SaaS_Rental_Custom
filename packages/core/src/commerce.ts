@@ -57,7 +57,7 @@ export const PRODUCT_ICONS = ['bounce', 'slide', 'screen', 'food', 'game', 'tent
 export const PRODUCT_TINTS = ['cobalt', 'emerald', 'violet', 'sky', 'ink', 'navy', 'amber', 'rose', 'slate', 'mist'] as const;
 
 export const SERVICE_MODES = [
-  { value: 'staffed', label: 'Staffed' },
+  { value: 'staffed', label: 'Concierge' },
   { value: 'pickup', label: 'Pick-up' },
   { value: 'dropoff', label: 'Drop-off' },
 ] as const;
@@ -206,6 +206,13 @@ export const orderLineSchema = z
     flatRate: z.boolean().default(false),
     /** Manual price in dollars; null = the automatic price. */
     overridePrice: optionalMoney,
+    /**
+     * Locked on the order (Odoo: "base is locked on this order, not the product Sales Price"):
+     * the mode's base package and the additional-time rate (per hour, or per overtime block).
+     * Null = the product's current price, which is then locked when the order is saved.
+     */
+    basePrice: optionalMoney,
+    extraRate: optionalMoney,
     taxable: z.boolean().default(true),
     setupSurface: z.string().max(40).nullable().optional(),
   })

@@ -141,7 +141,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
           cancelReason: order.cancelReason, bookedAt: order.bookedAt?.toISOString() ?? null,
           lines: order.lines.map((l) => ({
             productId: l.productId, name: l.name, serviceMode: l.serviceMode as ServiceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
-            unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface,
+            unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface, baseCents: l.baseCents, extraRateCents: l.extraRateCents,
           })),
           credits: order.creditApplications.map((a) => ({ creditId: a.creditId, amountCents: a.amountCents })),
           payments: order.payments.map((p) => ({ id: p.id, number: p.number, method: p.method, amountCents: p.amountCents, tipCents: p.tipCents, reference: p.reference, receivedAt: p.receivedAt.toISOString(), status: p.status, cardLast4: p.cardLast4 })),

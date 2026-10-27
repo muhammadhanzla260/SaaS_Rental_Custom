@@ -204,6 +204,13 @@
       "when": 1792981009947,
       "tag": "0028_tip_only_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793119159237,
+      "tag": "0029_order_line_locked_prices",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FileText, Lock, MapPin, Minus, Plus, Sparkles, Trash2, Upload } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import {
-  addDays, describeTrace, EVENT_TYPES, formatMoney, formatPhone, HOW_HEARD, SERVICE_MODES, type QuotedLine, type ServiceMode,
+  addDays, EVENT_TYPES, extraRateOf, formatMoney, formatPhone, HOW_HEARD, SERVICE_MODES, type QuotedLine, type ServiceMode,
 } from '@rental/core';
 import type { Availability } from '@rental/db';
 import { CustomerSearch } from '@/components/customers/customer-form';
@@ -14,7 +14,7 @@ import { AddressBlock } from '@/components/fields/address';
 import { scope } from '@/components/fields/scope';
 import { AffixInput, Button, Card, Checkbox, cx, Field, FilterChips, Input, Notice, Select, Textarea, Toggle, useToast } from '@/components/kit';
 import { uploadSetupMapAction } from '@/server/actions/commerce';
-import { addMinutes, durationLabel, locationOf, num, timeLabel } from './draft';
+import { addMinutes, durationLabel, locationOf, lockedFor, num, timeLabel } from './draft';
 import type { BuilderData, BuilderProduct, Draft, DraftLine } from './types';
 
 type SetDraft = (patch: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void;
@@ -373,96 +373,195 @@ export function ItemsSection({
 
 // --- Lines ----------------------------------------------------------------------------------------
 
+/** Event durations offered on each line (Odoo: "9 hours"), plus whatever the order has now. */
+const DURATIONS = Array.from({ length: 24 }, (_, i) => (i + 1) * 30);
+
 export function LinesSection({
-  data, d, quoted, refused, short, setLine, removeLine, addCustom, canOverride, money,
+  data, d, set, quoted, refused, short, setLine, removeLine, addCustom, canOverride, money, windowLabel,
 }: {
-  data: BuilderData; d: Draft; quoted: QuotedLine[]; refused: Set<string>; short: Map<string, string>;
+  data: BuilderData; d: Draft; set: SetDraft; quoted: QuotedLine[]; refused: Set<string>; short: Map<string, string>;
   setLine: (key: string, patch: Partial<DraftLine>) => void; removeLine: (key: string) => void; addCustom: () => void; canOverride: boolean; money: (c: number) => string;
+  /** The event's date and time, shown on every item (Odoo: "October 28, 2026 | 5:30 AM to 2:30 PM"). */
+  windowLabel: string;
 }) {
   const byId = new Map(data.products.map((p) => [p.id, p]));
+  const durations = [...new Set([...DURATIONS, d.durationMin])].sort((a, b) => a - b);
   return (
     <Section
-      title="Order lines"
+      title="Shopping cart"
       id="sec-lines"
       action={
         <span className="flex items-center gap-3">
-          <span className="text-[13px] text-fg-2">{d.lines.length} line{d.lines.length === 1 ? '' : 's'}</span>
+          <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-semibold text-accent-text">{d.lines.length} item{d.lines.length === 1 ? '' : 's'}</span>
           <Button size="sm" variant="secondary" onClick={addCustom} icon={<Plus className="size-3.5" />}>Custom line</Button>
         </span>
       }
     >
+      <p className="-mt-2 mb-4 text-[13px] text-fg-2">Confirm the service option, time and pricing for each item.</p>
       {d.lines.length === 0 ? (
         <p className="rounded-[var(--radius-card)] border border-dashed border-control px-4 py-8 text-center text-sm text-fg-2">Tap an item above, or add a custom line.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-4">
           {d.lines.map((l, i) => {
             const q = quoted[i];
             const p = l.productId ? byId.get(l.productId) : undefined;
             const bad = refused.has(l.key) || short.has(l.key);
-            const auto = q && !l.productId ? null : q?.autoUnitCents;
-            const modesWithPrice = (m: ServiceMode) => !p || (m === 'staffed' ? true : m === 'pickup' ? p.pricing.pricePickupCents != null : p.pricing.priceDropoffCents != null);
+            const warnings = (
+              <>
+                {q?.warnings.map((w) => <p key={w} className="mt-1 text-[12px] font-medium text-warning-fg">{w}</p>)}
+                {short.get(l.key) && <p className="mt-1 text-[12px] font-semibold text-danger" role="alert">{short.get(l.key)}</p>}
+                {refused.has(l.key) && !short.get(l.key) && <p className="mt-1 text-[12px] font-semibold text-danger" role="alert">Not available for this time.</p>}
+              </>
+            );
             return (
-              <li key={l.key} className={cx('anim-rise rounded-[var(--radius-card)] border p-3.5 transition-colors', bad ? 'border-danger bg-danger-bg/40' : 'border-subtle')}>
-                <div className="flex items-center gap-3">
-                  {p ? <ProductArt product={p} size={40} imageUrl={p.imageUrl} /> : <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] bg-sunken text-xs font-bold text-fg-2">Custom</span>}
-                  <Input aria-label="Description" value={l.name} onChange={(e) => setLine(l.key, { name: e.target.value })} placeholder={p ? p.name : 'Describe the item'} className="h-9 border-transparent bg-sunken/70 font-semibold" />
+              <li key={l.key} className={cx('anim-rise overflow-hidden rounded-[var(--radius-card)] border transition-colors', bad ? 'border-danger bg-danger-bg/40' : 'border-subtle')}>
+                <div className="flex items-start gap-3 p-3.5">
+                  {p ? <ProductArt product={p} size={56} imageUrl={p.imageUrl} /> : <span className="grid size-14 shrink-0 place-items-center rounded-[var(--radius-control)] bg-sunken text-xs font-bold text-fg-2">Custom</span>}
+                  <div className="min-w-0 flex-1">
+                    <Input aria-label="Description" value={l.name} onChange={(e) => setLine(l.key, { name: e.target.value })} placeholder={p ? p.name : 'Describe the item'} className="h-9 border-transparent bg-sunken/70 font-semibold" />
+                    {p && <p className="mt-1 px-1 text-[13px] text-accent-text">{windowLabel}</p>}
+                  </div>
                   <button type="button" aria-label={`Remove ${l.name || 'line'}`} onClick={() => removeLine(l.key)} className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-fg-2 hover:bg-danger-bg hover:text-danger">
                     <Trash2 className="size-4" />
                   </button>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
-                  {p && (
-                    <div role="radiogroup" aria-label="Service mode" className="inline-flex gap-1 rounded-[calc(var(--radius-control)+2px)] bg-sunken p-1">
-                      {SERVICE_MODES.map((m) => {
-                        const on = l.serviceMode === m.value;
-                        const ok = modesWithPrice(m.value);
-                        return (
-                          <button key={m.value} type="button" role="radio" aria-checked={on} disabled={!ok && !on} title={ok ? undefined : `No ${m.label.toLowerCase()} price`}
-                            onClick={() => setLine(l.key, { serviceMode: m.value, price: canOverride ? l.price : '' })}
-                            className={cx('h-7 whitespace-nowrap rounded-[var(--radius-control)] px-2.5 text-xs font-semibold transition-colors disabled:opacity-35', on ? 'bg-surface text-fg shadow-[0_1px_3px_rgb(16_19_26/0.15)]' : 'text-fg-2 hover:text-fg')}>
-                            {m.label}
-                          </button>
-                        );
-                      })}
+                {p ? (
+                  <ProductLine l={l} p={p} q={q} d={d} set={set} setLine={setLine} canOverride={canOverride} money={money} surfaces={data.booking.surfaces} durations={durations} />
+                ) : (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-3.5 pb-3.5">
+                    <Qty l={l} setLine={setLine} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="whitespace-nowrap text-[13px] text-fg-2">Unit</span>
+                      <AffixInput aria-label="Unit price" prefix="$" mono inputMode="decimal" value={l.price} placeholder="0.00" onChange={(e) => setLine(l.key, { price: e.target.value })} className="w-28 text-right" />
                     </div>
-                  )}
-                  <div className="inline-flex h-9 items-stretch overflow-hidden rounded-[var(--radius-control)] border border-control bg-surface">
-                    <button type="button" aria-label="One fewer" disabled={l.quantity <= 1} onClick={() => setLine(l.key, { quantity: l.quantity - 1 })} className="grid w-9 place-items-center text-fg-2 hover:bg-sunken disabled:opacity-35"><Minus className="size-3.5" /></button>
-                    <span className="mono grid w-9 place-items-center text-sm font-semibold text-fg" aria-live="polite">{l.quantity}</span>
-                    <button type="button" aria-label="One more" onClick={() => setLine(l.key, { quantity: l.quantity + 1 })} className="grid w-9 place-items-center text-fg-2 hover:bg-sunken"><Plus className="size-3.5" /></button>
+                    <Checkbox checked={l.taxable} onChange={(x) => setLine(l.key, { taxable: x })}>Taxable</Checkbox>
+                    <span className="mono ml-auto text-[15px] font-bold text-fg">{money(q?.lineTotalCents ?? 0)}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="whitespace-nowrap text-[13px] text-fg-2">Unit $</span>
-                    {p && !canOverride ? (
-                      <span className="mono inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-control)] bg-sunken px-3 text-sm text-fg" title="Your role cannot change prices. Ask a manager.">
-                        {((q?.unitCents ?? 0) / 100).toFixed(2)} <Lock className="size-3 text-fg-3" aria-label="Price locked" />
-                      </span>
-                    ) : (
-                      <Input mono inputMode="decimal" aria-label="Unit price" value={l.price} placeholder={auto != null ? (auto / 100).toFixed(2) : '0.00'}
-                        onChange={(e) => setLine(l.key, { price: e.target.value })} className={cx('h-9 w-28 text-right', p && l.price && 'border-accent')} />
-                    )}
-                    {p && l.price && canOverride && (
-                      <button type="button" onClick={() => setLine(l.key, { price: '' })} className="rounded-md bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent-text">Auto</button>
-                    )}
-                  </div>
-                  <Checkbox checked={l.taxable} onChange={(x) => setLine(l.key, { taxable: x })}>Taxable</Checkbox>
-                  {p && (d.multiDay
-                    ? <span className="text-[12px] font-semibold text-fg-2" title="Multi-day rentals charge each item's package once, with no additional time">Package price · multi-day</span>
-                    : <span title="Charge the base package only, with no additional time"><Checkbox checked={l.flatRate} onChange={(x) => setLine(l.key, { flatRate: x })}>Flat rate</Checkbox></span>)}
-                  <span className="mono ml-auto text-[15px] font-bold text-fg">{money(q?.lineTotalCents ?? 0)}</span>
-                </div>
-                <p className="mono mt-2 text-[12px] text-fg-2">
-                  {q ? (p && l.price ? `Set by hand · auto ${money(q.autoUnitCents)} (${describeTrace(q.trace, money)})` : describeTrace(q.trace, money)) : ''}
-                </p>
-                {q?.warnings.map((w) => <p key={w} className="mt-1 text-[12px] font-medium text-warning-fg">{w}</p>)}
-                {short.get(l.key) && <p className="mt-1 text-[12px] font-semibold text-danger" role="alert">{short.get(l.key)}</p>}
-                {refused.has(l.key) && !short.get(l.key) && <p className="mt-1 text-[12px] font-semibold text-danger" role="alert">Not available for this time.</p>}
+                )}
+                {(q?.warnings.length || short.get(l.key) || refused.has(l.key)) ? <div className="px-3.5 pb-3">{warnings}</div> : null}
               </li>
             );
           })}
         </ul>
       )}
     </Section>
+  );
+}
+
+/**
+ * One product in the cart, as on the Odoo POS: duration and setup surface, the service
+ * options with their base packages, flat rate, then base package + additional time
+ * (hours × rate) = item total. The base and the rate are locked on the order.
+ */
+function ProductLine({
+  l, p, q, d, set, setLine, canOverride, money, surfaces, durations,
+}: {
+  l: DraftLine; p: BuilderProduct; q: QuotedLine | undefined; d: Draft; set: SetDraft; setLine: (key: string, patch: Partial<DraftLine>) => void;
+  canOverride: boolean; money: (c: number) => string; surfaces: BuilderData['booking']['surfaces']; durations: number[];
+}) {
+  const modeLabel = SERVICE_MODES.find((m) => m.value === l.serviceMode)?.label ?? 'Concierge';
+  const own = (m: ServiceMode) => p.branchPrices.find((b) => b.locationId === d.locationId && b.mode === m)?.priceCents;
+  const modePrice = (m: ServiceMode) => own(m) ?? (m === 'staffed' ? p.pricing.priceStaffedCents : m === 'pickup' ? p.pricing.pricePickupCents : p.pricing.priceDropoffCents) ?? 0;
+  const rate = extraRateOf(p.pricing);
+  const t = q?.trace;
+  const flat = l.flatRate || d.multiDay;
+  const extraHours = t && t.method !== 'flat' ? Math.max(0, t.hours - t.includedHours) : 0;
+  const locked = (value: string, fallback: string) => (
+    <span className="mono inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-control)] bg-sunken px-3 text-sm text-fg" title="Your role cannot change prices. Ask a manager.">
+      ${value || fallback} <Lock className="size-3 text-fg-3" aria-label="Price locked" />
+    </span>
+  );
+  return (
+    <div className="flex flex-col gap-4 px-3.5 pb-3.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Event duration" htmlFor={`ln-dur-${l.key}`} hint={d.multiDay ? 'Multi-day: set the dates under Event.' : 'The same for every item on this order.'}>
+          <Select id={`ln-dur-${l.key}`} value={String(d.durationMin)} disabled={d.multiDay} onChange={(e) => set({ durationMin: Number(e.target.value) })}>
+            {durations.map((m) => <option key={m} value={m}>{durationLabel(m)}</option>)}
+          </Select>
+        </Field>
+        <Field label="Setup surface" htmlFor={`ln-surf-${l.key}`}>
+          <Select id={`ln-surf-${l.key}`} value={l.setupSurface ?? d.setupSurface ?? ''} onChange={(e) => setLine(l.key, { setupSurface: e.target.value })}>
+            {surfaces.map((s) => <option key={s.code} value={s.code}>{s.label}{s.feeCents ? ` · +${money(s.feeCents)}` : ''}</option>)}
+          </Select>
+        </Field>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[13px] font-semibold text-fg">Choose service option</p>
+        <div role="radiogroup" aria-label="Service option" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {SERVICE_MODES.filter((m) => modePrice(m.value) > 0 || l.serviceMode === m.value).map((m) => {
+            const on = l.serviceMode === m.value;
+            return (
+              <button key={m.value} type="button" role="radio" aria-checked={on}
+                onClick={() => { if (!on) setLine(l.key, { serviceMode: m.value, ...lockedFor(p, m.value, d.locationId), price: canOverride ? l.price : '' }); }}
+                className={cx('press flex flex-col rounded-[var(--radius-card)] border px-3.5 py-2.5 text-left transition-colors', on ? 'border-accent bg-accent-soft/25 shadow-[0_0_0_1px_var(--accent)]' : 'border-subtle bg-surface hover:border-control')}>
+                <span className="text-[14px] font-semibold text-fg">{m.label}</span>
+                <span className="mono text-[12px] text-fg-2">{money(on && l.basePrice ? Math.round(num(l.basePrice) * 100) : modePrice(m.value))} base package</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {d.multiDay
+        ? <p className="text-[12px] font-semibold text-fg-2">Multi-day rental: each item&rsquo;s package is charged once, with no additional time.</p>
+        : <Checkbox checked={l.flatRate} onChange={(x) => setLine(l.key, { flatRate: x })}>Flat rate &mdash; charge {modeLabel} package only (no additional time)</Checkbox>}
+
+      <div className="divide-y divide-subtle overflow-hidden rounded-[var(--radius-card)] border border-subtle">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-3">
+          <div>
+            <p className="text-[14px] font-semibold text-fg">{modeLabel} base package</p>
+            <p className="text-[12px] text-fg-2">{flat ? 'Package only' : `Includes ${durationLabel(Math.round((t?.includedHours ?? p.pricing.baseHours ?? 1) * 60))}`}</p>
+          </div>
+          {canOverride
+            ? <AffixInput aria-label={`${modeLabel} base package price`} prefix="$" mono inputMode="decimal" value={l.basePrice} placeholder={(modePrice(l.serviceMode) / 100).toFixed(2)} onChange={(e) => setLine(l.key, { basePrice: e.target.value })} className="w-32 text-right" />
+            : locked(l.basePrice, (modePrice(l.serviceMode) / 100).toFixed(2))}
+        </div>
+        {!flat && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-3">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold text-fg">Additional time</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2">
+                <span className="mono">{rate.kind === 'hourly' ? `${extraHours.toFixed(2)} hours ×` : `${t?.units ?? 0} × ${rate.minutes} min ×`}</span>
+                {canOverride
+                  ? <AffixInput aria-label="Additional time rate" prefix="$" mono inputMode="decimal" value={l.extraRate} placeholder={(rate.cents / 100).toFixed(2)} onChange={(e) => setLine(l.key, { extraRate: e.target.value })} className="h-8 w-32 text-right" />
+                  : <span className="mono">${l.extraRate || (rate.cents / 100).toFixed(2)}</span>}
+                <span>{rate.kind === 'hourly' ? 'per hour' : `per ${rate.minutes} min`}</span>
+              </div>
+            </div>
+            <span className="mono inline-flex h-9 min-w-28 items-center justify-end rounded-[var(--radius-control)] bg-sunken px-3 text-sm text-fg">{money(t?.extraCents ?? 0)}</span>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-info-bg/50 px-3.5 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] font-semibold text-accent-text">Item total</span>
+            <Qty l={l} setLine={setLine} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            {canOverride
+              ? <AffixInput aria-label="Unit price" prefix="$" mono inputMode="decimal" value={l.price} placeholder={((q?.autoUnitCents ?? 0) / 100).toFixed(2)} onChange={(e) => setLine(l.key, { price: e.target.value })} className={cx('w-32 text-right', l.price && 'border-accent')} />
+              : <span className="mono inline-flex h-9 items-center rounded-[var(--radius-control)] bg-sunken px-3 text-sm text-fg">{money(q?.unitCents ?? 0)}</span>}
+            {l.price && canOverride && <button type="button" onClick={() => setLine(l.key, { price: '' })} className="rounded-md bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent-text">Auto</button>}
+            {l.quantity > 1 && <span className="mono ml-2 text-[15px] font-bold text-fg">= {money(q?.lineTotalCents ?? 0)}</span>}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Checkbox checked={l.taxable} onChange={(x) => setLine(l.key, { taxable: x })}>Taxable</Checkbox>
+        {l.price && q && <span className="mono text-[12px] text-fg-2">Set by hand · auto {money(q.autoUnitCents)}</span>}
+      </div>
+      <p className="text-[11.5px] text-fg-3">The {modeLabel.toLowerCase()} base and the additional-time rate are locked on this order (not the product&rsquo;s current price). Changing hours recalculates additional time like a new booking.</p>
+    </div>
+  );
+}
+
+function Qty({ l, setLine }: { l: DraftLine; setLine: (key: string, patch: Partial<DraftLine>) => void }) {
+  return (
+    <div className="inline-flex h-9 items-stretch overflow-hidden rounded-[var(--radius-control)] border border-control bg-surface">
+      <button type="button" aria-label="One fewer" disabled={l.quantity <= 1} onClick={() => setLine(l.key, { quantity: l.quantity - 1 })} className="grid w-9 place-items-center text-fg-2 hover:bg-sunken disabled:opacity-35"><Minus className="size-3.5" /></button>
+      <span className="mono grid w-9 place-items-center text-sm font-semibold text-fg" aria-live="polite">{l.quantity}</span>
+      <button type="button" aria-label="One more" onClick={() => setLine(l.key, { quantity: l.quantity + 1 })} className="grid w-9 place-items-center text-fg-2 hover:bg-sunken"><Plus className="size-3.5" /></button>
+    </div>
   );
 }
 

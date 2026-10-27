@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { billableHours, depositDue, linePrice, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
+import { billableHours, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
 
 const product = (o: Partial<ProductPricing> = {}): ProductPricing => ({
   priceStaffedCents: 29900, pricePickupCents: 19900, priceDropoffCents: 24900,
@@ -44,6 +44,14 @@ describe('line price (Odoo _package_duration_price)', () => {
     expect(linePrice(product(), 'staffed', 6, { flatRate: true }).unitCents).toBe(29900);
     const o = linePrice(product(), 'staffed', 2, { overrideUnitCents: 25000 });
     expect(o).toMatchObject({ unitCents: 25000, autoUnitCents: 39900, overridden: true });
+  });
+  it('base and rate locked on the order line (Odoo cart: $25 incl. 1 h + 8.00 h × $15 = $145)', () => {
+    const bowSet = product({ priceStaffedCents: 3000, baseHours: 1, hourlyRateCents: 2000 });
+    const locked = lockedPricing(bowSet, 'staffed', 2500, 1500);
+    expect(linePrice(locked, 'staffed', 9)).toMatchObject({ unitCents: 14500, trace: { baseCents: 2500, extraCents: 12000, includedHours: 1 } });
+    // Only the line's mode is locked; a block-priced product locks its block price.
+    expect(lockedPricing(bowSet, 'dropoff', 9900, null)).toMatchObject({ priceDropoffCents: 9900, priceStaffedCents: 3000, hourlyRateCents: 2000 });
+    expect(extraRateOf(lockedPricing(product(), 'staffed', null, 3000))).toEqual({ kind: 'blocks', cents: 3000, minutes: 15 });
   });
 });
 

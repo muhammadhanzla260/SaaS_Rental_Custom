@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
-  cancelSchema, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
+  basePackageCents, cancelSchema, extraRateOf, lockedPricing, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
   type BookingInput, type CancelInput, type CancelOutcome, type DocumentKind, type RescheduleInput, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
@@ -150,7 +150,8 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
       return {
         productId: p.id,
         name: l.name || p.name,
-        pricing: pricingOf(p, branchPrices, input.locationId),
+        // The line's locked base and rate win over the product's current price (Odoo: locked on the order).
+        pricing: lockedPricing(pricingOf(p, branchPrices, input.locationId), l.serviceMode, l.basePrice == null ? null : toCents(l.basePrice), l.extraRate == null ? null : toCents(l.extraRate)),
         minHours: p.minHours,
         serviceMode: l.serviceMode,
         quantity: l.quantity,
@@ -278,6 +279,9 @@ async function writeLines(tx: Tx, tenantId: string, orderId: string, input: Orde
         autoUnitCents: l.autoUnitCents,
         priceOverridden: l.overridden,
         flatRate: l.flatRate,
+        // What this order was priced with stays with it, even if the product's price changes later.
+        baseCents: l.pricing ? basePackageCents(l.pricing, l.serviceMode) : null,
+        extraRateCents: l.pricing ? extraRateOf(l.pricing).cents : null,
         setupSurface: l.productId ? (input.lines[i]?.setupSurface ?? input.setupSurface ?? null) : null,
         setupSurfaceFeeCents: l.setupSurfaceFeeCents,
         lineTotalCents: l.lineTotalCents,
@@ -876,6 +880,7 @@ export function orderInputFrom(
     lines: lines.map((l) => ({
       productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
       flatRate: l.flatRate, overridePrice: !l.productId || l.priceOverridden ? dollars(l.unitCents) : null, taxable: l.taxable, setupSurface: l.setupSurface,
+      basePrice: l.productId && l.baseCents != null ? dollars(l.baseCents) : null, extraRate: l.productId && l.extraRateCents != null ? dollars(l.extraRateCents) : null,
     })),
     damageWaiver: o.damageWaiver,
     damageWaiverPercent: Number(o.damageWaiverPercent),

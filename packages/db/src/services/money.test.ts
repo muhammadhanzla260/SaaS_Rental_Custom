@@ -81,7 +81,7 @@ describe('invoices', () => {
     const o = await createOrder(db, tenantId, actor, input(day(31)), prefs);
     const { order: booked } = await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'cash', amount: 185.43 } });
     const full = await getOrder(db, tenantId, o.id);
-    const bigger = orderInputFrom(full!, full!.lines, [], { lines: [...input(day(31)).lines, { productId: popcornId, quantity: 1, serviceMode: 'staffed', flatRate: false, overridePrice: null, taxable: true }] });
+    const bigger = orderInputFrom(full!, full!.lines, [], { lines: [...input(day(31)).lines, { productId: popcornId, quantity: 1, serviceMode: 'staffed', flatRate: false, overridePrice: null, basePrice: null, extraRate: null, taxable: true }] });
     const saved = await updateOrder(db, tenantId, actor, o.id, bigger, prefs, booked.version);
     const inv = await invoicesOf(o.id);
     expect(inv[0]).toMatchObject({ kind: 'deposit', amount: 18543 }); // a paid deposit stays as issued

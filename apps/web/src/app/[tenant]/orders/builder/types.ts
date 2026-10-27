@@ -39,7 +39,7 @@ export type BuilderOrder = {
   taxPercent: number; taxOverridden: boolean; depositKind: 'percent' | 'amount' | 'none'; depositValue: number;
   internalNotes: string; customerNotes: string; totalCents: number; depositDueCents: number; paidCents: number; creditCents: number;
   unpaidReason: string | null; expectedPaymentOn: string | null; followUpNotes: string | null; cancelReason: string | null; bookedAt: string | null;
-  lines: { productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null }[];
+  lines: { productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null; baseCents: number | null; extraRateCents: number | null }[];
   credits: { creditId: string; amountCents: number }[];
   payments: { id: string; number: string; method: string; amountCents: number; tipCents: number; reference: string | null; receivedAt: string; status: string; cardLast4: string | null }[];
   invoices: { id: string; number: string; kind: string; amountCents: number; paidCents: number; status: string; dueOn: string | null; autoCharge: boolean }[];
@@ -76,6 +76,8 @@ export type BuilderData = {
 export type DraftLine = {
   key: string; productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean;
   price: string; setupSurface: string | null;
+  /** Locked on the order (Odoo): the mode's base package and the additional-time rate, in dollars. '' = the product's price. */
+  basePrice: string; extraRate: string;
 };
 
 export type DepositRule = '30' | '50' | 'full' | 'none' | 'custom';
