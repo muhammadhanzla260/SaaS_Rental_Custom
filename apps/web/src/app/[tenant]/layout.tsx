@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { can, ROLE_LABELS, themeCss, type Corners } from '@rental/core';
 import { listUserTenants } from '@rental/db';
 import { AppShell } from '@/components/shell/app-shell';
+import { LiveRefresh } from '@/components/shell/live-refresh';
 import { ORG_NAV, type NavGroup } from '@/components/shell/nav';
 import { TenantCard } from '@/components/shell/tenant-card';
 import { TenantThemeDefault } from '@/components/theme';
@@ -56,6 +57,7 @@ export default async function TenantLayout({ children, params }: { children: Rea
         user={{ name: ctx.user.name, email: ctx.user.email, image: ctx.user.image }}
         jumps={orgs.filter((o) => o.slug !== slug).map((o) => ({ label: `Switch to ${o.name}`, href: `/${o.slug}`, hint: 'Organization' }))}
       >
+        <LiveRefresh slug={slug} />
         {ctx.impersonation && (
           <div role="status" className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-danger px-4 py-2 text-center text-[13px] font-semibold text-white">
             <span>Support session · read-only · every action is audited. Reason: {ctx.impersonation.reason}</span>

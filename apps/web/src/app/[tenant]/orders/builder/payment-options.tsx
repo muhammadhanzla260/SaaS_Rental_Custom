@@ -7,9 +7,11 @@ import { useEffect, useState } from 'react';
 import { MANUAL_METHODS, UNPAID_REASONS } from '@rental/core';
 import { ProductArt } from '@/components/catalog/product-art';
 import { Button, Checkbox, cx, Field, Input, LinkButton, Modal, Notice, Select, Spinner, Textarea } from '@/components/kit';
+import { announceMoney } from '@/lib/money-sync';
 import {
   collectTipAction, recordPaymentAction, savedCardChargeAction, staffCardFinishAction, staffCardStartAction,
 } from '@/server/actions/commerce';
+import { orderMoneyAction } from '@/server/actions/order-money';
 
 export type BookChoice = (
   | { method: 'manual'; payMethod: string; amount: string; tip: string; reference: string; receipt: boolean }
@@ -101,13 +103,18 @@ export function PaymentOptionsModal(p: Props) {
   );
 }
 
-function Body({
-  onClose, booked, initialTab = 'pay', slug, number, money, depositCents, totalCents, paidCents, tipBaseCents, policies, signedOnline,
-  bufferLabel, calendarHref, canRecordPayment, cards, customerEmail, country, summary, invoiceCount, prepare, onBookOffline, onSendQuote, onResend, onChanged, setLocked,
-}: Props & { setLocked: (x: boolean) => void }) {
+function Body(props: Props & { setLocked: (x: boolean) => void }) {
+  const {
+    onClose, initialTab = 'pay', slug, orderId, number, money, depositCents, totalCents, tipBaseCents, policies, signedOnline,
+    bufferLabel, calendarHref, canRecordPayment, cards, customerEmail, country, summary, prepare, onBookOffline, onSendQuote, onResend, onChanged, setLocked,
+  } = props;
+  // What is paid, booked and invoiced, re-read from the server after every payment so this
+  // window never shows a deposit as due once it is paid (the order screen reloads on close).
+  const [live, setLive] = useState({ booked: props.booked, paidCents: props.paidCents, invoiceCount: props.invoiceCount, totalCents });
+  const { booked, paidCents, invoiceCount } = live;
   const stripe = useStripe();
   const elements = useElements();
-  const dueCents = Math.max(0, totalCents - paidCents);
+  const dueCents = Math.max(0, live.totalCents - paidCents);
   const startPlan: Plan = booked ? 'full' : depositCents > 0 ? 'deposit' : 'full';
   const [tab, setTab] = useState<PayTab>(initialTab);
   const [method, setMethod] = useState<string>(cards.available && canRecordPayment ? 'card' : 'check');
@@ -197,6 +204,20 @@ function Body({
     setErrs(e);
     return Object.keys(e).length === 0;
   }
+
+  // Once money moved: fetch the order as stored, and tell the workspace's other open pages.
+  const settled = phase.kind === 'done';
+  useEffect(() => {
+    if (!settled || !orderId) return;
+    let stale = false;
+    orderMoneyAction(slug, orderId).then((r) => {
+      if (stale || !r.ok) return;
+      const m = r.data!;
+      setLive({ booked: m.status === 'booked' || m.status === 'completed', paidCents: m.paidCents, invoiceCount: m.invoiceCount, totalCents: m.totalCents });
+    });
+    announceMoney(slug, orderId);
+    return () => { stale = true; };
+  }, [settled, orderId, slug]);
 
   function finished(title: string, text: string, didBook: boolean) {
     onChanged();

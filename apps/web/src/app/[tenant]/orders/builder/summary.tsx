@@ -155,6 +155,20 @@ export function SummaryPanel({
           </div>
         )}
 
+        {paidCents > 0 && paidCents >= Math.min(s.depositCents, due) ? (
+          // The deposit is in: show what was paid and what is left, never "Deposit to book" again.
+          <div className="mt-4 rounded-[14px] border border-[#3DD39A]/40 bg-[#3DD39A]/[0.07] p-3.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[14px] font-semibold text-[#3DD39A]">{paidCents >= due ? 'Paid in full' : 'Deposit paid'}</span>
+              <span className="mono text-[20px] font-bold text-[#3DD39A]">{money(paidCents)}</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between text-[13px]">
+              <span className="text-white/65">{paidCents >= due ? 'Nothing left to pay' : 'Balance due'}</span>
+              <span className="mono text-white">{money(Math.max(0, due - paidCents))}</span>
+            </div>
+            {paidCents > due && <p className="mt-1 text-[12px] text-white/65">Overpaid by {money(paidCents - due)}.</p>}
+          </div>
+        ) : (
         <div className="mt-4 rounded-[14px] border border-volt/40 bg-volt/[0.06] p-3.5">
           <div className="flex items-baseline justify-between">
             <span className="text-[14px] font-semibold text-volt">Deposit to book</span>
@@ -181,7 +195,7 @@ export function SummaryPanel({
           )}
           <div className="mt-3 flex items-baseline justify-between text-[13px]">
             <span className="text-white/65">Balance due on event day</span>
-            <span className="mono text-white">{money(Math.max(0, due - s.depositCents))}</span>
+            <span className="mono text-white">{money(Math.max(0, due - Math.max(s.depositCents, paidCents)))}</span>
           </div>
           {paidCents > 0 && (
             <div className="mt-1 flex items-baseline justify-between text-[13px]">
@@ -190,6 +204,7 @@ export function SummaryPanel({
             </div>
           )}
         </div>
+        )}
       </fieldset>
     </section>
   );

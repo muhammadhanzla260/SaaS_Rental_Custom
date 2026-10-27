@@ -98,11 +98,19 @@ try {
   await click('Record Credit Card Payment', 'dialog[open] button');
   await waitDialog(/Booked and charged VISA •4242/);
   check(true, 'the card is charged and the order booked in one step');
+  // The window re-reads the order: the deposit is paid, the invoices exist, the balance is what is left.
+  await waitDialog(/Paid\s*\$[\d,.]+/, 15000);
+  const after = await dialogText();
+  check(!after.includes('Deposit Due') && !after.includes('No customer invoices'), 'after the deposit, the window shows Paid and the invoices (no "Deposit Due")');
+  const owed = after.match(/Outstanding balance:\s*\$([\d,]+\.\d{2})/)?.[1];
+  const left = after.match(/Balance Due\s*\$([\d,]+\.\d{2})/)?.[1];
+  check(!!owed && owed === left, `the outstanding banner and Balance Due agree ($${owed} = $${left})`);
   await shot('03-booked-by-card');
   await click('Keep editing', 'dialog[open] button');
   await page.waitForNavigation({ waitUntil: 'networkidle2' }).catch(() => {});
   await page.waitForFunction(() => document.body.innerText.includes('Card •4242'), { timeout: 20000 });
   check(await has('Booked'), 'the order shows Booked with the card payment in its history');
+  check(await has('Deposit paid') && !(await has('Deposit to book')), 'the order summary shows Deposit paid and the balance, not Deposit to book');
 
   // --- Collect Tip on the saved card ---------------------------------------------------------------
   await click('Collect tip');
