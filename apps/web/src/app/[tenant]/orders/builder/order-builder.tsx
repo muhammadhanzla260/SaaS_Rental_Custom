@@ -12,6 +12,7 @@ import {
   transitionOrderAction, travelForOrderAction, usableCreditsAction, validateCouponAction,
 } from '@/server/actions/commerce';
 import { emailInvoiceAction } from '@/server/actions/money';
+import { orderMoneyAction } from '@/server/actions/order-money';
 import { addMinutes, initialDraft, locationOf, lockedFor, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
 import { OrderHistory } from './history';
 import { CancelOrderModal, RainCheckModal } from './cancel-modals';
@@ -253,7 +254,46 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     else router.refresh();
   }
 
+  // --- changes made elsewhere (the customer on the quote page, another staff member) ---
+  const [stale, setStale] = useState<{ version: number; change: string } | null>(null);
+  /** Is the stored order newer than this screen? Then its totals here are out of date. */
+  const checkFresh = useCallback(async () => {
+    if (!meta.id) return null;
+    const r = await orderMoneyAction(data.slug, meta.id);
+    if (!r.ok || r.data!.version <= meta.version) return null;
+    const s = { version: r.data!.version, change: r.data!.change ?? 'The order was changed' };
+    setStale(s);
+    return s;
+  }, [data.slug, meta.id, meta.version]);
+  /** No unsaved edits here: show the current version at once. Otherwise the banner offers a reload. */
+  const followChange = useCallback((s: { change: string }) => {
+    if (dirty) return;
+    toast(`Updated: ${s.change}.`);
+    router.refresh();
+  }, [dirty, router, toast]);
+  useEffect(() => {
+    if (!meta.id) return;
+    const look = async () => {
+      if (document.visibilityState !== 'visible' || options !== null) return;
+      const s = await checkFresh();
+      if (s) followChange(s);
+    };
+    const tick = setInterval(look, 15_000);
+    window.addEventListener('focus', look);
+    return () => { clearInterval(tick); window.removeEventListener('focus', look); };
+  }, [meta.id, options, checkFresh, followChange]);
+  /** Payment Options opens only on the current version, so nobody is charged an old total. */
+  async function openOptions(tab: PayTab) {
+    setError(null);
+    const s = await checkFresh();
+    if (s) return followChange(s);
+    setOptions(tab);
+  }
+  const staleError = (s: { change: string }) => `This order changed since you opened it (${s.change}). Reload to see the current total before taking payment.`;
+
   async function confirmBooking(c: BookChoice): Promise<{ ok: true; number: string } | { ok: false; error: string }> {
+    const fresh = await checkFresh();
+    if (fresh) return { ok: false, error: staleError(fresh) };
     const wasNew = !meta.id;
     const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
     if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
@@ -272,6 +312,8 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   }
   /** Payment Options saves the order first (a new or changed order), then works on it by id. */
   async function prepareOrder(): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+    const fresh = await checkFresh();
+    if (fresh) return { ok: false, error: staleError(fresh) };
     const wasNew = !meta.id;
     const r = dirty || !meta.id ? await persist() : { id: meta.id!, version: meta.version, number: meta.number, overpaidCents: 0 };
     if (!r) return { ok: false, error: error ?? 'Fix the order and try again.' };
@@ -351,7 +393,6 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
       ...(s.setupSurfaceCents ? [{ label: 'Setup Surface', cents: s.setupSurfaceCents }] : []),
       ...(s.eventLocationCents ? [{ label: 'Event Location Fee', cents: s.eventLocationCents }] : []),
       ...(s.miscFeesCents ? [{ label: 'Other Fees', cents: s.miscFeesCents }] : []),
-      ...(s.extrasCents ? [{ label: 'Extras', cents: s.extrasCents }] : []),
       { label: 'Travel Fee', cents: s.travelFeeCents },
       ...(s.preTaxDiscountCents ? [{ label: `Discount${d.discountKind === 'percent' ? ` (${(parseFloat(d.discountValue) || 0).toFixed(2)}%)` : ''}`, cents: s.preTaxDiscountCents, minus: true }] : []),
       ...(s.couponCents ? [{ label: `Coupon${d.coupon ? ` ${d.coupon.code}` : ''}`, cents: s.couponCents, minus: true }] : []),
@@ -371,7 +412,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             <Button variant="secondary" size="lg" onClick={save} pending={busy === 'save'} disabled={!!meta.id && !dirty}>{meta.id && !dirty ? 'Saved' : 'Save draft'}</Button>
             <Button variant="secondary" size="lg" onClick={sendQuote} pending={busy === 'quote'} disabled={d.lines.length === 0}>{status === 'quote_sent' ? 'Resend quote' : 'Send quote'}</Button>
           </div>
-          <Button size="lg" className="w-full text-[15px]" disabled={bookBlocked} onClick={() => { setError(null); setOptions('pay'); }}>Payment options · book →</Button>
+          <Button size="lg" className="w-full text-[15px]" disabled={bookBlocked} onClick={() => openOptions('pay')}>Payment options · book →</Button>
           {d.lines.length > 0 && missing.length > 0 ? (
             <div role="status" className="rounded-[var(--radius-card)] border border-warning-mark/40 bg-warning-bg p-3 text-[13px] text-warning-fg">
               <p className="font-semibold">Still required to book:</p>
@@ -397,10 +438,10 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
           </div>
           {data.perms.recordPayment && (
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="secondary" disabled={dirty || balance <= 0} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setOptions('pay')}>
+              <Button variant="secondary" disabled={dirty || balance <= 0} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => openOptions('pay')}>
                 {balance > 0 ? `Record payment · ${money(balance)}` : 'Paid in full'}
               </Button>
-              <Button variant="secondary" disabled={dirty} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => setOptions('tip')}>Collect tip</Button>
+              <Button variant="secondary" disabled={dirty} title={dirty ? 'Save or discard your changes first' : undefined} onClick={() => openOptions('tip')}>Collect tip</Button>
             </div>
           )}
           <p className="text-center text-[12px] text-fg-2">Booked orders stay fully editable. Each save re-checks availability, re-prices the order and is recorded in the history.</p>
@@ -432,6 +473,14 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         }
       />
       <PageBody wide className="pb-32 lg:pb-16">
+        {stale && (
+          <Notice kind="warning" className="mb-4">
+            <span className="flex flex-wrap items-center justify-between gap-3">
+              <span>This order was changed since you opened it: <span className="font-semibold">{stale.change}</span>. The totals here are out of date; your unsaved edits would be lost on reload.</span>
+              <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>Reload the order</Button>
+            </span>
+          </Notice>
+        )}
         {cancelled && <Notice kind="danger" className="mb-4">Cancelled{data.order?.cancelReason ? `: ${data.order.cancelReason}` : ''}. Reopen it to make changes.</Notice>}
         {booked && data.order?.unpaidReason && meta.paidCents === 0 && (
           <Notice kind="warning" className="mb-4">Booked without payment · {data.order.unpaidReason}{data.order.expectedPaymentOn ? ` · expected ${data.order.expectedPaymentOn}` : ''}{data.order.followUpNotes ? ` · ${data.order.followUpNotes}` : ''}</Notice>
@@ -480,7 +529,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
             ) : (
               <>
                 <Button variant="ghost" className="text-white hover:bg-white/10" onClick={save} pending={busy === 'save'} disabled={!!meta.id && !dirty}>Save</Button>
-                <Button variant="volt" disabled={bookBlocked} onClick={() => { setError(null); setOptions('pay'); }}>Book</Button>
+                <Button variant="volt" disabled={bookBlocked} onClick={() => openOptions('pay')}>Book</Button>
               </>
             )}
           </div>
