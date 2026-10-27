@@ -77,6 +77,15 @@ describe('invoices', () => {
     expect(pays.map((p) => p.number)).toEqual([o.number, o.number]);
   });
 
+  it('a tip on the final payment is on top: the invoice is paid in full, the tip stays with the payment', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(29)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'check', amount: 185.43 } });
+    const r = await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: 432.68, tip: 15 });
+    expect(r.payment).toMatchObject({ amountCents: 43268, tipCents: 1500 });
+    expect(r.order.paidCents).toBe(61811);
+    expect(await invoicesOf(o.id)).toMatchObject([{ amount: 61811, paid: 61811, status: 'paid' }]);
+  });
+
   it('edits after the deposit change what is due, both ways ($300 paid stays the deposit; the rest is balance)', async () => {
     const o = await createOrder(db, tenantId, actor, input(day(31)), prefs);
     const { order: booked } = await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'cash', amount: 185.43 } });

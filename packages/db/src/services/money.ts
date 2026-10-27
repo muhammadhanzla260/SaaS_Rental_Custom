@@ -42,13 +42,13 @@ export async function syncInvoices(tx: Tx, tenantId: string, orderId: string) {
   const [inv] = await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId))).limit(1);
   const all = () => tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId)));
 
-  // What the customer paid toward the order (tips are on top and never billed).
+  // What the customer paid toward the order. orders.paid_cents already leaves tips out (a tip is on
+  // top of the payment and goes to the party coach), so nothing more is taken off here.
   const pays = await tx
-    .select({ amountCents: payments.amountCents, tipCents: payments.tipCents, status: payments.status, receivedAt: payments.receivedAt })
+    .select({ amountCents: payments.amountCents, status: payments.status, receivedAt: payments.receivedAt })
     .from(payments)
     .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId)));
-  const tips = pays.filter((p) => p.status === 'received').reduce((s, p) => s + p.tipCents, 0);
-  const paidIn = Math.max(0, o.paidCents - tips);
+  const paidIn = Math.max(0, o.paidCents);
   const booked = o.status === 'booked' || o.status === 'completed';
 
   if (!booked) {
