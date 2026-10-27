@@ -223,7 +223,7 @@ function Schedule({ slug, doc, canRecord }: { slug: string; doc: InvoiceDocData;
         {doc.schedule.map((s) => {
           const paid = s.status === 'paid';
           const over = s.status === 'overdue';
-          const canAuto = (s.kind === 'balance' || s.kind === 'full') && !paid;
+          const canAuto = s.kind === 'balance' && !paid;
           return (
             <li key={s.id} className={cx('flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] bg-sunken/60 p-4', s.selected && 'ring-1 ring-accent/40')}>
               <span className={cx('grid size-10 shrink-0 place-items-center rounded-full', paid ? 'bg-success-bg text-success-fg' : over ? 'bg-danger-bg text-danger' : 'bg-accent-soft text-accent-text')}>
@@ -238,7 +238,7 @@ function Schedule({ slug, doc, canRecord }: { slug: string; doc: InvoiceDocData;
                   {busy === s.id && <Spinner className="size-4 text-fg-2" />}
                   <Toggle checked={s.autoCharge} label="Auto-charge" disabled={busy === s.id} onChange={async (on) => {
                     setBusy(s.id);
-                    const r = await setAutoChargeAction(slug, s.id, on);
+                    const r = await setAutoChargeAction(slug, s.invoiceId, on);
                     setBusy(null);
                     toast(r.ok ? r.message ?? 'Saved.' : r.error, r.ok ? 'ok' : 'error');
                     if (r.ok) router.refresh();
@@ -249,6 +249,19 @@ function Schedule({ slug, doc, canRecord }: { slug: string; doc: InvoiceDocData;
           );
         })}
       </ul>
+      {doc.receipts.length > 0 && (
+        <div className="mt-5 border-t border-subtle pt-4">
+          <h3 className="text-[13px] font-semibold text-fg">Receipts · <span className="mono">{doc.orderNumber}</span></h3>
+          <ul className="mt-2 flex flex-col gap-1.5 text-[13px]">
+            {doc.receipts.map((r) => (
+              <li key={r.id} className="flex flex-wrap justify-between gap-x-4">
+                <span className="text-fg-2">{r.date} · {r.method}</span>
+                <span className="mono text-fg">{r.amount}{r.tip ? ` + ${r.tip} tip` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {doc.schedule.some((s) => s.autoCharge && s.status !== 'paid') && !doc.card && (
         <p className="mt-3 text-[13px] text-fg-2">No card on file yet. The customer saves one when paying the deposit on the quote page.</p>
       )}

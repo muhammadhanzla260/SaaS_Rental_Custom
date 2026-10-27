@@ -1,11 +1,10 @@
 import { and, asc, desc, eq, gte, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
-import { addDays, parsePreferences, resolveAgreement, utcToWallTime, type SignInput, type TenantPreferences } from '@rental/core';
+import { addDays, depositStep, parsePreferences, resolveAgreement, utcToWallTime, type SignInput, type TenantPreferences } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
 import { customers, invoices, locations, orders, paymentMethods, payments, signatures, tenants } from '../schema';
 import { audit, type Actor } from './audit';
 import { OrgError } from './errors';
 import { enqueueOrderMessage, enqueuePaymentConfirmation } from './messaging';
-import { nextDocumentNumber } from './orders';
 
 export type Invoice = typeof invoices.$inferSelect;
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
@@ -23,10 +22,13 @@ export const billingOrder = sql`case ${invoices.kind} when 'deposit' then 0 when
 const localToday = (tz: string) => utcToWallTime(new Date(), tz).date;
 
 /**
- * Bring an order's invoices in line with the order (idempotent; run after any
- * change). Booked orders get a deposit invoice (if any deposit) and a balance
- * invoice due on the event day — or one full invoice when there is no deposit.
- * Payments are applied oldest invoice first. Cancelled orders void what is unpaid.
+ * Bring the order's one invoice in line with the order (idempotent; run after any
+ * change). The invoice is numbered like the order and always bills its current
+ * total, so adding or removing items after the deposit changes what is due. Its
+ * payment schedule is the deposit (due the day it is booked) and the balance (due
+ * on the event day, auto-charged when a card is saved); due_on is the next step
+ * not yet paid. A cancelled order keeps only what was paid; nothing is owed on a
+ * draft or a quote.
  */
 export async function syncInvoices(tx: Tx, tenantId: string, orderId: string) {
   const [row] = await tx
@@ -37,71 +39,58 @@ export async function syncInvoices(tx: Tx, tenantId: string, orderId: string) {
     .limit(1);
   if (!row) return [];
   const { order: o, tz } = row;
-  const existing = await tx
-    .select()
-    .from(invoices)
-    .where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId), ne(invoices.kind, 'tip')))
-    .orderBy(billingOrder, asc(invoices.createdAt));
-  const live = existing.filter((i) => i.status !== 'void');
+  const [inv] = await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId))).limit(1);
+  const all = () => tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId)));
 
-  if (o.status === 'cancelled' || o.status === 'draft' || o.status === 'quote_sent') {
-    // Nothing is owed on an order that is not booked: void whatever has not been paid.
-    for (const i of live.filter((x) => x.paidCents === 0)) {
-      await tx.update(invoices).set({ status: 'void' }).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, i.id)));
-    }
-    return tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId)));
-  }
-
-  const prefs = await prefsOf(tx, tenantId);
-  const eventDay = utcToWallTime(o.eventStartsAt, tz).date;
-  const bookedDay = o.bookedAt ? utcToWallTime(o.bookedAt, tz).date : localToday(tz);
-  const [card] = await tx
-    .select({ id: paymentMethods.id })
-    .from(paymentMethods)
-    .where(and(eq(paymentMethods.tenantId, tenantId), eq(paymentMethods.customerId, o.customerId), isNull(paymentMethods.removedAt)))
-    .limit(1);
-  const make = async (kind: 'deposit' | 'balance' | 'full', amountCents: number, dueOn: string) => {
-    const number = await nextDocumentNumber(tx, 'invoice', prefs, o.locationId);
-    const [inv] = await tx
-      .insert(invoices)
-      .values({ tenantId, orderId, number, kind, amountCents, dueOn, autoCharge: kind !== 'deposit' && !!card })
-      .returning();
-    return inv!;
-  };
-
-  let deposit = live.find((i) => i.kind === 'deposit');
-  let rest = live.find((i) => i.kind === 'balance' || i.kind === 'full');
-  if (!deposit && !rest && o.depositDueCents > 0) deposit = await make('deposit', o.depositDueCents, bookedDay);
-  // An unpaid deposit follows the order's deposit; once anything is paid on it, it stays as issued.
-  if (deposit && deposit.paidCents === 0 && deposit.amountCents !== o.depositDueCents && o.depositDueCents > 0) {
-    [deposit] = await tx.update(invoices).set({ amountCents: o.depositDueCents }).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, deposit.id))).returning();
-  }
-  const restAmount = Math.max(0, o.totalCents - (deposit?.amountCents ?? 0));
-  if (!rest) rest = await make(deposit ? 'balance' : 'full', restAmount, eventDay);
-  else if (rest.amountCents !== restAmount || rest.dueOn !== eventDay) {
-    [rest] = await tx.update(invoices).set({ amountCents: restAmount, dueOn: eventDay }).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, rest.id))).returning();
-  }
-
-  // Apply what the customer paid (tips excluded), oldest invoice first.
-  const [{ tips } = { tips: 0 }] = await tx
-    .select({ tips: sql<number>`coalesce(sum(${payments.tipCents}), 0)::int` })
+  // What the customer paid toward the order (tips are on top and never billed).
+  const pays = await tx
+    .select({ amountCents: payments.amountCents, tipCents: payments.tipCents, status: payments.status, receivedAt: payments.receivedAt })
     .from(payments)
-    .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received')));
-  let left = Math.max(0, o.paidCents - tips);
-  const today = localToday(tz);
-  for (const inv of [deposit, rest].filter(Boolean) as Invoice[]) {
-    const paid = Math.min(inv.amountCents, left);
-    left -= paid;
-    const settled = paid >= inv.amountCents;
-    const status = settled ? 'paid' : inv.dueOn < today || inv.lastChargeError ? 'overdue' : 'open';
-    if (paid !== inv.paidCents || status !== inv.status) {
-      await tx
-        .update(invoices)
-        .set({ paidCents: paid, status, paidAt: settled ? (inv.paidAt ?? new Date()) : null, ...(settled ? { lastChargeError: null } : {}) })
-        .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, inv.id)));
+    .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId)));
+  const tips = pays.filter((p) => p.status === 'received').reduce((s, p) => s + p.tipCents, 0);
+  const paidIn = Math.max(0, o.paidCents - tips);
+  const booked = o.status === 'booked' || o.status === 'completed';
+
+  if (!booked) {
+    if (!inv) return [];
+    // Cancelled with money in: the invoice shows what was paid and nothing more is due. Otherwise it is void.
+    const keep = o.status === 'cancelled' && paidIn > 0;
+    const set = keep ? { amountCents: paidIn, paidCents: paidIn, status: 'paid' as const, paidAt: inv.paidAt ?? new Date() } : { status: 'void' as const };
+    if (keep ? inv.amountCents !== paidIn || inv.status !== 'paid' : inv.status !== 'void' && inv.paidCents === 0) {
+      await tx.update(invoices).set(set).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, inv.id)));
     }
+    return all();
   }
-  return tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId))).orderBy(billingOrder, asc(invoices.createdAt));
+
+  const today = localToday(tz);
+  const eventDay = utcToWallTime(o.eventStartsAt, tz).date;
+  const bookedDay = o.bookedAt ? utcToWallTime(o.bookedAt, tz).date : today;
+  const amount = o.totalCents;
+  const paid = Math.min(amount, paidIn);
+  const deposit = depositStep(o, pays);
+  const dueOn = paid < deposit ? bookedDay : eventDay;
+  const settled = paid >= amount;
+  const status = settled ? 'paid' : dueOn < today || inv?.lastChargeError ? 'overdue' : 'open';
+  if (!inv) {
+    const [card] = await tx
+      .select({ id: paymentMethods.id })
+      .from(paymentMethods)
+      .where(and(eq(paymentMethods.tenantId, tenantId), eq(paymentMethods.customerId, o.customerId), isNull(paymentMethods.removedAt)))
+      .limit(1);
+    await tx.insert(invoices).values({
+      tenantId, orderId, number: o.number, kind: 'full', amountCents: amount, paidCents: paid, dueOn, status, autoCharge: !!card, paidAt: settled ? new Date() : null,
+    });
+  } else if (inv.number !== o.number || inv.amountCents !== amount || inv.paidCents !== paid || inv.dueOn !== dueOn || inv.status !== status) {
+    await tx
+      .update(invoices)
+      .set({ number: o.number, kind: 'full', amountCents: amount, paidCents: paid, dueOn, status, paidAt: settled ? (inv.paidAt ?? new Date()) : null, ...(settled ? { lastChargeError: null } : {}) })
+      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, inv.id)));
+  }
+  // Payments taken while booking land a moment before the invoice exists: link them to it.
+  await tx.execute(sql`update payments p set invoice_id = i.id from invoices i
+    where p.tenant_id = ${tenantId}::uuid and p.order_id = ${orderId}::uuid and p.invoice_id is null and p.amount_cents > 0
+      and i.tenant_id = p.tenant_id and i.order_id = p.order_id`);
+  return all();
 }
 
 /** Run syncInvoices in its own transaction (after actions outside one). */
@@ -283,18 +272,17 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
     if (dupe) return { payment: dupe, duplicate: true };
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).for('update').limit(1);
     if (!order) throw new OrgError('Order not found.', 'not_found');
-    const prefs = await prefsOf(tx, tenantId);
-    const [openInv] = await tx
+    // The receipt carries the order's number and belongs to the order's one invoice.
+    const [inv] = await tx
       .select({ id: invoices.id })
       .from(invoices)
-      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId), inArray(invoices.status, ['open', 'overdue'])))
-      .orderBy(billingOrder, asc(invoices.createdAt))
+      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.orderId, orderId), ne(invoices.status, 'void')))
       .limit(1);
-    const number = await nextDocumentNumber(tx, 'receipt', prefs, order.locationId);
+    const number = order.number;
     const [pay] = await tx
       .insert(payments)
       .values({
-        tenantId, number, orderId, method: 'card', amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId: p.amountCents > 0 ? openInv?.id ?? null : null, gateway: p.gateway,
+        tenantId, number, orderId, method: 'card', amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId: p.amountCents > 0 ? inv?.id ?? null : null, gateway: p.gateway,
         gatewayRef: p.ref, cardBrand: p.brand ?? null, cardLast4: p.last4 ?? null, steps: p.steps ?? {}, note: p.note ?? null, createdByUserId: actor.userId ?? null,
       })
       .returning();

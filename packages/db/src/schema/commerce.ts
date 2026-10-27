@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint, boolean, check, date, doublePrecision, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, text,
-  timestamp, unique, uuid,
+  timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { citext, createdAt, id, tenantId, updatedAt } from './columns';
 import { locations, tenants } from './org';
@@ -522,7 +522,8 @@ export const payments = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
-    unique('payments_number').on(t.tenantId, t.number),
+    // Receipts carry the order's number (Q-AUS-00098), like its quote and invoice: not unique.
+    index('payments_number_idx').on(t.tenantId, t.number),
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
     check('payments_method', sql`${t.method} in ('cash','check','zelle','venmo','ach','card','link','other')`),
     check('payments_status', sql`${t.status} in ('received','refunded','void')`),
@@ -586,9 +587,10 @@ export const opsSnoozes = pgTable(
 );
 
 /**
- * What an order is billed in: the deposit to book, then the balance (charged on
- * the event day when a card is saved), or one full invoice when there is no
- * deposit. Payments are applied oldest open invoice first.
+ * One invoice per order, numbered like the order (Q-AUS-00098 from draft to paid
+ * in full). Its amount is always the order's current total, so edits after the
+ * deposit change what is due; the deposit and the event-day balance are steps
+ * of its payment schedule (due_on is the next unmet step).
  */
 export const invoices = pgTable(
   'invoices',
@@ -612,7 +614,7 @@ export const invoices = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
-    unique('invoices_number').on(t.tenantId, t.number),
+    uniqueIndex('invoices_one_per_order').on(t.tenantId, t.orderId),
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
     check('invoices_kind', sql`${t.kind} in ('deposit','balance','full','tip')`),
     check('invoices_status', sql`${t.status} in ('open','paid','overdue','void')`),

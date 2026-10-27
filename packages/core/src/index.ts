@@ -15,3 +15,4 @@ export * from './email-templates';
 export * from './calendar';
 export * from './agreement';
 export * from './reports';
+export * from './invoicing';

@@ -157,7 +157,12 @@ try {
   const orderPath = new URL(page.url()).pathname;
   await waitText('Order history');
   check(await hasText('All changes saved'), 'booked order opens clean (no phantom unsaved changes)');
-  check(await hasText('PAY-AUS-'), 'payment recorded with a receipt number');
+  // The receipt carries the order's own number (Q-AUS-…), like its quote and invoice.
+  check(await page.evaluate(() => {
+    const order = document.querySelector('header span.mono')?.innerText;
+    const pays = [...document.querySelectorAll('section')].find((x) => /Payments/.test(x.querySelector('h2,h3')?.innerText ?? ''));
+    return !!order && !!pays && pays.innerText.includes(order);
+  }), 'payment recorded with the order number as its receipt number');
 
   // --- Acceptance 3: edit after booking → re-priced, new version, diff in history -----------
   await setValue('#ob-dur', 360);

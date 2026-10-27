@@ -37,9 +37,9 @@ const input = (date: string, extra: Partial<Record<string, unknown>> = {}): Orde
     lines: [{ productId: castleId, quantity: 1 }, { productId: popcornId, quantity: 1 }], ...extra,
   });
 const invoicesOf = async (orderId: string) => (await getOrderInvoices(orderId)).filter((i) => i.status !== 'void');
-const getOrderInvoices = (orderId: string) => withTenant(db, tenantId, (tx) => tx.execute<{ kind: string; amount_cents: string; paid_cents: string; status: string; due_on: string }>(
-  sql`select kind, amount_cents::text, paid_cents::text, status, due_on::text from invoices where tenant_id = ${tenantId}::uuid and order_id = ${orderId}::uuid order by case kind when 'deposit' then 0 when 'full' then 1 when 'balance' then 2 else 3 end`,
-)).then((r) => [...r].map((x) => ({ kind: x.kind, amount: Number(x.amount_cents), paid: Number(x.paid_cents), status: x.status, dueOn: x.due_on })));
+const getOrderInvoices = (orderId: string) => withTenant(db, tenantId, (tx) => tx.execute<{ number: string; kind: string; amount_cents: string; paid_cents: string; status: string; due_on: string }>(
+  sql`select number, kind, amount_cents::text, paid_cents::text, status, due_on::text from invoices where tenant_id = ${tenantId}::uuid and order_id = ${orderId}::uuid`,
+)).then((r) => [...r].map((x) => ({ number: x.number, kind: x.kind, amount: Number(x.amount_cents), paid: Number(x.paid_cents), status: x.status, dueOn: x.due_on })));
 
 beforeAll(async () => {
   await owner.db.insert(users).values({ id: actor.userId!, name: 'P2b Owner', email: `p2b-${run}@example.test` });
@@ -64,30 +64,34 @@ afterAll(async () => {
 });
 
 describe('invoices', () => {
-  it('booking creates the deposit and the balance due on the event day; payments apply oldest first', async () => {
+  it('one invoice per order, numbered like the order: total, paid and due follow the payments; receipts carry the number', async () => {
     const event = day(30);
     const o = await createOrder(db, tenantId, actor, input(event), prefs);
     expect(o.totalCents).toBe(61811);
     await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'check', amount: 185.43 } });
-    expect(await invoicesOf(o.id)).toMatchObject([
-      { kind: 'deposit', amount: 18543, paid: 18543, status: 'paid' },
-      { kind: 'balance', amount: 43268, paid: 0, status: 'open', dueOn: event },
-    ]);
-    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: 100 });
-    expect((await invoicesOf(o.id))[1]).toMatchObject({ paid: 10000, status: 'open' });
+    expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, kind: 'full', amount: 61811, paid: 18543, status: 'open', dueOn: event }]);
+    const r = await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: 100 });
+    expect(r.payment.number).toBe(o.number);
+    expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, amount: 61811, paid: 28543, status: 'open' }]);
+    const pays = (await getOrder(db, tenantId, o.id))!.payments;
+    expect(pays.map((p) => p.number)).toEqual([o.number, o.number]);
   });
 
-  it('editing a booked order re-sizes the balance; cancelling voids what is unpaid', async () => {
+  it('edits after the deposit change what is due, both ways ($300 paid stays the deposit; the rest is balance)', async () => {
     const o = await createOrder(db, tenantId, actor, input(day(31)), prefs);
     const { order: booked } = await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'cash', amount: 185.43 } });
     const full = await getOrder(db, tenantId, o.id);
-    const bigger = orderInputFrom(full!, full!.lines, [], { lines: [...input(day(31)).lines, { productId: popcornId, quantity: 1, serviceMode: 'staffed', flatRate: false, overridePrice: null, basePrice: null, extraRate: null, taxable: true }] });
-    const saved = await updateOrder(db, tenantId, actor, o.id, bigger, prefs, booked.version);
-    const inv = await invoicesOf(o.id);
-    expect(inv[0]).toMatchObject({ kind: 'deposit', amount: 18543 }); // a paid deposit stays as issued
-    expect(inv[1]!.amount).toBe(saved.order.totalCents - 18543);
+    const line = { productId: popcornId, quantity: 1, serviceMode: 'staffed' as const, flatRate: false, overridePrice: null, basePrice: null, extraRate: null, taxable: true };
+    // Customer adds a popcorn machine: the invoice bills the new total, the deposit already paid counts.
+    const bigger = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(full!, full!.lines, [], { lines: [...input(day(31)).lines, line] }), prefs, booked.version);
+    expect(bigger.order.totalCents).toBeGreaterThan(61811);
+    expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, amount: bigger.order.totalCents, paid: 18543, status: 'open', dueOn: day(31) }]);
+    // Then asks to take the castle off: the invoice shrinks, the deposit paid still counts.
+    const again = (await getOrder(db, tenantId, o.id))!;
+    const smaller = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(again, again.lines, [], { lines: [line] }), prefs, again.version);
+    expect(await invoicesOf(o.id)).toMatchObject([{ amount: smaller.order.totalCents, paid: Math.min(18543, smaller.order.totalCents) }]);
     await transitionOrder(db, tenantId, actor, o.id, 'cancel', prefs);
-    expect((await invoicesOf(o.id)).map((i) => i.kind)).toEqual(['deposit']); // the paid deposit is kept, the balance voided
+    expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, amount: 18543, paid: 18543, status: 'paid' }]); // only what was paid
   });
 
   it('no deposit → one full invoice', async () => {
@@ -115,7 +119,8 @@ describe('gateway payments and cards', () => {
     expect(first.duplicate).toBe(false);
     expect(second.duplicate).toBe(true);
     expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(18543);
-    expect((await invoicesOf(o.id))[0]).toMatchObject({ kind: 'deposit', status: 'paid' });
+    expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, paid: 18543, status: 'open' }]);
+    expect(first.payment.number).toBe(o.number);
   });
 
   it('saving a card switches on auto-charge for open balances', async () => {
@@ -123,10 +128,10 @@ describe('gateway payments and cards', () => {
     await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
     await withTenant(db, tenantId, (tx) => saveCardTx(tx, tenantId, { customerId, gateway: 'stripe', gatewayCustomerId: 'cus_x', gatewayMethodId: `pm_${run}`, brand: 'visa', last4: '4242', expMonth: 12, expYear: 2030 }));
     const list = await listInvoices(db, tenantId, { filter: 'open' });
-    expect(list.rows.filter((i) => i.orderId === o.id && i.kind === 'balance').every((i) => i.autoCharge)).toBe(true);
+    expect(list.rows.filter((i) => i.orderId === o.id).every((i) => i.autoCharge)).toBe(true);
     expect(list.kpis.outstanding).toBeGreaterThan(0);
     await syncOrderInvoices(db, tenantId, o.id); // idempotent
-    expect((await invoicesOf(o.id)).length).toBe(2);
+    expect((await invoicesOf(o.id)).length).toBe(1);
   });
 });
 

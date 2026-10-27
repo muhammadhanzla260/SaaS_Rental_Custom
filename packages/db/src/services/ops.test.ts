@@ -99,7 +99,7 @@ describe('Ops board cards', () => {
   it('an overdue invoice → Final payment late (retry when a card is saved, else a pay link)', async () => {
     const o = await createOrder(db, tenantId, actor, input(day(3)), prefs);
     await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'cash', amount: o.depositDueCents / 100 } });
-    await owner.db.execute(sql`update invoices set status = 'overdue', due_on = current_date - 2, last_charge_error = 'Card declined' where order_id = ${o.id}::uuid and kind = 'balance'`);
+    await owner.db.execute(sql`update invoices set status = 'overdue', due_on = current_date - 2, last_charge_error = 'Card declined' where order_id = ${o.id}::uuid`);
     const card = (await board()).cards.find((c) => c.orderId === o.id && c.rule === 'final_payment');
     expect(card).toMatchObject({ action: 'pay_link', tone: 'overdue' });
     expect(card!.detail).toContain('Auto-charge declined');

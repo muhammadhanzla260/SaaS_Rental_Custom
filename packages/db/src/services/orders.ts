@@ -515,8 +515,9 @@ async function recordPaymentTx(
   tx: Tx, tenantId: string, actor: Actor, order: Order, prefs: TenantPreferences,
   p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null },
 ) {
-  const number = await nextDocumentNumber(tx, 'receipt', prefs, order.locationId);
-  // Pays the named invoice, else the first open one in billing order.
+  // Receipts carry the order's number (Q-AUS-00098), like its quote and invoice.
+  const number = order.number;
+  // Pays the named invoice, else the order's open one.
   let invoiceId = p.invoiceId ?? null;
   if (!invoiceId) {
     const [open] = await tx
@@ -826,7 +827,7 @@ export function recordTip(
     const [pay] = await tx
       .insert(payments)
       .values({
-        tenantId, number: await nextDocumentNumber(tx, 'receipt', prefs, order.locationId), orderId: id, method: p.method, amountCents: 0, tipCents: cents,
+        tenantId, number: order.number, orderId: id, method: p.method, amountCents: 0, tipCents: cents,
         reference: p.reference ?? null, note: p.note ?? null, createdByUserId: actor.userId ?? null,
       })
       .returning();

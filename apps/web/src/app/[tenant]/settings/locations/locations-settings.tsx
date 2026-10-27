@@ -290,11 +290,8 @@ function TaxNumbering({ slug, row, numbering, nextNumbers, readOnly }: Props & {
       return saveNumberingAction(slug, { numbering: v.numbering, next: v.next, locationCode: row.code });
     }, (r) => { form.reset(v); after(r.message ?? 'Saved.'); });
   };
-  const kinds = [
-    { kind: 'quote', label: 'Orders and quotes' },
-    { kind: 'invoice', label: 'Invoices' },
-    { kind: 'receipt', label: 'Payments and receipts' },
-  ] as const;
+  // One number per order, kept from draft to paid in full: the quote, invoice and receipts all carry it.
+  const kinds = [{ kind: 'quote', label: 'Order number' }] as const;
   return (
     <div className="flex flex-col gap-6">
       <Field label="Default sales tax rate" htmlFor="tx-rate" hint="Each order starts with this rate. People with the “Override the tax rate” permission can change it per order.">
@@ -302,7 +299,7 @@ function TaxNumbering({ slug, row, numbering, nextNumbers, readOnly }: Props & {
       </Field>
       <div>
         <h3 className="text-sm font-bold text-fg">Document numbers</h3>
-        <p className="mt-1 text-[13px] text-fg-2">Prefixes are shared by every location: <span className="mono">{'{LOC}'}</span> becomes this location&apos;s code and <span className="mono">{'{YYYY}'}</span> the year. Each prefix keeps its own counter.</p>
+        <p className="mt-1 text-[13px] text-fg-2">Prefixes are shared by every location: <span className="mono">{'{LOC}'}</span> becomes this location&apos;s code and <span className="mono">{'{YYYY}'}</span> the year. The order number stays the same from draft to paid in full: its quote, invoice and every receipt carry it.</p>
         <div className="mt-4 flex flex-col divide-y divide-subtle rounded-[var(--radius-card)] border border-subtle">
           {kinds.map(({ kind, label }) => (
             <div key={kind} className="grid grid-cols-1 items-end gap-4 p-4 md:grid-cols-[minmax(0,1fr)_100px_140px_170px]">
