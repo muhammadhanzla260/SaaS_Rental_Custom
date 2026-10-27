@@ -21,8 +21,11 @@ const OUT = join(ROOT, '.data/video/clips');
 const FRAMES = join(ROOT, '.data/video/frames');
 const STATE = join(ROOT, '.data/video/state.json');
 mkdirSync(OUT, { recursive: true });
-const W = 1600;
-const H = 900;
+// The office screen is 1440x810 at 4/3 scale: frames come out exactly 1920x1080 (sharp, and fast enough to be smooth).
+const W = 1440;
+const H = 810;
+const SCALE = 4 / 3;
+const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const CUSTOMER = { first: 'Muhammad', last: 'Hanzla', email: 'muhammadhanzla260+video@gmail.com', phone: '(512) 555-0418', street: '1100 Congress Ave' };
 const EVENT_DAY = '2026-11-21';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -30,40 +33,18 @@ const state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 const save = () => writeFileSync(STATE, JSON.stringify(state, null, 2));
 const fixture = (args) => JSON.parse(execSync(`pnpm --filter @rental/db exec tsx ../../apps/web/scripts/video/fixtures.ts ${args}`, { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').at(-1));
 
-// --- the visible cursor and click ring (inside an open dialog when there is one, so it stays on top) ---
-const OVERLAY = `(() => {
-  if (window.__vc) return;
-  const css = '#__vc{position:fixed;left:0;top:0;width:30px;height:30px;z-index:2147483647;pointer-events:none;transition:transform .6s cubic-bezier(.2,.8,.2,1)}'
-    + '.__vr{position:fixed;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:4px solid #f97316;z-index:2147483647;pointer-events:none;animation:__vr .7s ease-out forwards}'
-    + '@keyframes __vr{from{transform:scale(.3);opacity:1}to{transform:scale(1.5);opacity:0}}';
-  const svg = '<svg width="30" height="30" viewBox="0 0 24 24"><path d="M4 2l16 9.5-7 1.6-3.4 6.9z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
-  let x = ${W / 2}, y = ${H / 2};
-  const host = () => document.querySelector('dialog[open]') || document.body;
-  const el = () => {
-    let c = document.getElementById('__vc');
-    if (!c) { c = document.createElement('div'); c.id = '__vc'; c.innerHTML = svg; }
-    if (c.parentElement !== host()) host().appendChild(c);
-    if (!document.getElementById('__vcs')) { const s = document.createElement('style'); s.id = '__vcs'; s.textContent = css; document.head.appendChild(s); }
-    return c;
-  };
-  window.__vc = {
-    move(nx, ny) { x = nx; y = ny; el().style.transform = 'translate(' + (x - 4) + 'px,' + (y - 2) + 'px)'; },
-    ring() { const r = document.createElement('div'); r.className = '__vr'; r.style.left = x + 'px'; r.style.top = y + 'px'; host().appendChild(r); setTimeout(() => r.remove(), 800); },
-    show() { this.move(x, y); },
-  };
-  const go = () => window.__vc.show();
-  if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
-})();`;
+// --- the cursor is drawn in post (smooth, at 60 fps): here we only log where it goes and when it clicks ---
+const events = [];
+const log = (page, ev) => events.push({ clip: page.__key ?? 'desk', t: Date.now() / 1000, ...ev });
+const overlay = async () => {};
 
 async function newPage(browser, viewport) {
   const page = await browser.newPage();
   await page.setViewport(viewport);
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
-  await page.evaluateOnNewDocument(OVERLAY);
   page.on('pageerror', (e) => console.log(`  page error: ${e.message.slice(0, 160)}`));
   return page;
 }
-const overlay = (page) => page.evaluate(OVERLAY).then(() => page.evaluate(() => window.__vc.show()));
 
 /** Find an element by CSS, or by its visible text inside `within`. */
 async function find(page, target, within = 'body', tags = 'button, a, [role="tab"], [role="radio"], label, li, tr') {
@@ -76,17 +57,16 @@ async function find(page, target, within = 'body', tags = 'button, a, [role="tab
 }
 async function point(page, target, within, tags) {
   const h = await find(page, target, within, tags);
-  await h.evaluate((e) => e.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  await sleep(250);
+  await h.evaluate((e) => e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }));
+  await sleep(1000);
   const box = await h.boundingBox();
-  await overlay(page);
-  if (box) await page.evaluate((x, y) => window.__vc.move(x, y), box.x + Math.min(box.width / 2, 60), box.y + box.height / 2);
-  await sleep(650);
+  if (box) log(page, { type: 'move', x: box.x + Math.min(box.width / 2, 60), y: box.y + box.height / 2 });
+  await sleep(700);
   return h;
 }
 async function tap(page, target, within, tags) {
   const h = await point(page, target, within, tags);
-  await page.evaluate(() => window.__vc.ring());
+  log(page, { type: 'click' });
   await h.click();
   await sleep(500);
   return h;
@@ -162,7 +142,8 @@ async function chapter(id, name, pages, fn) {
   const tag = `ch${String(id).padStart(2, '0')}`;
   console.log(`${tag} ${name}`);
   const caps = {};
-  for (const [k, page] of Object.entries(pages)) caps[k] = await startCapture(page, join(FRAMES, `${tag}-${k}`));
+  events.length = 0;
+  for (const [k, page] of Object.entries(pages)) { page.__key = k; caps[k] = await startCapture(page, join(FRAMES, `${tag}-${k}`)); }
   const steps = [];
   let step = null;
   let shot = null;
@@ -189,7 +170,7 @@ async function chapter(id, name, pages, fn) {
   for (const [k, c] of Object.entries(caps)) {
     const file = join(OUT, `${tag}-${k}.mp4`);
     const r = await c.stop(file);
-    clips[k] = { file, ...r, size: pages[k].viewport() };
+    clips[k] = { file, ...r, t0: c.t0, size: pages[k].viewport(), cursor: events.filter((e) => e.clip === k).map((e) => ({ ...e, t: e.t - c.t0 })) };
   }
   writeFileSync(join(OUT, `${tag}.json`), JSON.stringify({ id, name, clips, steps }, null, 2));
   console.log(`  ${steps.length} steps · ${Object.values(clips).map((c) => `${c.frames} frames ${c.seconds.toFixed(1)} s`).join(' · ')}`);
@@ -405,11 +386,12 @@ const CHAPTERS = {
       });
       await c.step('Card in the secure Stripe field · keep Save card ticked', async () => {
         const { handle: fh, frame } = await stripeCard(desk);
-        await fh.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+        await fh.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+        await sleep(900);
         await sleep(500);
         await c.shot('desk', [fh, 'Save card info'], { min: 1000 });
         const fb = await fh.boundingBox();
-        await desk.evaluate((x, y) => window.__vc.move(x, y), fb.x + 80, fb.y + 40);
+        log(desk, { type: 'move', x: fb.x + 80, y: fb.y + 40 });
         await sleep(600);
         await typeCard(desk, frame);
         await point(desk, 'Save card info', 'dialog[open]');
@@ -484,9 +466,10 @@ const CHAPTERS = {
     fixture(`unsign ${state.orderA}`);
     fixture(`forget-cards ${CUSTOMER.email}`);
     const { url } = fixture(`quote-url ${state.orderA}`);
-    const phone = await newPage(browser, { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    // The phone has its own browser at 2x, so its frames stay sharp when shown at full height.
+    const phoneBrowser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--force-device-scale-factor=2'], protocolTimeout: 180000 });
+    const phone = await newPage(phoneBrowser, { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     await desk.goto(`${S}/orders/${state.orderA}`, { waitUntil: 'networkidle2' });
-    await phone.bringToFront();
     await phone.goto(url, { waitUntil: 'networkidle2' });
     await chapter(7, 'How the customer pays online', { phone, desk }, async (c) => {
       await c.step('What your customer sees, on a phone', async () => {
@@ -516,7 +499,8 @@ const CHAPTERS = {
         await point(phone, await phone.evaluateHandle(() => [...document.querySelectorAll('section [role="radio"]')].find((x) => x.innerText.includes('Pay deposit'))));
         await tap(phone, 'Continue to card');
         const { handle: fh, frame } = await stripeCard(phone);
-        await fh.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+        await fh.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+        await sleep(900);
         await sleep(500);
         await typeCard(phone, frame);
         await tap(phone, 'Pay $', 'section');
@@ -535,7 +519,7 @@ const CHAPTERS = {
         await sleep(2500);
       });
     });
-    await phone.close();
+    await phoneBrowser.close();
   },
 
   async 8({ desk }) {
@@ -585,8 +569,6 @@ const CHAPTERS = {
     await desk.goto(`${S}/settings/messaging`, { waitUntil: 'networkidle2' });
     await chapter(9, 'Settings: your email server', { desk }, async (c) => {
       await c.step('Your own mail server · send a test', async () => {
-        // The workspace's real server and addresses stay private in the video.
-        await desk.addStyleTag({ content: 'main input:not([placeholder="you@yourbusiness.com"]), main select { filter: blur(6px) !important }' });
         await c.shot('desk', 'main', { min: 1300 });
         await sleep(1500);
         const test = await desk.$('input[placeholder="you@yourbusiness.com"]');
@@ -658,8 +640,8 @@ const CHAPTERS = {
 
 // --- run -------------------------------------------------------------------------------------------
 const want = process.argv.slice(2).map(Number);
-const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--force-device-scale-factor=2'], protocolTimeout: 180000 });
-const desk = await newPage(browser, { width: W, height: H, deviceScaleFactor: 2 });
+const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: [`--force-device-scale-factor=${SCALE}`], protocolTimeout: 180000 });
+const desk = await newPage(browser, { width: W, height: H, deviceScaleFactor: SCALE });
 try {
   await desk.goto(`${BASE}/sign-in`, { waitUntil: 'networkidle2' });
   await desk.type('#si-email', 'tim@demo.tentpole.test');

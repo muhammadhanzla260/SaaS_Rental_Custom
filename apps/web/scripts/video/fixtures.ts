@@ -61,6 +61,24 @@ try {
       await tx`delete from orders where tenant_id = ${t.id} and id = ${arg!}`;
     });
     out = { removed: arg };
+  } else if (cmd === 'wipe-video') {
+    // All takes start clean: the video customer and every order it has.
+    const orders = await owner<{ id: string }[]>`select o.id from orders o join customers c on c.id = o.customer_id and c.tenant_id = o.tenant_id where o.tenant_id = ${t.id} and c.email = ${arg!}`;
+    await owner.begin(async (tx) => {
+      for (const o of orders) {
+        for (const tb of ['messages', 'refunds', 'payments', 'signatures', 'invoices', 'credit_applications', 'ops_snoozes', 'order_versions', 'order_lines', 'reservations']) {
+          await tx`delete from ${tx(tb)} where tenant_id = ${t.id} and order_id = ${o.id}`;
+        }
+        await tx`delete from audit_log where tenant_id = ${t.id} and entity_id = ${o.id}`;
+        await tx`delete from orders where tenant_id = ${t.id} and id = ${o.id}`;
+      }
+      const gone = await tx<{ id: string }[]>`delete from customers where tenant_id = ${t.id} and email = ${arg!} returning id`;
+      for (const g of gone) {
+        await tx`delete from payment_methods where tenant_id = ${t.id} and customer_id = ${g.id}`;
+        await tx`delete from audit_log where tenant_id = ${t.id} and entity_id = ${g.id}`;
+      }
+    });
+    out = { orders: orders.length };
   } else if (cmd === 'unsign') {
     // A re-take of the customer's quote page: sign it again from the start.
     const r = await owner`delete from signatures where tenant_id = ${t.id} and order_id = ${arg!} returning id`;

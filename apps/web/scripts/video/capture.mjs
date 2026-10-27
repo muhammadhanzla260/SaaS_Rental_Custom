@@ -24,7 +24,7 @@ export async function startCapture(page, folder) {
     cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
   });
   const vp = page.viewport();
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: vp.width * vp.deviceScaleFactor, maxHeight: vp.height * vp.deviceScaleFactor, everyNthFrame: 1 });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 85, maxWidth: vp.width * vp.deviceScaleFactor, maxHeight: vp.height * vp.deviceScaleFactor, everyNthFrame: 1 });
   return {
     t0,
     /** Seconds since the capture started (the clock the frames use). */
@@ -46,7 +46,7 @@ export async function startCapture(page, folder) {
       writeFileSync(list, lines.join('\n'));
       const r = spawnSync(ffmpegPath, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', 'fps=30,format=yuv420p', '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', out], { encoding: 'utf8' });
       if (r.status !== 0) throw new Error(`ffmpeg failed: ${r.stderr.slice(-600)}`);
-      return { frames: frames.length, seconds: end - t0 };
+      return { frames: frames.length, seconds: end - t0, list: frames.map((f) => ({ file: f.file, t: Math.max(0, f.t - t0) })) };
     },
   };
 }
