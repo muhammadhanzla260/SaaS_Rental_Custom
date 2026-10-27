@@ -191,6 +191,7 @@ export function EventSection({
         <Checkbox checked={d.multiDay} onChange={(on) => set({ multiDay: on, ...(on ? {} : { durationMin: Math.min(dur, 1440) }) })}>
           Rental spans multiple calendar days (start date &amp; time → end date &amp; time)
         </Checkbox>
+        {d.multiDay && <p className="mt-1.5 pl-7 text-[12px] text-fg-2">Each item is charged its package price once for the whole rental, with no hourly extras. Type a price on a line to charge more.</p>}
       </div>
       {d.multiDay && (
         <div className="anim-fade mt-3 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -201,7 +202,7 @@ export function EventSection({
             <Input id="ob-end-time" type="time" mono step={900} value={end} onChange={(e) => e.target.value && setEndAt(endDate, e.target.value)} />
           </Field>
           <p className="col-span-2 self-end pb-2 text-[13px] text-fg-2">
-            {durationLabel(dur)}{dur >= 1440 ? ` · ${Math.floor(dur / 1440)} day${dur >= 2880 ? 's' : ''}` : ''} · billed for the real time
+            {durationLabel(dur)}{dur >= 1440 ? ` · ${Math.floor(dur / 1440)} day${dur >= 2880 ? 's' : ''}` : ''} · package price per item
           </p>
         </div>
       )}
@@ -445,7 +446,9 @@ export function LinesSection({
                     )}
                   </div>
                   <Checkbox checked={l.taxable} onChange={(x) => setLine(l.key, { taxable: x })}>Taxable</Checkbox>
-                  {p && <span title="Charge the base package only, with no additional time"><Checkbox checked={l.flatRate} onChange={(x) => setLine(l.key, { flatRate: x })}>Flat rate</Checkbox></span>}
+                  {p && (d.multiDay
+                    ? <span className="text-[12px] font-semibold text-fg-2" title="Multi-day rentals charge each item's package once, with no additional time">Package price · multi-day</span>
+                    : <span title="Charge the base package only, with no additional time"><Checkbox checked={l.flatRate} onChange={(x) => setLine(l.key, { flatRate: x })}>Flat rate</Checkbox></span>)}
                   <span className="mono ml-auto text-[15px] font-bold text-fg">{money(q?.lineTotalCents ?? 0)}</span>
                 </div>
                 <p className="mono mt-2 text-[12px] text-fg-2">

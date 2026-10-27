@@ -19,7 +19,8 @@ export function roundCents(x: number): number {
 /**
  * Billable hours for an event. Same-day slots bill at least 1 hour, and an end
  * time before the start means the event runs past midnight (getDurationHours).
- * Multi-day ranges bill real elapsed time (getDurationHoursRange).
+ * Multi-day ranges count real elapsed time (getDurationHoursRange); their lines
+ * are priced at the package, not by the hour (see linePrice).
  */
 export function billableHours(start: Date, end: Date, multiDay: boolean): number {
   let ms = end.getTime() - start.getTime();
@@ -64,6 +65,8 @@ export type LinePriceTrace = {
   includedHours: number;
   extraCents: number;
   method: 'flat' | 'included' | 'hourly' | 'blocks' | 'custom';
+  /** Priced as a multi-day rental: the package once, whatever the span. */
+  multiDay?: boolean;
   /** Started overtime blocks or hours charged, and their size and price (for the "4 × 15 min × $25.00" label). */
   units?: number;
   unitMinutes?: number;
@@ -106,7 +109,7 @@ export function describeTrace(t: LinePriceTrace, money: (cents: number) => strin
     return `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
   };
   if (t.method === 'custom') return 'Custom line';
-  if (t.method === 'flat') return `${money(t.baseCents)} flat rate`;
+  if (t.method === 'flat') return t.multiDay ? `${money(t.baseCents)} package · multi-day rental, no extra time` : `${money(t.baseCents)} flat rate`;
   const head = `${money(t.baseCents)} incl. ${hrs(t.includedHours)}`;
   if (t.method === 'included' || !t.extraCents) return `${head} · within included time`;
   if (t.method === 'blocks') return `${head} + ${t.units} × ${t.unitMinutes} min × ${money(t.unitCents ?? 0)}`;
@@ -114,10 +117,12 @@ export function describeTrace(t: LinePriceTrace, money: (cents: number) => strin
   return `${head} + ${hrs((t.unitMinutes ?? 0) / 60)} × ${money(t.unitCents ?? 0)}/h`;
 }
 
-export function linePrice(p: ProductPricing, mode: ServiceMode, hours: number, opts: { flatRate?: boolean; overrideUnitCents?: number | null } = {}) {
+export function linePrice(p: ProductPricing, mode: ServiceMode, hours: number, opts: { flatRate?: boolean; multiDay?: boolean; overrideUnitCents?: number | null } = {}) {
   const baseCents = basePackageCents(p, mode);
-  const auto = opts.flatRate
-    ? { cents: baseCents, trace: { baseCents, hours, includedHours: 0, extraCents: 0, method: 'flat' as const } }
+  // Multi-day rentals charge the package once (how FreedomFun's Odoo orders were billed): the
+  // hourly ladder is for same-day events, and over days it would add hundreds of overtime blocks.
+  const auto = opts.flatRate || opts.multiDay
+    ? { cents: baseCents, trace: { baseCents, hours, includedHours: 0, extraCents: 0, method: 'flat' as const, ...(opts.multiDay ? { multiDay: true } : {}) } }
     : packageDurationCents(p, hours, baseCents);
   const overridden = opts.overrideUnitCents != null && opts.overrideUnitCents >= 0;
   return { unitCents: overridden ? opts.overrideUnitCents! : auto.cents, autoUnitCents: auto.cents, overridden, trace: auto.trace };
@@ -327,7 +332,7 @@ export function quoteOrder(input: QuoteInput) {
       const trace: LinePriceTrace = { baseCents: unit, hours, includedHours: 0, extraCents: 0, method: 'custom' };
       return { ...l, setupSurfaceFeeCents: 0, unitCents: unit, autoUnitCents: unit, overridden: false, lineTotalCents: roundCents(unit * l.quantity), trace, warnings: [] };
     }
-    const p = linePrice(l.pricing, l.serviceMode, hours, { flatRate: l.flatRate, overrideUnitCents: l.overrideUnitCents });
+    const p = linePrice(l.pricing, l.serviceMode, hours, { flatRate: l.flatRate, multiDay: input.multiDay, overrideUnitCents: l.overrideUnitCents });
     const warnings: string[] = [];
     if (basePackageCents(l.pricing, l.serviceMode) <= 0 && !p.overridden) {
       warnings.push(`${l.name} has no ${l.serviceMode === 'pickup' ? 'pick-up' : l.serviceMode === 'dropoff' ? 'drop-off' : 'staffed'} price. Enter a price.`);

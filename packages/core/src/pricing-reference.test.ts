@@ -104,3 +104,28 @@ describe('engine rules', () => {
     expect(describeTrace(short.lines[1]!.trace, usd)).toBe('Custom line');
   });
 });
+
+describe('multi-day rentals (as FreedomFun billed them in Odoo)', () => {
+  it('charge each item its package once, whatever the span (Odoo #17773: 75 h, every item at its package)', () => {
+    const q = quoteOrder({
+      startsAt: new Date(Date.UTC(2027, 5, 14, 15)), endsAt: new Date(Date.UTC(2027, 5, 17, 18)), multiDay: true,
+      lines: [line(castle, { name: 'Castle', serviceMode: 'dropoff' }), line(popcorn, { name: 'Popcorn', quantity: 2 })],
+      damageWaiver: { enabled: false, percent: 10 }, travelFeeCents: 0, miscFeesCents: 0, taxPercent: 0, deposit: { kind: 'percent', value: 30 },
+    });
+    expect(q.hours).toBe(75);
+    expect(q.lines.map((l) => l.unitCents)).toEqual([19500, 7500]);
+    expect(q.summary.merchandiseCents).toBe(19500 + 2 * 7500);
+    expect(describeTrace(q.lines[0]!.trace, usd)).toBe('$195.00 package · multi-day rental, no extra time');
+  });
+  it('a typed price still wins (Odoo: Snow Cone $150 for 42 h)', () => {
+    const q = quoteOrder({
+      startsAt: new Date(Date.UTC(2026, 6, 18, 0, 30)), endsAt: new Date(Date.UTC(2026, 6, 19, 18)), multiDay: true,
+      lines: [line(popcorn, { overrideUnitCents: 15000 })],
+      damageWaiver: { enabled: false, percent: 10 }, travelFeeCents: 0, miscFeesCents: 0, taxPercent: 0, deposit: { kind: 'none', value: 0 },
+    });
+    expect(q.lines[0]).toMatchObject({ unitCents: 15000, autoUnitCents: 7500, overridden: true });
+  });
+  it('same-day events keep the hourly ladder', () => {
+    expect(reference().lines[0]!.unitCents).toBe(22500 + 4 * 2500);
+  });
+});
