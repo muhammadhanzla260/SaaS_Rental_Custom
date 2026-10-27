@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { bookingRequirements, formatEventTime, formatMoney, ORDER_STATUS, type OrderStatus } from '@rental/core';
+import { bookingRequirements, formatEventTime, formatMoney, ORDER_STATUS, SERVICE_MODES, type OrderStatus } from '@rental/core';
 import type { Availability } from '@rental/db';
 import { CustomerFormDrawer } from '@/components/customers/customer-form';
 import { Button, cx, Notice, Pill, SaveBar, Select, useToast } from '@/components/kit';
@@ -11,11 +11,12 @@ import {
   availabilityAction, getCustomerAction, resolveOverpaymentAction, saveCustomerAddressAction, saveOrderAction,
   transitionOrderAction, travelForOrderAction, usableCreditsAction, validateCouponAction,
 } from '@/server/actions/commerce';
+import { emailInvoiceAction } from '@/server/actions/money';
 import { addMinutes, initialDraft, locationOf, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
 import { OrderHistory } from './history';
 import { CancelOrderModal, RainCheckModal } from './cancel-modals';
 import { OverpaidModal } from './modals';
-import { PaymentOptionsModal, type BookChoice, type PayTab } from './payment-options';
+import { PaymentOptionsModal, type BookChoice, type PaySummary, type PayTab } from './payment-options';
 import { CustomerSection, EventSection, ItemsSection, LinesSection, NotesSection } from './sections';
 import { SummaryPanel } from './summary';
 import type { BuilderCredit, BuilderCustomer, BuilderData, BuilderProduct, Draft, DraftLine } from './types';
@@ -286,6 +287,15 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
     }
   }
 
+  /** Odoo "Resend Current Customer Document": the quote until it is booked, then the open invoice. */
+  async function resendDocument() {
+    if (!booked) return sendQuote();
+    const inv = data.order?.invoices.find((i) => i.status !== 'paid' && i.status !== 'void') ?? data.order?.invoices.at(-1);
+    if (!inv) return toast('There is no invoice to resend yet.', 'error');
+    const r = await emailInvoiceAction(data.slug, inv.id);
+    toast(r.ok ? (r.message ?? 'Sent.') : r.error, r.ok ? 'ok' : 'error');
+  }
+
   // Cancel and rain check change the order on the server (status, date, version): reload it fresh.
   const reloadOrder = () => { setCancelOpen(false); setRainOpen(false); window.location.reload(); };
   async function reopen() {
@@ -318,6 +328,36 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   });
   const bookBlocked = d.lines.length === 0 || short.size > 0 || missing.length > 0;
   const balance = s.totalCents - meta.paidCents;
+  const paySummary: PaySummary = {
+    lines: d.lines.map((l, i) => {
+      const p = l.productId ? data.products.find((x) => x.id === l.productId) ?? null : null;
+      return {
+        key: l.key, name: l.name || p?.name || 'Item', quantity: l.quantity, totalCents: priced.quote.lines[i]?.lineTotalCents ?? 0,
+        mode: p ? SERVICE_MODES.find((m) => m.value === l.serviceMode)?.label ?? null : null,
+        hours: `${+(d.durationMin / 60).toFixed(2)} hrs`, product: p,
+      };
+    }),
+    event: {
+      when: windowLabel,
+      address: [d.eventAddress.line1, d.eventAddress.city, d.eventAddress.region, d.eventAddress.postalCode].filter(Boolean).join(', '),
+      place: d.eventLocationName || null, eventType: d.eventType || null, waiver: d.damageWaiver,
+    },
+    rows: [
+      { label: 'Rental Subtotal', cents: s.merchandiseCents + s.customCents },
+      ...(s.damageWaiverCents ? [{ label: 'Damage Waiver', cents: s.damageWaiverCents }] : []),
+      ...(s.setupSurfaceCents ? [{ label: 'Setup Surface', cents: s.setupSurfaceCents }] : []),
+      ...(s.eventLocationCents ? [{ label: 'Event Location Fee', cents: s.eventLocationCents }] : []),
+      ...(s.miscFeesCents ? [{ label: 'Other Fees', cents: s.miscFeesCents }] : []),
+      ...(s.extrasCents ? [{ label: 'Extras', cents: s.extrasCents }] : []),
+      { label: 'Travel Fee', cents: s.travelFeeCents },
+      ...(s.preTaxDiscountCents ? [{ label: `Discount${d.discountKind === 'percent' ? ` (${(parseFloat(d.discountValue) || 0).toFixed(2)}%)` : ''}`, cents: s.preTaxDiscountCents, minus: true }] : []),
+      ...(s.couponCents ? [{ label: `Coupon${d.coupon ? ` ${d.coupon.code}` : ''}`, cents: s.couponCents, minus: true }] : []),
+      { label: `Tax (${+priced.taxPercent.toFixed(3)}%)`, cents: s.taxCents },
+      ...(s.postTaxDiscountCents ? [{ label: 'Discount after tax', cents: s.postTaxDiscountCents, minus: true }] : []),
+      ...(s.creditCents ? [{ label: 'Credits applied', cents: s.creditCents, minus: true }] : []),
+    ],
+    totalCents: s.totalCents, depositCents: s.depositCents, depositPercent: s.depositPercent,
+  };
 
   const actions = (
     <div className="flex flex-col gap-2">
@@ -459,6 +499,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         orderId={meta.id}
         number={meta.number}
         money={money}
+        currency={data.currency}
         depositCents={s.depositCents}
         totalCents={s.totalCents}
         paidCents={meta.paidCents}
@@ -471,14 +512,18 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         cards={{
           available: !!data.cards.locations[d.locationId],
           testMode: !!data.cards.locations[d.locationId]?.testMode,
+          publishableKey: data.cards.locations[d.locationId]?.publishableKey ?? null,
           // The saved card belongs to the customer the page was loaded with.
           saved: data.cards.saved && data.cards.saved.customerId === d.customer?.id ? data.cards.saved : null,
         }}
         customerEmail={d.billing.email || d.customer?.email || null}
         country={data.country}
+        summary={paySummary}
+        invoiceCount={data.order?.invoices.length ?? 0}
         prepare={prepareOrder}
         onBookOffline={confirmBooking}
         onSendQuote={sendQuote}
+        onResend={resendDocument}
         onChanged={() => { moneyChanged.current = true; }}
       />
       {meta.id && (

@@ -64,7 +64,7 @@ export type BuilderData = {
   /** The customer already signed the agreement online (then no staff confirmation is needed). */
   signedOnline: boolean;
   /** Card payments in Payment Options: locations with Stripe connected, and the customer's saved card. */
-  cards: { locations: Record<string, { testMode: boolean }>; saved: { customerId: string; brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null } | null };
+  cards: { locations: Record<string, { testMode: boolean; publishableKey: string }>; saved: { customerId: string; brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null } | null };
   /** Rain checks stay valid this many months (Agreement settings). */
   rainCheckMonths: number;
   customer: BuilderCustomer | null;

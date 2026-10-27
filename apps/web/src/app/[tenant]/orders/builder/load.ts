@@ -50,7 +50,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     order ? latestSignature(db, ctx.tenant.id, order.id) : Promise.resolve(null),
     order && order.paidCents > 0 ? refundablePayments(db, ctx.tenant.id, order.id) : Promise.resolve([]),
     customerId ? savedCard(db, ctx.tenant.id, customerId, 'stripe') : Promise.resolve(null),
-    // Which locations can take cards (each may have its own Stripe account). Only the mode leaves the server.
+    // Which locations can take cards (each may have its own Stripe account). Only the mode and the public key leave the server.
     Promise.all(locations.map(async (l) => [l.id, await getPaymentCredentials(db, ctx.tenant.id, l.id)] as const)),
   ]);
   const agreement = resolveAgreement(prefs.agreement);
@@ -104,7 +104,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     policies: agreement.policies.filter((p) => p.key !== 'waiver').map((p) => ({ key: p.key, title: p.title, text: policyText(p, agreement) })),
     signedOnline: !!signature,
     cards: {
-      locations: Object.fromEntries(gateways.filter(([, c]) => c?.provider === 'stripe' && c.secret && c.publishableKey).map(([id, c]) => [id, { testMode: c!.keyMode === 'test' }])),
+      locations: Object.fromEntries(gateways.filter(([, c]) => c?.provider === 'stripe' && c.secret && c.publishableKey).map(([id, c]) => [id, { testMode: c!.keyMode === 'test', publishableKey: c!.publishableKey! }])),
       saved: card && card.gatewayCustomerId ? { customerId: card.customerId, brand: card.brand, last4: card.last4, expMonth: card.expMonth, expYear: card.expYear } : null,
     },
     rainCheckMonths: agreement.rainCheckMonths,

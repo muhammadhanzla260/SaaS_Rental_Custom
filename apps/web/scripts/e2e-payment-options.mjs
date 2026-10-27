@@ -1,6 +1,7 @@
 /**
  * Payment Options browser QA (Odoo POS tabs) on the demo workspace, which has
- * Stripe test keys: book with a new card typed into Stripe's field (card saved
+ * Stripe test keys: book with a new card typed into Stripe's field, inline as on
+ * the Odoo screen (card saved
  * for auto-charge), collect a tip on the saved card, record cash toward the
  * balance, send a quote only, and book another order without payment.
  *   node apps/web/scripts/e2e-payment-options.mjs
@@ -82,16 +83,19 @@ try {
   check(tabs.join('|') === 'Record Payment Received|Submit Order Without Payment|Send Quote Only|Collect Tip', 'Payment Options has the four Odoo tabs');
   check(await page.$eval('#po-method', (s) => s.value) === 'card', 'Credit card is the default method (Stripe connected)');
   check([...(await page.$$eval('#po-method option', (o) => o.map((x) => x.textContent)))].join(',').includes('Cash,Check,Zelle,Venmo,ACH'), 'cash, check, Zelle, Venmo and ACH are offered too');
-  await click('Collect deposit', 'dialog[open] [role="radio"]');
-  await click('New card', 'dialog[open] [role="radio"]').catch(() => {});
+  const odoo = await dialogText();
+  check(['Order and Pricing Summary', 'Deposit Due', 'Balance Due', 'Grand Total', 'Resend Current Customer Document', 'Outstanding balance'].every((t) => odoo.includes(t)), 'the order and pricing summary, balance bar and resend link sit beside the form');
+  await click('Collect Deposit', 'dialog[open] [role="radio"]');
+  check((await dialogText()).includes('Many customers pay in full'), 'collecting less than the full balance shows the pay-in-full note');
+  // The QA customer may still have a card saved by an earlier run: type a new one.
+  if (await page.$('#po-card')) await setValue('#po-card', 'new');
   await click('15%', 'dialog[open] [role="radio"]');
-  check((await dialogText()).includes('Save card info for auto-charge'), 'a new card can be saved for auto-charge of the balance');
+  check((await dialogText()).includes('Save card info'), 'a new card can be saved for auto-charge of the balance');
   await agreeAll();
-  await shot('01-record-payment');
-  await click('Continue to card', 'dialog[open] button');
+  // The card fields are on the same screen, as in Odoo: no extra step before typing the card.
   await typeCard();
-  await shot('02-stripe-card');
-  await click('Charge $', 'dialog[open] button');
+  await shot('01-record-payment');
+  await click('Record Credit Card Payment', 'dialog[open] button');
   await waitDialog(/Booked and charged VISA •4242/);
   check(true, 'the card is charged and the order booked in one step');
   await shot('03-booked-by-card');
@@ -102,12 +106,11 @@ try {
 
   // --- Collect Tip on the saved card ---------------------------------------------------------------
   await click('Collect tip');
-  await waitDialog(/Tip for the party coach/);
+  await waitDialog(/Tip for Party Coach/);
   await setValue('#po-method', 'card');
-  check((await dialogText()).includes('Saved card'), 'the card saved a moment ago is offered');
-  await click('Saved card', 'dialog[open] [role="radio"]');
+  check(await page.$eval('#po-card', (s) => s.selectedOptions[0].textContent).then((t) => t.includes('4242')).catch(() => false), 'the card saved a moment ago is offered');
   await click('10%', 'dialog[open] [role="radio"]');
-  await click('Charge $', 'dialog[open] button');
+  await click('Collect $', 'dialog[open] button');
   await waitDialog(/Tip charged VISA •4242/);
   check(true, 'Collect Tip charges a tip on its own to the saved card');
   await shot('04-tip');
@@ -120,8 +123,9 @@ try {
   await click('Record payment ·');
   await waitDialog(/Record Payment Received/);
   await setValue('#po-method', 'cash');
-  await setValue('#po-amount', '10');
-  await click('Record payment', 'dialog[open] footer button');
+  await click('Collect Custom Amount', 'dialog[open] [role="radio"]');
+  await setValue('dialog[open] input[aria-label="Custom amount"]', '10');
+  await click('Record Cash Payment', 'dialog[open] button');
   await waitDialog(/Payment recorded/);
   check(true, 'cash toward the balance is recorded after booking');
   await click('Done', 'dialog[open] button');
@@ -135,7 +139,7 @@ try {
   const versionBefore = await page.evaluate(() => [...document.querySelectorAll('header span.mono')].map((e) => e.innerText).find((t) => /^v\d+$/.test(t)) ?? 'v?');
   await click('Send Quote Only', 'dialog[open] [role="tab"]');
   check((await dialogText()).includes('qa-quote@example.test'), 'Send Quote Only names who gets the quote');
-  await click('Send quote', 'dialog[open] footer button');
+  await click('Send Quote Only', 'dialog[open] section > div > div > button');
   await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].some((e) => /Quote (emailed|marked as sent)/.test(e.innerText)), { timeout: 30000 });
   check(true, 'Send Quote Only emails the quote');
   await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 15000 });
@@ -150,7 +154,7 @@ try {
   await setValue('#bk-reason', await page.$eval('#bk-reason option:nth-child(2)', (o) => o.value));
   await setValue('#bk-date', plusDays(5));
   await agreeAll();
-  await click('Confirm booking', 'dialog[open] footer button');
+  await click('Submit Order Without Payment', 'dialog[open] section > div > div > button');
   await waitDialog(/is booked/);
   check(true, 'Submit Order Without Payment books with a reason and an expected date');
   await shot('05-no-payment');
@@ -158,7 +162,7 @@ try {
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
   await go(`${S}/orders/${fx.deposit.id}`);
   await click('Collect tip');
-  await waitDialog(/Tip for the party coach/);
+  await waitDialog(/Tip for Party Coach/);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'Payment Options fits a 390 px phone');
   await shot('06-phone');
 } catch (e) {
