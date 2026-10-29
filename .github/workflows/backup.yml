@@ -1,0 +1,36 @@
+name: Nightly database backup
+
+# A compressed dump of the production database every night, kept in the private R2 bucket
+# tentpole-backups (an R2 lifecycle rule deletes copies older than 30 days). Runs from main.
+# Repository secrets: PROD_DB_SESSION_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.
+on:
+  schedule:
+    - cron: '0 8 * * *' # 08:00 UTC = 3:00 AM US Central
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+      - name: Dump
+        env:
+          DB: ${{ secrets.PROD_DB_SESSION_URL }}
+        run: |
+          # Tentpole's own schemas only (not Supabase's internal ones), owners left out so it restores anywhere.
+          /usr/lib/postgresql/17/bin/pg_dump "$DB" --format=custom --no-owner \
+            --schema=public --schema=drizzle --schema=graphile_worker \
+            --file="tentpole-$(date -u +%Y-%m-%d).dump"
+          ls -lh tentpole-*.dump
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: aws s3 cp tentpole-*.dump s3://tentpole-backups/daily/ --endpoint-url "${{ secrets.R2_ENDPOINT }}"
