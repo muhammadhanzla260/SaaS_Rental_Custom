@@ -5,8 +5,8 @@ import { db } from './db';
 
 const MILES_PER_METRE = 1 / 1609.344;
 
-/** Mapbox Directions driving distance in miles (Odoo: mapboxDrivingDistanceMiles), or null. */
-async function drivingMiles(from: Point, to: Point): Promise<number | null> {
+/** The first Mapbox Directions driving route between two points, or null. */
+async function drivingRoute(from: Point, to: Point): Promise<{ distance: number; duration: number } | null> {
   const token = process.env.MAPBOX_SECRET_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!token) return null;
   const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
@@ -17,11 +17,22 @@ async function drivingMiles(from: Point, to: Point): Promise<number | null> {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
-    const route = (await res.json()).routes?.[0];
-    return route ? route.distance * MILES_PER_METRE : null;
+    return (await res.json()).routes?.[0] ?? null;
   } catch {
     return null;
   }
+}
+
+/** Mapbox Directions driving distance in miles (Odoo: mapboxDrivingDistanceMiles), or null. */
+async function drivingMiles(from: Point, to: Point): Promise<number | null> {
+  const route = await drivingRoute(from, to);
+  return route ? route.distance * MILES_PER_METRE : null;
+}
+
+/** Driving minutes, rounded up, at least 1 (Odoo _coach_mapbox_eta_minutes), or null. */
+export async function drivingEtaMinutes(from: Point, to: Point): Promise<number | null> {
+  const route = await drivingRoute(from, to);
+  return route ? Math.max(1, Math.ceil(route.duration / 60)) : null;
 }
 
 /**

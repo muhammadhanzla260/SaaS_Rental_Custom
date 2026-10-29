@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { can, ROLE_LABELS, themeCss, type Corners } from '@rental/core';
+import { redirect } from 'next/navigation';
+import { can, FIELD_ROLES, ROLE_LABELS, themeCss, type Corners } from '@rental/core';
 import { listUserTenants } from '@rental/db';
 import { AppShell } from '@/components/shell/app-shell';
 import { LiveRefresh } from '@/components/shell/live-refresh';
@@ -21,6 +22,8 @@ export default async function TenantLayout({ children, params }: { children: Rea
   const { tenant: slug } = await params;
   const ctx = await getTenantContext(slug);
   const { tenant, prefs, role } = ctx;
+  // Coaches and crew work in the coach portal (support sessions still see the staff app).
+  if (!ctx.impersonation && FIELD_ROLES.includes(role)) redirect(`/coach/${slug}`);
   const orgs = await listUserTenants(db, ctx.user.id);
   const mine = orgs.find((o) => o.tenant_id === tenant.id);
   const extra = ctx.membership?.permissions ?? [];

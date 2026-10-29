@@ -14,6 +14,7 @@ import {
 } from '@/server/actions/commerce';
 import { emailInvoiceAction } from '@/server/actions/money';
 import { addMinutes, initialDraft, locationOf, lockedFor, newLine, priceDraft, timeLabel, toOrderInput } from './draft';
+import { CoachCard, type CoachCardData } from './coach-card';
 import { OrderHistory } from './history';
 import { CancelOrderModal, RainCheckModal } from './cancel-modals';
 import { OverpaidModal } from './modals';
@@ -26,7 +27,7 @@ import type { BuilderCredit, BuilderCustomer, BuilderData, BuilderProduct, Draft
 // Line keys are UI ids, regenerated on every load, so they are left out too.
 const snap = (d: Draft) => JSON.stringify({ ...d, coupon: null, milesNote: null, lines: d.lines.map(({ key: _key, ...l }) => l) });
 
-export function OrderBuilder({ data }: { data: BuilderData }) {
+export function OrderBuilder({ data, coach = null }: { data: BuilderData; coach?: CoachCardData | null }) {
   const router = useRouter();
   const toast = useToast();
   const money = useCallback((c: number) => formatMoney(c, data.currency), [data.currency]);
@@ -506,6 +507,9 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
               totalBeforeCredits={priced.totalBeforeCredits} couponMsg={couponMsg} onApplyCoupon={applyCoupon} canOverrideTax={data.perms.overrideTax}
               exempt={!!d.customer?.taxExempt} paidCents={meta.paidCents} readOnly={readOnly} />
             <div className="hidden lg:block">{actions}</div>
+            {coach && meta.id && !cancelled && (
+              <CoachCard slug={data.slug} orderId={meta.id} data={coach} canEdit={data.perms.create && !data.readOnly} tz={tz} />
+            )}
           </aside>
         </div>
 

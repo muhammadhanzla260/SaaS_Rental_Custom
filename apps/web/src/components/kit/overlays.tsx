@@ -86,6 +86,38 @@ export function Drawer({ open, onClose, title, sub, children, footer, width = 48
   );
 }
 
+/** A sheet that rises from the bottom (phone first): the coach's checklist phases. Wide screens get a centred panel. */
+export function Sheet({ open, onClose, title, sub, children, footer, width = 560 }: PanelProps) {
+  const ref = useDialog(open, onClose);
+  const titleId = useId();
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="m-0 mt-auto max-h-dvh w-full max-w-none bg-transparent p-0 backdrop:bg-[var(--scrim)] open:flex sm:m-auto sm:w-[calc(100%-32px)]"
+      style={{ maxWidth: `min(${width}px, 100%)` }}
+    >
+      {open && (
+        <div className="anim-sheet flex max-h-[92dvh] w-full flex-col rounded-t-[var(--radius-panel)] bg-surface shadow-[var(--shadow-float)] sm:rounded-[var(--radius-panel)]">
+          <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-strong/30 sm:hidden" aria-hidden="true" />
+          <header className="flex items-start justify-between gap-3 px-5 pb-3 pt-3 sm:px-6 sm:pt-5">
+            <div className="min-w-0 flex-1">
+              <h2 id={titleId} className="font-display text-lg font-bold tracking-tight text-fg sm:text-xl">{title}</h2>
+              {sub && <div className="mt-1 text-[13px] text-fg-2">{sub}</div>}
+            </div>
+            <button type="button" onClick={onClose} aria-label="Close" className="press -mr-1 grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-fg-2 hover:bg-sunken hover:text-fg">
+              <X className="size-5" />
+            </button>
+          </header>
+          <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5 sm:px-6">{children}</div>
+          {footer && <footer className="border-t border-subtle bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">{footer}</footer>}
+        </div>
+      )}
+    </dialog>
+  );
+}
+
 export function Modal({ open, onClose, title, sub, children, footer, width = 520 }: PanelProps) {
   const ref = useDialog(open, onClose);
   const titleId = useId();

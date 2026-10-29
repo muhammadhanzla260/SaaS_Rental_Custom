@@ -100,6 +100,28 @@ export function setOrderStaff(db: Db, tenantId: string, actor: Actor, orderId: s
   });
 }
 
+/** "Notes for coach" on an order (shown on the coach's order page). Kept out of the order form's versioning. */
+export function setCoachNotes(db: Db, tenantId: string, actor: Actor, orderId: string, notes: string | null) {
+  return withTenant(db, tenantId, async (tx) => {
+    const value = (notes ?? '').trim().slice(0, 4000) || null;
+    const [before] = await tx.select({ coachNotes: orders.coachNotes }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1).for('update');
+    if (!before) throw new OrgError('Order not found.', 'not_found');
+    if (before.coachNotes === value) return;
+    await tx.update(orders).set({ coachNotes: value, updatedAt: new Date() }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
+    await audit(tx, tenantId, actor, orderEntity(orderId), 'coach.notes', { from: before.coachNotes, to: value });
+  });
+}
+
+/** For the staff order page: who is on the order and how far the checklist is. */
+export function orderCoachSummary(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const staff = await staffOf(tx, tenantId, [orderId]);
+    const { row, state } = await loadState(tx, tenantId, orderId);
+    const [o] = await tx.select({ coachNotes: orders.coachNotes }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    return { staff, coachNotes: o?.coachNotes ?? null, checklist: checklistView(row, state) };
+  });
+}
+
 // --- access -------------------------------------------------------------------------------------
 
 /** The order, if this person is on it. Only Booked orders can be worked (Quote / Draft / Cancelled are locked). */
