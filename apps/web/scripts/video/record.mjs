@@ -9,10 +9,10 @@
  * Output: .data/video/clips/chNN*.mp4 + chNN.json (steps, shots, captions).
  */
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { startCapture } from './capture.mjs';
+import { action, newPage, paymentsHeading, point, recorder, setValue, sleep, stripeCard, tap, typeCard, typeIn, waitText } from './kit.mjs';
 
 const BASE = 'http://localhost:3000';
 const S = `${BASE}/freedom-fun-demo`;
@@ -20,7 +20,6 @@ const ROOT = resolve(import.meta.dirname, '../../../..');
 const OUT = join(ROOT, '.data/video/clips');
 const FRAMES = join(ROOT, '.data/video/frames');
 const STATE = join(ROOT, '.data/video/state.json');
-mkdirSync(OUT, { recursive: true });
 // The office screen is 1440x810 at 4/3 scale: frames come out exactly 1920x1080 (sharp, and fast enough to be smooth).
 const W = 1440;
 const H = 810;
@@ -28,153 +27,11 @@ const SCALE = 4 / 3;
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const CUSTOMER = { first: 'Muhammad', last: 'Hanzla', email: 'muhammadhanzla260+video@gmail.com', phone: '(512) 555-0418', street: '1100 Congress Ave' };
 const EVENT_DAY = '2026-11-21';
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 const save = () => writeFileSync(STATE, JSON.stringify(state, null, 2));
 const fixture = (args) => JSON.parse(execSync(`pnpm --filter @rental/db exec tsx ../../apps/web/scripts/video/fixtures.ts ${args}`, { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').at(-1));
-
-// --- the cursor is drawn in post (smooth, at 60 fps): here we only log where it goes and when it clicks ---
-const events = [];
-const log = (page, ev) => events.push({ clip: page.__key ?? 'desk', t: Date.now() / 1000, ...ev });
+const chapter = recorder({ clips: OUT, frames: FRAMES });
 const overlay = async () => {};
-
-async function newPage(browser, viewport) {
-  const page = await browser.newPage();
-  await page.setViewport(viewport);
-  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
-  page.on('pageerror', (e) => console.log(`  page error: ${e.message.slice(0, 160)}`));
-  return page;
-}
-
-/** Find an element by CSS, or by its visible text inside `within`. */
-async function find(page, target, within = 'body', tags = 'button, a, [role="tab"], [role="radio"], label, li, tr') {
-  if (typeof target !== 'string' || /^[#.[]|^[a-z]+\[/.test(target)) {
-    const h = typeof target === 'string' ? await page.waitForSelector(target, { visible: true, timeout: 20000 }) : target;
-    return h;
-  }
-  await page.waitForFunction((t, w, g) => [...(document.querySelector(w)?.querySelectorAll(g) ?? [])].some((e) => e.innerText?.trim().startsWith(t) && e.offsetParent), { timeout: 20000 }, target, within, tags);
-  return page.evaluateHandle((t, w, g) => [...document.querySelector(w).querySelectorAll(g)].find((e) => e.innerText?.trim().startsWith(t) && e.offsetParent), target, within, tags);
-}
-async function point(page, target, within, tags) {
-  const h = await find(page, target, within, tags);
-  await h.evaluate((e) => e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }));
-  await sleep(1000);
-  const box = await h.boundingBox();
-  if (box) log(page, { type: 'move', x: box.x + Math.min(box.width / 2, 60), y: box.y + box.height / 2 });
-  await sleep(700);
-  return h;
-}
-async function tap(page, target, within, tags) {
-  const h = await point(page, target, within, tags);
-  log(page, { type: 'click' });
-  await h.click();
-  await sleep(500);
-  return h;
-}
-async function typeIn(page, target, text, delay = 45) {
-  const h = await tap(page, target);
-  await h.type(text, { delay });
-  await sleep(250);
-}
-async function setValue(page, sel, value) {
-  await point(page, sel);
-  await page.evaluate((s, v) => {
-    const el = document.querySelector(s);
-    const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, String(v));
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }, sel, value);
-  await sleep(500);
-}
-/** Stripe's card field: whichever Stripe frame holds the card number input (frame names change). */
-async function stripeCard(page) {
-  for (let i = 0; i < 90; i++) {
-    for (const h of await page.$$('iframe[src*="js.stripe.com"]')) {
-      const f = await h.contentFrame().catch(() => null);
-      if (f && (await f.$('input[name="number"]').catch(() => null)) && (await h.boundingBox())?.height > 20) return { handle: h, frame: f };
-    }
-    await sleep(500);
-  }
-  throw new Error('Stripe card field did not appear');
-}
-async function typeCard(page, frame) {
-  await frame.type('input[name="number"]', '4242424242424242', { delay: 55 });
-  await frame.type('input[name="expiry"]', '1230', { delay: 70 });
-  await frame.type('input[name="cvc"]', '123', { delay: 70 });
-  if (await frame.$('input[name="postalCode"]')) await frame.type('input[name="postalCode"]', '78701', { delay: 70 });
-}
-
-/** The main action button with this label in the open dialog (not the tab of the same name). */
-const action = (page, label) => page.evaluateHandle((l) => [...document.querySelectorAll('dialog[open] button:not([role="tab"])')].filter((b) => b.innerText.trim() === l && b.offsetParent).at(-1), label);
-/** The order screen's "Payments" heading (in the order history). */
-const paymentsHeading = (page) => page.evaluateHandle(() => [...document.querySelectorAll('main h2')].find((h) => h.textContent.trim() === 'Payments'));
-const waitText = (page, t, timeout = 30000) => page.waitForFunction((x) => document.body.innerText.includes(x), { timeout }, t);
-
-/** A 16:9 box around these elements (CSS px of the viewport), at least `min` wide. */
-async function cropFor(page, targets, { min = 960, pad = 28 } = {}) {
-  const vp = page.viewport();
-  if (targets === 'full') return [0, 0, vp.width, vp.height];
-  const boxes = [];
-  for (const t of [].concat(targets)) {
-    const h = typeof t === 'string' && /^[#.[]|^[a-z]+\[|^dialog|^aside|^main|^section/.test(t) ? await page.$(t) : await find(page, t).catch(() => null);
-    const b = h && (await h.boundingBox());
-    if (b) boxes.push(b);
-  }
-  if (!boxes.length) return [0, 0, vp.width, vp.height];
-  let x1 = Math.min(...boxes.map((b) => b.x)) - pad;
-  let y1 = Math.min(...boxes.map((b) => b.y)) - pad;
-  let x2 = Math.max(...boxes.map((b) => b.x + b.width)) + pad;
-  let y2 = Math.max(...boxes.map((b) => b.y + b.height)) + pad;
-  const ar = vp.width / vp.height;
-  let w = Math.max(min, x2 - x1, (y2 - y1) * ar);
-  w = Math.min(w, vp.width);
-  const h = w / ar;
-  let x = (x1 + x2) / 2 - w / 2;
-  let y = (y1 + y2) / 2 - h / 2;
-  x = Math.max(0, Math.min(vp.width - w, x));
-  y = Math.max(0, Math.min(vp.height - h, y));
-  return [x, y, w, h].map((n) => Math.round(n));
-}
-
-/** One chapter: steps (one per [pause]-separated sentence), each with shots (a crop over a stretch of time). */
-async function chapter(id, name, pages, fn) {
-  const tag = `ch${String(id).padStart(2, '0')}`;
-  console.log(`${tag} ${name}`);
-  const caps = {};
-  events.length = 0;
-  for (const [k, page] of Object.entries(pages)) { page.__key = k; caps[k] = await startCapture(page, join(FRAMES, `${tag}-${k}`)); }
-  const steps = [];
-  let step = null;
-  let shot = null;
-  const close = () => { if (shot) { shot.t1 = caps[shot.clip].now(); shot = null; } };
-  const ctx = {
-    async step(caption, fn2) {
-      close();
-      step = { caption, shots: [] };
-      steps.push(step);
-      await fn2();
-      close();
-    },
-    /** Start a new shot on this page with a crop around `targets` ('full' for the whole screen). */
-    async shot(clip, targets, opts) {
-      close();
-      const crop = await cropFor(pages[clip], targets, opts);
-      shot = { clip, t0: caps[clip].now(), crop };
-      step.shots.push(shot);
-    },
-  };
-  await fn(ctx);
-  close();
-  const clips = {};
-  for (const [k, c] of Object.entries(caps)) {
-    const file = join(OUT, `${tag}-${k}.mp4`);
-    const r = await c.stop(file);
-    clips[k] = { file, ...r, t0: c.t0, size: pages[k].viewport(), cursor: events.filter((e) => e.clip === k).map((e) => ({ ...e, t: e.t - c.t0 })) };
-  }
-  writeFileSync(join(OUT, `${tag}.json`), JSON.stringify({ id, name, clips, steps }, null, 2));
-  console.log(`  ${steps.length} steps · ${Object.values(clips).map((c) => `${c.frames} frames ${c.seconds.toFixed(1)} s`).join(' · ')}`);
-}
 
 // --- title cards ---------------------------------------------------------------------------------
 const card = (title, sub) => `<!doctype html><html><head><meta charset="utf-8"><style>

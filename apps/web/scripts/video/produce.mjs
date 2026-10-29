@@ -5,7 +5,8 @@
  *   node apps/web/scripts/video/produce.mjs aurora            one variant (aurora | sunrise | lagoon)
  *   node apps/web/scripts/video/produce.mjs all                all three
  *   node apps/web/scripts/video/produce.mjs aurora 2 3         only some chapters (a quick look)
- * Output: .data/video/out/<variant>/chNN.mp4 and <variant>.mp4
+ *   node apps/web/scripts/video/produce.mjs training aurora     the training video (training-script.md)
+ * Output: .data/video/<out>/<variant>/chNN.mp4 and <variant>.mp4
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
@@ -13,7 +14,7 @@ import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import ffmpegPath from 'ffmpeg-static';
-import { VIDEO } from './script.mjs';
+import { parseScript, projectArg, PROJECTS, VIDEO } from './script.mjs';
 
 const ROOT = resolve(VIDEO, '../..');
 const sharpDir = readdirSync(join(ROOT, 'node_modules/.pnpm')).find((d) => d.startsWith('sharp@'));
@@ -27,7 +28,26 @@ const LEAD = 0.55; // the window scales in before the voice starts
 const GAP = 0.3; // breath between steps
 const TAIL = 1.8; // the last card lingers
 const FONT = "'Segoe UI', Arial, sans-serif";
-const NAMES = ['', 'Add a customer', 'Build an order', 'Option one · Send a quote', 'Option two · Book without payment', 'Option three · Record the payment', 'The emails your customer receives', 'How the customer pays online', 'Products, categories & inventory', 'Settings · Your email server', 'Settings · Email templates', 'Settings · Team & roles'];
+const PROJECT = projectArg(process.argv.slice(2));
+const P = PROJECTS[PROJECT];
+const SCRIPT = parseScript(PROJECT);
+const LAST = Object.keys(SCRIPT).length - 1; // chapter 0 is the intro card, the last one the outro card
+const NAMES = Object.values(SCRIPT).map((c) => c.title.replace(': ', ' · '));
+/** The words on the intro and outro cards and the window's title bar. */
+const COPY = {
+  walkthrough: {
+    bar: 'Tentpole · Freedom Fun USA', brand: 'Freedom Fun USA', mark: 'FF',
+    intro: ['Run your rental business', 'step by step', 'A walkthrough for Tim · from the first phone call to a paid booking'],
+    outro: ['Thanks, Tim!', 'Everything you relied on in Odoo is preserved and fully functional.'],
+    chips: ['Quotes', 'Deposits', 'Invoices', 'Receipts', 'Reminders'], button: 'No duplicates · No data issues · All preserved',
+  },
+  training: {
+    bar: 'Tentpole', brand: 'Tentpole', mark: 'T',
+    intro: ['Learn Tentpole', 'step by step', 'The complete training guide · customers, orders, payments and settings'],
+    outro: ["You're all set!", 'Everything you need to run your rental business, in one place.'],
+    chips: ['Customers', 'Products', 'Orders', 'Payments', 'Settings'], button: 'Book it · Get paid · Grow',
+  },
+}[PROJECT];
 
 const THEMES = {
   aurora: { voice: 'ava', bg: ['#eef1ff', '#f6efff'], blobs: ['#a855f7', '#ff6ec7', '#5b8cff'], accent: '#5b4be0', ink: '#1b1d3a', soft: '#5d6180' },
@@ -96,16 +116,16 @@ function introSvg(T, th) {
   const logo = smooth(clamp(T / 0.6, 0, 1));
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${blurDef}${chips}
   <g opacity="${logo.toFixed(3)}" transform="translate(0 ${((1 - logo) * -20).toFixed(1)})">
-    <rect x="96" y="70" width="64" height="64" rx="18" fill="${th.accent}"/><text x="128" y="112" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="28" fill="#fff">FF</text>
-    <text x="178" y="112" font-family="${FONT}" font-weight="700" font-size="32" fill="${th.ink}">Freedom Fun USA</text></g>
-  ${line('Run your rental business', 520, 110, th.ink, 0.5)}
-  ${line('step by step', 650, 110, th.accent, 0.85)}
-  ${line('A walkthrough for Tim · from the first phone call to a paid booking', 760, 36, th.soft, 1.4, 500)}
+    <rect x="96" y="70" width="64" height="64" rx="18" fill="${th.accent}"/><text x="128" y="112" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="28" fill="#fff">${COPY.mark}</text>
+    <text x="178" y="112" font-family="${FONT}" font-weight="700" font-size="32" fill="${th.ink}">${COPY.brand}</text></g>
+  ${line(COPY.intro[0], 520, 110, th.ink, 0.5)}
+  ${line(COPY.intro[1], 650, 110, th.accent, 0.85)}
+  ${line(COPY.intro[2], 760, 36, th.soft, 1.4, 500)}
 </svg>`);
 }
 
 function outroSvg(T, th) {
-  const items = ['Quotes', 'Deposits', 'Invoices', 'Receipts', 'Reminders'];
+  const items = COPY.chips;
   const chips = items.map((t, i) => {
     const p = smooth(clamp((T - 0.9 - 0.18 * i) / 0.5, 0, 1));
     const x = 960 + (i - 2) * 300;
@@ -125,18 +145,18 @@ function outroSvg(T, th) {
     return chip(k, [260, 1660, 180, 1740][i] + 18 * Math.sin(T + i * 1.7), [250, 280, 880, 860][i] + 22 * Math.cos(T * 0.8 + i), th, 0.35 + 0.5 * back(p), p * 0.9);
   }).join('');
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${blurDef}${bg}
-  ${line('Thanks, Tim!', 430, 120, th.ink, 0.3)}
-  ${line('Everything you relied on in Odoo is preserved and fully functional.', 520, 40, th.soft, 0.6, 500)}
+  ${line(COPY.outro[0], 430, 120, th.ink, 0.3)}
+  ${line(COPY.outro[1], 520, 40, th.soft, 0.6, 500)}
   ${chips}
   <g transform="translate(960 ${(800 + (1 - bp) * 30).toFixed(1)}) scale(${(press * (0.85 + 0.15 * back(bp))).toFixed(3)})" opacity="${bp.toFixed(3)}">
     <rect x="-390" y="-46" width="780" height="92" rx="46" fill="${th.accent}"/>
-    <text x="0" y="14" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="34" fill="#fff">No duplicates · No data issues · All preserved</text></g>
+    <text x="0" y="14" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="34" fill="#fff">${esc(COPY.button)}</text></g>
 </svg>`);
 }
 
 // --- chapter furniture: dots, title bar, caption, window frame -------------------------------------------
 const pillsSvg = (cur, th) => {
-  const n = 13, w = 30, g = 10, curW = 74;
+  const n = LAST + 1, w = 30, g = 10, curW = 74;
   const total = (n - 1) * (w + g) + curW - w + w;
   let x = (W - (n - 1) * (w + g) - curW) / 2;
   const out = [];
@@ -209,10 +229,10 @@ const frameAt = (c, t) => {
 
 // --- one chapter ---------------------------------------------------------------------------------------------
 async function renderChapter({ variant, th, tag, ci, clips, bgOffset, outDir, tmp }) {
-  const meta = ci !== 0 && ci !== 12 && existsSync(join(VIDEO, 'clips', `${tag}.json`)) ? JSON.parse(readFileSync(join(VIDEO, 'clips', `${tag}.json`), 'utf8')) : null;
-  const lead = ci === 12 ? 0.5 : LEAD;
+  const meta = ci !== 0 && ci !== LAST && existsSync(join(VIDEO, P.clips, `${tag}.json`)) ? JSON.parse(readFileSync(join(VIDEO, P.clips, `${tag}.json`), 'utf8')) : null;
+  const lead = ci === LAST ? 0.5 : LEAD;
   const nSteps = clips.length;
-  const slots = clips.map((c, i) => c.seconds + GAP + (i === 0 ? lead : 0) + (i === nSteps - 1 && (ci === 12 || ci === 0) ? TAIL : 0));
+  const slots = clips.map((c, i) => c.seconds + GAP + (i === 0 ? lead : 0) + (i === nSteps - 1 && (ci === LAST || ci === 0) ? TAIL : 0));
   const total = slots.reduce((a, b) => a + b, 0);
 
   // timeline of segments (recorded stretches), per step slot
@@ -245,7 +265,7 @@ async function renderChapter({ variant, th, tag, ci, clips, bgOffset, outDir, tm
   // static furniture
   const capPngs = [];
   for (const c of captions) capPngs.push(await captionPng(c.text, th));
-  const bar = await sharp(titleBarSvg(`Tentpole · Freedom Fun USA  —  ${NAMES[ci] ?? ''}`)).png().toBuffer();
+  const bar = await sharp(titleBarSvg(`${COPY.bar}  —  ${NAMES[ci] ?? ''}`)).png().toBuffer();
   const maskWin = await sharp(roundMask(WIN.w, WIN.ch, 0, 16)).ensureAlpha().raw().toBuffer();
   const shWin = await shadowPng(WIN.w, WIN.bar + WIN.ch, 16, 26, 0.3, WIN.x, WIN.y);
   const PH = { h: 960, w: 444, bez: 14 };
@@ -389,16 +409,16 @@ const tagOf = (ci) => `ch${String(ci).padStart(2, '0')}`;
 
 function plan(variant) {
   const th = THEMES[variant];
-  const manifest = JSON.parse(readFileSync(join(VIDEO, 'tts', th.voice, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(VIDEO, P.tts, th.voice, 'manifest.json'), 'utf8'));
   // where each chapter starts in the finished video, so the gradient keeps drifting across the cuts
   let offset = 0;
   const starts = {};
-  for (let ci = 0; ci <= 12; ci++) {
+  for (let ci = 0; ci <= LAST; ci++) {
     starts[tagOf(ci)] = offset;
     const cs = manifest[tagOf(ci)];
-    offset += cs.reduce((a, c, i) => a + c.seconds + GAP + (i === 0 ? (ci === 12 ? 0.5 : LEAD) : 0) + (i === cs.length - 1 && (ci === 12 || ci === 0) ? TAIL : 0), 0);
+    offset += cs.reduce((a, c, i) => a + c.seconds + GAP + (i === 0 ? (ci === LAST ? 0.5 : LEAD) : 0) + (i === cs.length - 1 && (ci === LAST || ci === 0) ? TAIL : 0), 0);
   }
-  return { th, manifest, starts, outDir: join(VIDEO, 'out', variant) };
+  return { th, manifest, starts, outDir: join(VIDEO, P.out, variant) };
 }
 
 if (childAt >= 0) { // one chapter of one variant, in its own process
@@ -413,16 +433,17 @@ if (childAt >= 0) { // one chapter of one variant, in its own process
   // every chapter of every variant, JOBS at a time
   const jobs = [];
   for (const variant of variants) {
-    rmSync(join(VIDEO, 'out', variant), { recursive: true, force: true });
-    mkdirSync(join(VIDEO, 'out', variant), { recursive: true });
-    for (let ci = 0; ci <= 12; ci++) if (!only.length || only.includes(ci)) jobs.push({ variant, ci });
+    // Rendering some chapters keeps the others already rendered (chapters can be done in batches).
+    if (!only.length) rmSync(join(VIDEO, P.out, variant), { recursive: true, force: true });
+    mkdirSync(join(VIDEO, P.out, variant), { recursive: true });
+    for (let ci = 0; ci <= LAST; ci++) if (!only.length || only.includes(ci)) jobs.push({ variant, ci });
   }
   let next = 0, done = 0, failed = 0;
   const started = Date.now();
   await Promise.all(Array.from({ length: Math.min(JOBS, jobs.length) }, async () => {
     while (next < jobs.length) {
       const { variant, ci } = jobs[next++];
-      const child = spawn(process.execPath, [import.meta.filename, variant, '--chapter', String(ci)], { stdio: ['ignore', 'ignore', 'inherit'] });
+      const child = spawn(process.execPath, [import.meta.filename, PROJECT, variant, '--chapter', String(ci)], { stdio: ['ignore', 'ignore', 'inherit'] });
       const [code] = await once(child, 'close');
       if (code !== 0) failed++;
       done++;
@@ -432,10 +453,12 @@ if (childAt >= 0) { // one chapter of one variant, in its own process
   if (failed) { console.log(`${failed} chapter(s) failed`); process.exit(1); }
   for (const variant of variants) {
     const { th, outDir } = plan(variant);
-    const parts = Array.from({ length: 13 }, (_, ci) => ci).filter((ci) => !only.length || only.includes(ci)).map((ci) => join(outDir, `${tagOf(ci)}.mp4`));
+    const every = Array.from({ length: LAST + 1 }, (_, ci) => join(outDir, `${tagOf(ci)}.mp4`));
+    const complete = every.every((f) => existsSync(f));
+    const parts = complete ? every : every.filter((_, ci) => only.includes(ci));
     const list = join(outDir, 'all.txt');
     writeFileSync(list, parts.map((m) => `file '${slash(m)}'`).join('\n'));
-    const final = join(VIDEO, 'out', only.length ? `${variant}-preview.mp4` : `${variant}.mp4`);
+    const final = join(VIDEO, P.out, complete ? `${variant}.mp4` : `${variant}-preview.mp4`);
     ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', final]);
     rmSync(list);
     console.log(`${variant}: ${final} (${seconds(final).toFixed(1)} s, voice ${th.voice})`);
