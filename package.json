@@ -14,7 +14,9 @@
     "db:generate": "pnpm --filter @rental/db generate",
     "db:migrate": "pnpm --filter @rental/db migrate",
     "db:seed": "pnpm --filter @rental/db seed",
-    "worker": "pnpm --filter @rental/worker dev"
+    "worker": "pnpm --filter @rental/worker dev",
+    "platform:admin": "pnpm --filter @rental/db platform:admin",
+    "seed:demo": "pnpm --filter @rental/db exec tsx ../../apps/web/scripts/seed-demo.ts"
   },
   "devDependencies": {
     "turbo": "2.11.7",

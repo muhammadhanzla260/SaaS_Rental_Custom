@@ -60,5 +60,13 @@ export function useForm<T>(initial: T) {
 
   const error = useCallback((path: string) => errors[path], [errors]);
 
-  return { values, setValues, set, errors, setErrors, error, status, setStatus, pending, submit, dirty };
+  /** Back to these values with no errors and nothing unsaved (Discard, or after a save). */
+  const reset = useCallback((next: T) => {
+    setValues(next);
+    setErrors({});
+    setStatus(null);
+    setDirty(false);
+  }, []);
+
+  return { values, setValues, set, errors, setErrors, error, status, setStatus, pending, submit, dirty, reset };
 }

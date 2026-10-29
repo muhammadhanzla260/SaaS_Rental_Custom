@@ -1,33 +1,42 @@
 /**
- * Tenant theme: turns one brand colour into the CSS tokens the app uses,
- * for both light and dark mode, with readable text guaranteed (WCAG contrast).
+ * Tenant theme (design system section 2). The org's brand colour replaces
+ * --accent; status colours never change. Text on the accent is white or ink,
+ * whichever contrasts more. Below 3:1 the colour cannot be saved.
  */
 
 export const THEME_PRESETS = [
-  { name: 'Cobalt', hex: '#2450C8' },
-  { name: 'Ocean', hex: '#0E7C86' },
-  { name: 'Emerald', hex: '#0F8A5F' },
-  { name: 'Lime', hex: '#5B8C1A' },
-  { name: 'Gold', hex: '#B7791F' },
-  { name: 'Sunset', hex: '#E2581F' },
-  { name: 'Cherry', hex: '#D32F2F' },
-  { name: 'Berry', hex: '#C2185B' },
-  { name: 'Violet', hex: '#6D3FD1' },
-  { name: 'Slate', hex: '#334155' },
+  { name: 'Cobalt', hex: '#2C4FE0' },
+  { name: 'Emerald', hex: '#0B7A55' },
+  { name: 'Ember', hex: '#C2410C' },
+  { name: 'Berry', hex: '#B0306A' },
+  { name: 'Violet', hex: '#6D3FD6' },
+  { name: 'Teal', hex: '#0E7490' },
+  { name: 'Ink', hex: '#10131A' },
 ] as const;
 
+export const DEFAULT_ACCENT = '#2C4FE0';
+export const INK = '#0B0D12';
+
+/** "Corners" setting. Keys are stored in tenants.radius. */
+export const CORNERS = {
+  round: { label: 'Rounded', control: 10, card: 18, panel: 20, sheet: 22 },
+  soft: { label: 'Soft', control: 6, card: 11, panel: 12, sheet: 13 },
+  sharp: { label: 'Sharp', control: 4, card: 4, panel: 4, sheet: 4 },
+} as const;
+export type Corners = keyof typeof CORNERS;
+/** @deprecated use CORNERS (kept while legacy screens are rebuilt). */
 export const RADIUS_OPTIONS = {
   sharp: { label: 'Sharp', px: 4 },
-  soft: { label: 'Soft', px: 10 },
-  round: { label: 'Round', px: 16 },
+  soft: { label: 'Soft', px: 6 },
+  round: { label: 'Rounded', px: 10 },
 } as const;
-export type RadiusOption = keyof typeof RADIUS_OPTIONS;
+export type RadiusOption = Corners;
 
 export const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 type Rgb = [number, number, number];
 
-/** Page backgrounds the app paints behind brand colours (must match globals.css). */
+/** Surfaces the accent sits on (must match globals.css). */
 export const SURFACES = { light: '#FFFFFF', dark: '#141821' } as const;
 
 export function hexToRgb(hex: string): Rgb {
@@ -55,6 +64,34 @@ export function luminance(hex: string): number {
 export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (hi + 0.05) / (lo + 0.05);
+}
+
+export type AccentCheck = {
+  /** Text colour on a filled accent button. */
+  onAccent: '#FFFFFF' | typeof INK;
+  ratio: number;
+  /** 'all' ≥ 4.5:1 · 'large' ≥ 3:1 · 'fail' below 3:1 (cannot be saved). */
+  level: 'all' | 'large' | 'fail';
+  message: string;
+};
+
+/** The readout under the colour picker ("Button text contrast 6.4:1 · passes for all text sizes"). */
+export function checkAccent(input: string): AccentCheck {
+  // Never throw from a render path: anything that is not #RRGGBB is treated as the default accent.
+  const hex = HEX_RE.test(input) ? input : DEFAULT_ACCENT;
+  const white = contrastRatio('#FFFFFF', hex);
+  const ink = contrastRatio(INK, hex);
+  const onAccent = white >= ink ? '#FFFFFF' : INK;
+  const ratio = Math.max(white, ink);
+  const level = ratio >= 4.5 ? 'all' : ratio >= 3 ? 'large' : 'fail';
+  const r = ratio.toFixed(1);
+  const message =
+    level === 'all'
+      ? `Button text contrast ${r}:1 · passes for all text sizes`
+      : level === 'large'
+        ? `Button text contrast ${r}:1 · passes for large text only`
+        : `Button text contrast ${r}:1 · too low, pick a stronger colour`;
+  return { onAccent, ratio, level, message };
 }
 
 // --- OKLCH (perceptual lightness changes keep the hue stable) ---------------
@@ -89,86 +126,101 @@ function withLightness(hex: string, l: number): string {
   let c = o.c;
   for (let i = 0; i < 24; i++) {
     const rgb = oklchToRgb({ l, c, h: o.h });
-    const back = rgbToOklch(rgb);
-    if (Math.abs(back.l - l) < 0.01) return rgbToHex(rgb);
+    if (Math.abs(rgbToOklch(rgb).l - l) < 0.01) return rgbToHex(rgb);
     c *= 0.85;
   }
   return rgbToHex(oklchToRgb({ l, c: 0, h: o.h }));
 }
 
 /** Move lightness toward black or white until `hex` reaches `ratio` against `bg`. */
-function ensureContrast(hex: string, bg: string, ratio: number): string {
+export function ensureContrast(hex: string, bg: string, ratio: number): string {
   if (contrastRatio(hex, bg) >= ratio) return hex;
   const darken = luminance(bg) > 0.5;
   let l = rgbToOklch(hexToRgb(hex)).l;
   let out = hex;
-  for (let i = 0; i < 60 && contrastRatio(out, bg) < ratio; i++) {
+  for (let i = 0; i < 70 && contrastRatio(out, bg) < ratio; i++) {
     l = darken ? l - 0.015 : l + 0.015;
     out = withLightness(hex, Math.min(0.99, Math.max(0.01, l)));
   }
   return out;
 }
 
-function mix(a: string, b: string, weightOfA: number): string {
-  const x = hexToRgb(a);
-  const y = hexToRgb(b);
-  return rgbToHex(x.map((v, i) => v * weightOfA + y[i]! * (1 - weightOfA)) as Rgb);
+function shade(hex: string, delta: number): string {
+  const l = rgbToOklch(hexToRgb(hex)).l;
+  return withLightness(hex, Math.min(0.97, Math.max(0.05, l + delta)));
 }
 
-export type ThemeTokens = {
-  /** Filled buttons, active nav, selected states. */
-  brand: string;
-  /** Text and icons on top of `brand`. */
-  brandFg: string;
-  /** Hover / pressed shade of `brand`. */
-  brandStrong: string;
-  /** Tinted backgrounds (selected rows, badges). */
-  brandSoft: string;
-  /** Brand-coloured text on the page background (links), always >= 4.5:1. */
-  brandText: string;
-};
+function alpha(hex: string, a: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgb(${r} ${g} ${b} / ${a})`;
+}
 
-export type ThemePalette = { light: ThemeTokens; dark: ThemeTokens; warnings: string[] };
+export type AccentTokens = { accent: string; hover: string; soft: string; text: string; on: string };
 
-function tokensFor(picked: string, surface: string): ThemeTokens {
-  const onWhite = contrastRatio('#FFFFFF', picked);
-  const onInk = contrastRatio('#111318', picked);
-  const brandFg = onWhite >= onInk ? '#FFFFFF' : '#111318';
-  // Nudge the fill (never the hue) until button text reaches 4.5:1.
-  const brand = ensureContrast(picked, brandFg, 4.5);
-  const l = rgbToOklch(hexToRgb(brand)).l;
-  const brandStrong = withLightness(brand, brandFg === '#FFFFFF' ? Math.max(0.05, l - 0.07) : Math.min(0.97, l + 0.07));
-  const isLight = surface === SURFACES.light;
-  return {
-    brand,
-    brandFg,
-    brandStrong,
-    brandSoft: mix(brand, surface, isLight ? 0.1 : 0.2),
-    brandText: ensureContrast(brand, surface, 4.5),
+/** Light and dark accent tokens for one brand colour. */
+export function accentTokens(hex: string): { light: AccentTokens; dark: AccentTokens } {
+  const base = HEX_RE.test(hex) ? hex.toUpperCase() : DEFAULT_ACCENT;
+  const { onAccent } = checkAccent(base);
+  const light: AccentTokens = {
+    accent: base,
+    hover: shade(base, onAccent === '#FFFFFF' ? -0.06 : 0.06),
+    soft: alpha(base, 0.14),
+    text: ensureContrast(base, SURFACES.light, 4.5),
+    on: onAccent,
   };
-}
-
-export function buildPalette(brandHex: string): ThemePalette {
-  const brand = brandHex.toUpperCase();
-  const warnings: string[] = [];
-  // In dark mode a very dark brand colour disappears into the page, so lift it.
-  const darkBrand = ensureContrast(brand, SURFACES.dark, 3);
-  if (contrastRatio(brand, SURFACES.light) < 3) {
-    warnings.push('This colour is very light. Buttons stay readable, but it will look faint on white backgrounds.');
-  }
-  if (contrastRatio(brand, SURFACES.dark) < 1.5) {
-    warnings.push('This colour is very dark, so a lighter shade is used in dark mode.');
-  }
-  return { light: tokensFor(brand, SURFACES.light), dark: tokensFor(darkBrand, SURFACES.dark), warnings };
+  // In dark mode a dark brand colour disappears into the page, so lift it.
+  const darkAccent = ensureContrast(base, SURFACES.dark, 3);
+  const darkOn = checkAccent(darkAccent).onAccent;
+  const dark: AccentTokens = {
+    accent: darkAccent,
+    hover: shade(darkAccent, darkOn === '#FFFFFF' ? -0.06 : 0.06),
+    soft: alpha(darkAccent, 0.2),
+    text: ensureContrast(darkAccent, SURFACES.dark, 4.5),
+    on: darkOn,
+  };
+  return { light, dark };
 }
 
 /** CSS custom properties for a tenant, ready to drop into a <style> tag. */
-export function themeCss(brandHex: string, radius: RadiusOption, scope = ':root'): string {
-  const p = buildPalette(brandHex);
-  const vars = (t: ThemeTokens) =>
-    `--brand:${t.brand};--brand-fg:${t.brandFg};--brand-strong:${t.brandStrong};--brand-soft:${t.brandSoft};--brand-text:${t.brandText};`;
+export function themeCss(brandHex: string, corners: Corners = 'round', scope = ':root'): string {
+  const t = accentTokens(brandHex);
+  const r = CORNERS[corners] ?? CORNERS.round;
+  const vars = (x: AccentTokens) => `--accent:${x.accent};--accent-hover:${x.hover};--accent-soft:${x.soft};--accent-text:${x.text};--on-accent:${x.on};`;
   return [
-    `${scope}{${vars(p.light)}--radius:${RADIUS_OPTIONS[radius].px}px}`,
-    `${scope}[data-theme=dark]{${vars(p.dark)}}`,
+    `${scope}{${vars(t.light)}--radius-control:${r.control}px;--radius-card:${r.card}px;--radius-panel:${r.panel}px;--radius-sheet:${r.sheet}px}`,
+    `${scope}[data-theme=dark]{${vars(t.dark)}}`,
   ].join('\n');
+}
+
+/** Inline style object with the same variables (live previews). */
+export function themeStyle(brandHex: string, corners: Corners = 'round', mode: 'light' | 'dark' = 'light'): Record<string, string> {
+  const x = accentTokens(brandHex)[mode];
+  const r = CORNERS[corners] ?? CORNERS.round;
+  return {
+    '--accent': x.accent,
+    '--accent-hover': x.hover,
+    '--accent-soft': x.soft,
+    '--accent-text': x.text,
+    '--on-accent': x.on,
+    '--radius-control': `${r.control}px`,
+    '--radius-card': `${r.card}px`,
+    '--radius-panel': `${r.panel}px`,
+  };
+}
+
+/** Two-letter avatar initials ("Freedom Fun USA" → "FF"). */
+export function initials(name: string | null | undefined, fallback = '?'): string {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  return (words.slice(0, 2).map((w) => w[0]).join('') || fallback).toUpperCase();
+}
+
+// --- Legacy API (screens not yet rebuilt) ----------------------------------
+export type ThemeTokens = { brand: string; brandFg: string; brandStrong: string; brandSoft: string; brandText: string };
+export type ThemePalette = { light: ThemeTokens; dark: ThemeTokens; warnings: string[] };
+/** @deprecated use accentTokens / checkAccent. */
+export function buildPalette(brandHex: string): ThemePalette {
+  const t = accentTokens(brandHex);
+  const map = (x: AccentTokens): ThemeTokens => ({ brand: x.accent, brandFg: x.on, brandStrong: x.hover, brandSoft: x.soft, brandText: x.text });
+  const c = checkAccent(HEX_RE.test(brandHex) ? brandHex : DEFAULT_ACCENT);
+  return { light: map(t.light), dark: map(t.dark), warnings: c.level === 'fail' ? [c.message] : [] };
 }

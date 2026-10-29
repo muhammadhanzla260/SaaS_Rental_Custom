@@ -1,22 +1,28 @@
-import type { Role } from '@rental/core';
-import { listTeam } from '@rental/db';
-import { getTenantContext } from '@/server/context';
+import { listLocations, listTeam } from '@rental/db';
+import { pageContext } from '@/server/guards';
 import { db } from '@/server/db';
-import { TeamPanel } from '../forms';
+import { TeamSettings } from './team-settings';
 
-export const metadata = { title: 'Team' };
+export const metadata = { title: 'Team & roles' };
 
-export default async function TeamSettings({ params }: { params: Promise<{ tenant: string }> }) {
+export default async function TeamPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params;
-  const ctx = await getTenantContext(slug);
-  const team = await listTeam(db, ctx.tenant.id);
+  const ctx = await pageContext(slug, 'members.manage');
+  const [team, locs] = await Promise.all([listTeam(db, ctx.tenant.id), listLocations(db, ctx.tenant.id)]);
   return (
-    <TeamPanel
+    <TeamSettings
       slug={slug}
-      me={ctx.user.id}
-      myRole={ctx.role}
-      members={team.members.map((m) => ({ id: m.id, name: m.name, email: m.email, role: m.role as Role, status: m.status, userId: m.userId }))}
-      invites={team.invites.map((i) => ({ id: i.id, email: i.email, role: i.role as Role, expiresAt: i.expiresAt.toISOString() }))}
+      me={{ userId: ctx.user.id, role: ctx.role }}
+      readOnly={ctx.readOnly}
+      locations={locs.map((l) => ({ id: l.id, code: l.code, name: l.name }))}
+      members={team.members.map((m) => ({
+        kind: 'member' as const, id: m.id, userId: m.userId, name: m.name, email: m.email, image: m.image, role: m.role,
+        status: m.status as 'active' | 'disabled', locationIds: m.locationIds, commissionPct: m.commissionPct, vehicle: m.vehicle, permissions: m.permissions,
+      }))}
+      invites={team.invites.map((i) => ({
+        kind: 'invite' as const, id: i.id, name: i.name, email: i.email, role: i.role, locationIds: i.locationIds, commissionPct: i.commissionPct,
+        vehicle: i.vehicle, permissions: i.permissions, expiresAt: i.expiresAt.toISOString(),
+      }))}
     />
   );
 }

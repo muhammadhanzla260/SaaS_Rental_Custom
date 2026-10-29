@@ -1,17 +1,19 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
+import { Bricolage_Grotesque, Geist, Geist_Mono } from 'next/font/google';
+import { ToastProvider } from '@/components/kit';
 import { MapboxTokenProvider } from '@/components/mapbox-token';
-import { MotionProvider } from '@/components/motion';
 import { themeScript } from '@/lib/theme-script';
 import './globals.css';
 
-const body = Instrument_Sans({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
-const heading = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-heading', weight: ['600', '700'], display: 'swap' });
-const code = JetBrains_Mono({ subsets: ['latin'], variable: '--font-code', weight: ['400', '500'], display: 'swap' });
+// Self-hosted at build time (no request to Google at runtime), latin subset only.
+const ui = Geist({ subsets: ['latin'], variable: '--font-ui-src', display: 'swap' });
+const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-display-src', weight: ['600', '700', '800'], display: 'swap' });
+const mono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono-src', weight: ['400', '500', '600'], display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'Rental Custom', template: '%s · Rental Custom' },
-  description: 'Bookings, inventory, quotes, deposits and invoices for rental businesses.',
+  title: { default: 'Tentpole', template: '%s · Tentpole' },
+  description: 'Bookings, deposits and reminders for event rental businesses.',
+  applicationName: 'Tentpole',
 };
 
 export const viewport: Viewport = {
@@ -19,8 +21,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f6f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d1016' },
+    { media: '(prefers-color-scheme: light)', color: '#F3F4F6' },
+    { media: '(prefers-color-scheme: dark)', color: '#0B0D12' },
   ],
 };
 
@@ -32,14 +34,17 @@ function publicMapboxToken(): string | null {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${body.variable} ${heading.variable} ${code.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${ui.variable} ${display.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: themeScript('light') }} />
       </head>
-      <body className="bg-canvas min-h-dvh antialiased">
-        <MotionProvider>
+      <body className="min-h-dvh bg-canvas antialiased">
+        <a href="#main" className="sr-only z-[200] rounded-lg bg-accent px-4 py-2 font-semibold text-on-accent focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+          Skip to content
+        </a>
+        <ToastProvider>
           <MapboxTokenProvider token={publicMapboxToken()}>{children}</MapboxTokenProvider>
-        </MotionProvider>
+        </ToastProvider>
       </body>
     </html>
   );

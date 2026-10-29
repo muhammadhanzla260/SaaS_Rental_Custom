@@ -15,8 +15,13 @@ export const tenants = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     slug: citext('slug').notNull().unique(),
-    status: text('status').notNull().default('active'),
-    plan: text('plan').notNull().default('trial'),
+    status: text('status').notNull().default('trial'),
+    plan: text('plan').notNull().default('growth'),
+    /** Highest product phase this org runs live (console "Live · Phase 1"). */
+    rolloutPhase: integer('rollout_phase').notNull().default(0),
+    /** Set when the org is closed; the worker hard-deletes after purge_after (30-day grace). */
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    purgeAfter: timestamp('purge_after', { withTimezone: true }),
     // Business profile
     name: text('name').notNull(),
     legalName: text('legal_name'),
@@ -35,9 +40,9 @@ export const tenants = pgTable(
     // Branding
     logoFileId: uuid('logo_file_id'),
     logoDarkFileId: uuid('logo_dark_file_id'),
-    brandColor: text('brand_color').notNull().default('#2450C8'),
-    themeMode: text('theme_mode').notNull().default('system'),
-    radius: text('radius').notNull().default('soft'),
+    brandColor: text('brand_color').notNull().default('#2C4FE0'),
+    themeMode: text('theme_mode').notNull().default('light'),
+    radius: text('radius').notNull().default('round'),
     // Regional
     country: text('country').notNull().default('US'),
     timezone: text('timezone').notNull(),
@@ -51,6 +56,7 @@ export const tenants = pgTable(
   },
   (t) => [
     check('tenants_status', sql`${t.status} in ('trial','active','past_due','suspended','closed')`),
+    check('tenants_plan', sql`${t.plan} in ('starter','growth','scale')`),
     check('tenants_theme_mode', sql`${t.themeMode} in ('system','light','dark')`),
     check('tenants_radius', sql`${t.radius} in ('sharp','soft','round')`),
     check('tenants_brand_color', sql`${t.brandColor} ~ '^#[0-9A-F]{6}$'`),
@@ -71,13 +77,15 @@ export const memberships = pgTable(
     title: text('title'),
     allLocations: boolean('all_locations').notNull().default(true),
     commissionRate: numeric('commission_rate', { precision: 7, scale: 4 }),
+    /** Coach / crew vehicle ("Van 2 · white Transit"). */
+    vehicle: text('vehicle'),
     createdAt: createdAt(),
   },
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
     unique('memberships_tenant_user').on(t.tenantId, t.userId),
     index('memberships_user_idx').on(t.userId),
-    check('memberships_role', sql`${t.role} in ('owner','admin','manager','sales','crew','accountant','viewer')`),
+    check('memberships_role', sql`${t.role} in ('owner','admin','manager','sales','coach','crew','accountant','viewer')`),
     check('memberships_status', sql`${t.status} in ('active','disabled')`),
   ],
 );
@@ -88,7 +96,13 @@ export const invitations = pgTable(
     tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
     id: id(),
     email: citext('email').notNull(),
+    name: text('name'),
     role: text('role').notNull(),
+    /** Empty = all locations. */
+    locationIds: uuid('location_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    commissionRate: numeric('commission_rate', { precision: 7, scale: 4 }),
+    vehicle: text('vehicle'),
+    permissions: text('permissions').array().notNull().default(sql`'{}'::text[]`),
     tokenSha256: text('token_sha256').notNull().unique(),
     invitedByUserId: text('invited_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -98,7 +112,7 @@ export const invitations = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
-    check('invitations_role', sql`${t.role} in ('admin','manager','sales','crew','accountant','viewer')`),
+    check('invitations_role', sql`${t.role} in ('owner','admin','manager','sales','coach','crew','accountant','viewer')`),
   ],
 );
 

@@ -1,70 +1,48 @@
 import { listActivity } from '@rental/db';
-import { Card } from '@/components/ui';
-import { getTenantContext } from '@/server/context';
+import { Card, PageTitle, Pill } from '@/components/kit';
+import { PageBody, Topbar } from '@/components/shell/app-shell';
+import { describeAudit, summarizeChanges } from '@/lib/audit-text';
+import { pageContext } from '@/server/guards';
 import { db } from '@/server/db';
 
 export const metadata = { title: 'Activity log' };
 
-const LABELS: Record<string, string> = {
-  'tenant.created': 'Created the organization',
-  'tenant.profile_updated': 'Updated the business profile',
-  'tenant.branding_updated': 'Changed the branding',
-  'tenant.regional_updated': 'Changed region settings',
-  'tenant.formats_updated': 'Changed formats',
-  'tenant.hours_updated': 'Changed opening hours',
-  'tenant.booking_updated': 'Changed booking rules',
-  'tenant.numbering_updated': 'Changed document numbering',
-  'tenant.communication_updated': 'Changed email settings',
-  'location.created': 'Added a location',
-  'location.updated': 'Updated a location',
-  'location.deleted': 'Removed a location',
-  'team.invited': 'Invited someone',
-  'team.invite_revoked': 'Revoked an invitation',
-  'team.invite_accepted': 'Joined the team',
-  'team.member_updated': 'Changed a team member',
-};
-
-const HIDDEN_KEYS = new Set(['updatedAt', 'createdAt', 'tenantId', 'id', 'locationId']);
-
-function summarize(changes: unknown): string[] {
-  if (!changes || typeof changes !== 'object') return [];
-  return Object.entries(changes as Record<string, unknown>)
-    .filter(([k]) => !HIDDEN_KEYS.has(k))
-    .slice(0, 6)
-    .map(([k, v]) => {
-      const name = k.replace(/([A-Z])/g, ' $1').toLowerCase();
-      if (v && typeof v === 'object' && 'to' in (v as object)) {
-        const { from, to } = v as { from: unknown; to: unknown };
-        const fmt = (x: unknown) => (x == null || x === '' ? 'empty' : typeof x === 'object' ? 'updated' : String(x));
-        return `${name}: ${fmt(from)} → ${fmt(to)}`;
-      }
-      return `${name}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`;
-    });
-}
-
-export default async function ActivitySettings({ params }: { params: Promise<{ tenant: string }> }) {
+export default async function ActivityPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params;
-  const { tenant } = await getTenantContext(slug);
-  const rows = await listActivity(db, tenant.id, 100);
-  const fmt = new Intl.DateTimeFormat(tenant.locale, { timeZone: tenant.timezone, dateStyle: 'medium', timeStyle: 'short' });
+  const { tenant } = await pageContext(slug, 'settings.manage');
+  const rows = await listActivity(db, tenant.id, 150);
+  const fmt = new Intl.DateTimeFormat(tenant.locale, { timeZone: tenant.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   return (
-    <Card title="Activity log" description="Every change to your organization's settings and team: who, what and when. Kept permanently.">
-      <ol className="-my-3 divide-y divide-line">
-        {rows.map((r) => (
-          <li key={r.id} className="grid gap-1 py-3 sm:grid-cols-[170px_minmax(0,1fr)] sm:gap-4">
-            <time className="text-sm text-muted tabular" dateTime={new Date(r.at).toISOString()}>{fmt.format(new Date(r.at))}</time>
-            <div className="min-w-0">
-              <p className="text-[15px]">
-                <span className="font-medium">{r.actor_name ?? (r.actor_type === 'system' ? 'System' : 'Someone')}</span>{' '}
-                {(LABELS[r.action] ?? r.action).replace(/^./, (c) => c.toLowerCase())}
-              </p>
-              <ul className="mt-0.5 text-sm text-muted">
-                {summarize(r.changes).map((line) => <li key={line} className="break-words">{line}</li>)}
-              </ul>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </Card>
+    <>
+      <Topbar crumbs={[{ label: 'Settings', href: `/${slug}/settings` }, { label: 'Activity log' }]} />
+      <PageBody>
+        <PageTitle title="Activity log" sub="Every change to your organization's settings and team: who, what and when. Support sessions by the platform appear here too." />
+        <Card className="anim-rise overflow-hidden">
+          <ol className="divide-y divide-subtle">
+            {rows.length === 0 && <li className="px-5 py-12 text-center text-sm text-fg-2">Nothing yet.</li>}
+            {rows.map((r) => {
+              const lines = summarizeChanges(r.changes);
+              return (
+                <li key={r.id} className="grid grid-cols-1 gap-1 px-5 py-3.5 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-start sm:gap-4">
+                  <time className="mono text-xs text-fg-2 sm:pt-0.5" dateTime={new Date(r.at).toISOString()}>{fmt.format(new Date(r.at))}</time>
+                  <div className="min-w-0">
+                    <p className="text-sm text-fg">
+                      <span className="font-semibold">{r.actor_type === 'platform' ? 'Platform support' : (r.actor_name ?? (r.actor_type === 'system' ? 'System' : 'Someone'))}</span>{' '}
+                      {describeAudit(r.action, r.changes)}
+                    </p>
+                    {lines.length > 0 && (
+                      <ul className="mt-1 text-[13px] text-fg-2">
+                        {lines.map((l) => <li key={l} className="break-words">{l}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                  {r.actor_type === 'platform' && <Pill tone="danger">Support</Pill>}
+                </li>
+              );
+            })}
+          </ol>
+        </Card>
+      </PageBody>
+    </>
   );
 }

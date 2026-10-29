@@ -1,14 +1,14 @@
 import { and, asc, eq, ne, sql } from 'drizzle-orm';
-import { timezoneAt, type LocationInput } from '@rental/core';
+import { timezoneAt, type LocationValues } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
-import { locations, taxRates, tenants } from '../schema';
+import { locations, orders, taxRates, tenants } from '../schema';
 import { audit, diff, type Actor } from './audit';
 import { OrgError } from './errors';
 
 export type Location = typeof locations.$inferSelect;
 
 /** Location row values. The time zone comes from the map pin unless set by hand. */
-export function locationValues(input: LocationInput, fallbackTimezone: string) {
+export function locationValues(input: LocationValues, fallbackTimezone: string) {
   return {
     name: input.name,
     code: input.code,
@@ -26,14 +26,15 @@ export function locationValues(input: LocationInput, fallbackTimezone: string) {
     loadingNotes: input.loadingNotes ?? null,
     isPrimary: input.isPrimary,
     isActive: input.isActive,
+    settings: input.settings,
   };
 }
 
-async function assertCodeFree(tx: Tx, code: string, exceptId?: string) {
+async function assertCodeFree(tx: Tx, tenantId: string, code: string, exceptId?: string) {
   const clash = await tx
     .select({ id: locations.id })
     .from(locations)
-    .where(exceptId ? and(eq(locations.code, code), ne(locations.id, exceptId)) : eq(locations.code, code))
+    .where(exceptId ? and(eq(locations.tenantId, tenantId), eq(locations.code, code), ne(locations.id, exceptId)) : and(eq(locations.tenantId, tenantId), eq(locations.code, code)))
     .limit(1);
   if (clash.length) throw new OrgError(`Another location already uses the code ${code}.`, 'invalid');
 }
@@ -50,9 +51,9 @@ export async function setTaxRate(tx: Tx, tenantId: string, locationId: string, r
 }
 
 /** Exactly one primary location: the default ship-from point. */
-async function makeOnlyPrimary(tx: Tx, keepId: string) {
-  await tx.update(locations).set({ isPrimary: false }).where(and(eq(locations.isPrimary, true), ne(locations.id, keepId)));
-  await tx.update(locations).set({ isPrimary: true }).where(eq(locations.id, keepId));
+async function makeOnlyPrimary(tx: Tx, tenantId: string, keepId: string) {
+  await tx.update(locations).set({ isPrimary: false }).where(and(eq(locations.tenantId, tenantId), eq(locations.isPrimary, true), ne(locations.id, keepId)));
+  await tx.update(locations).set({ isPrimary: true }).where(and(eq(locations.tenantId, tenantId), eq(locations.id, keepId)));
 }
 
 async function tenantTimezone(tx: Tx, tenantId: string) {
@@ -62,15 +63,15 @@ async function tenantTimezone(tx: Tx, tenantId: string) {
 
 export function listLocations(db: Db, tenantId: string) {
   return withTenant(db, tenantId, async (tx) => {
-    const locs = await tx.select().from(locations).orderBy(sql`${locations.isPrimary} desc`, asc(locations.name));
-    const taxes = await tx.select().from(taxRates).where(eq(taxRates.isDefault, true));
+    const locs = await tx.select().from(locations).where(eq(locations.tenantId, tenantId)).orderBy(sql`${locations.isPrimary} desc`, asc(locations.name));
+    const taxes = await tx.select().from(taxRates).where(and(eq(taxRates.tenantId, tenantId), eq(taxRates.isDefault, true)));
     return locs.map((l) => ({ ...l, taxRate: taxes.find((t) => t.locationId === l.id) ?? null }));
   });
 }
 
 export function getLocation(db: Db, tenantId: string, id: string) {
   return withTenant(db, tenantId, async (tx) => {
-    const [loc] = await tx.select().from(locations).where(eq(locations.id, id)).limit(1);
+    const [loc] = await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, id))).limit(1);
     if (!loc) return null;
     const [tax] = await tx
       .select()
@@ -81,36 +82,36 @@ export function getLocation(db: Db, tenantId: string, id: string) {
   });
 }
 
-export function createLocation(db: Db, tenantId: string, actor: Actor, input: LocationInput, taxPercent: number) {
+export function createLocation(db: Db, tenantId: string, actor: Actor, input: LocationValues, taxPercent: number) {
   return withTenant(db, tenantId, async (tx) => {
-    await assertCodeFree(tx, input.code);
-    const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(locations)) as [{ n: number }];
+    await assertCodeFree(tx, tenantId, input.code);
+    const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(locations).where(eq(locations.tenantId, tenantId))) as [{ n: number }];
     const values = locationValues(input, await tenantTimezone(tx, tenantId));
     const [loc] = await tx
       .insert(locations)
       .values({ tenantId, ...values, isPrimary: false })
       .returning();
-    if (input.isPrimary || n === 0) await makeOnlyPrimary(tx, loc!.id);
+    if (input.isPrimary || n === 0) await makeOnlyPrimary(tx, tenantId, loc!.id);
     await setTaxRate(tx, tenantId, loc!.id, taxPercent);
     await audit(tx, tenantId, actor, { type: 'location', id: loc!.id }, 'location.created', { name: loc!.name });
     return loc!;
   });
 }
 
-export function updateLocation(db: Db, tenantId: string, actor: Actor, id: string, input: LocationInput, taxPercent: number) {
+export function updateLocation(db: Db, tenantId: string, actor: Actor, id: string, input: LocationValues, taxPercent: number) {
   return withTenant(db, tenantId, async (tx) => {
-    const [before] = await tx.select().from(locations).where(eq(locations.id, id)).limit(1);
+    const [before] = await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, id))).limit(1);
     if (!before) throw new OrgError('Location not found.', 'not_found');
-    await assertCodeFree(tx, input.code, id);
+    await assertCodeFree(tx, tenantId, input.code, id);
     if (before.isPrimary && !input.isPrimary) throw new OrgError('Make another location the primary one first.', 'invalid');
     if (before.isPrimary && !input.isActive) throw new OrgError('The primary location must stay active.', 'invalid');
     if (!input.isActive && before.isActive) {
-      const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(locations).where(eq(locations.isActive, true))) as [{ n: number }];
+      const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.isActive, true)))) as [{ n: number }];
       if (n <= 1) throw new OrgError('Keep at least one active location.', 'invalid');
     }
     const values = locationValues(input, before.timezone);
-    const [after] = await tx.update(locations).set({ ...values, isPrimary: before.isPrimary }).where(eq(locations.id, id)).returning();
-    if (input.isPrimary && !before.isPrimary) await makeOnlyPrimary(tx, id);
+    const [after] = await tx.update(locations).set({ ...values, isPrimary: before.isPrimary }).where(and(eq(locations.tenantId, tenantId), eq(locations.id, id))).returning();
+    if (input.isPrimary && !before.isPrimary) await makeOnlyPrimary(tx, tenantId, id);
     await setTaxRate(tx, tenantId, id, taxPercent);
     const changes = diff(before as unknown as Record<string, unknown>, { ...after!, isPrimary: input.isPrimary } as unknown as Record<string, unknown>);
     delete changes.updatedAt;
@@ -121,9 +122,11 @@ export function updateLocation(db: Db, tenantId: string, actor: Actor, id: strin
 
 export function deleteLocation(db: Db, tenantId: string, actor: Actor, id: string) {
   return withTenant(db, tenantId, async (tx) => {
-    const [loc] = await tx.select().from(locations).where(eq(locations.id, id)).limit(1);
+    const [loc] = await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, id))).limit(1);
     if (!loc) throw new OrgError('Location not found.', 'not_found');
     if (loc.isPrimary) throw new OrgError('Make another location the primary one before removing this one.', 'invalid');
+    const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.locationId, id)))) as [{ n: number }];
+    if (n > 0) throw new OrgError(`${loc.name} has ${n} order${n === 1 ? '' : 's'}, so it cannot be removed. Turn on “Pause new orders” or make it inactive instead.`, 'invalid');
     await tx.delete(locations).where(eq(locations.id, id));
     await audit(tx, tenantId, actor, { type: 'location', id }, 'location.deleted', { name: loc.name });
   });

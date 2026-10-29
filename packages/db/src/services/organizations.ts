@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import {
-  detectRegion, parsePreferences, tenantPreferencesSchema,
-  type Branding, type BusinessProfile, type OnboardingInput, type Regional, type Role, type TenantPreferences,
+  CURRENCIES, detectRegion, locationSchema, parsePreferences, tenantPreferencesSchema,
+  type BookingDefaults, type BrandStep, type BusinessProfile, type LocationInput, type LocationValues, type OnboardingStepKey,
+  type ProfileStep, type Regional, type Role, type TenantPreferences, type WarehouseStep,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
-import { files, locations, memberships, numberSequences, tenants } from '../schema';
+import { files, locations, memberships, tenants } from '../schema';
 import { audit, diff, type Actor } from './audit';
-import { locationValues, setTaxRate } from './locations';
+import { createLocation, updateLocation } from './locations';
 
 export type Tenant = typeof tenants.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
@@ -15,12 +16,12 @@ export type Membership = typeof memberships.$inferSelect;
 export type UploadedFile = { bytes: Buffer; mime: string; filename: string };
 
 export const LOGO_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
-export const LOGO_MAX_BYTES = 1024 * 1024;
+export const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
 export { OrgError } from './errors';
 import { OrgError } from './errors';
 
-const addressColumns = (a: OnboardingInput['profile']['address']) => ({
+const addressColumns = (a: BusinessProfile['address']) => ({
   line1: a.line1 ?? null,
   line2: a.line2 ?? null,
   city: a.city ?? null,
@@ -30,9 +31,10 @@ const addressColumns = (a: OnboardingInput['profile']['address']) => ({
   lng: a.lng ?? null,
 });
 
+/** Free when no live org uses it and it was not released in the last 90 days. */
 export async function isSlugAvailable(db: Db, slug: string): Promise<boolean> {
-  const rows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.slug, slug)).limit(1);
-  return rows.length === 0;
+  const [row] = await db.execute<{ taken: boolean }>(sql`select app_slug_taken(${slug}) as taken`);
+  return !row?.taken;
 }
 
 export async function getTenantBySlug(db: Db, slug: string): Promise<Tenant | null> {
@@ -40,100 +42,70 @@ export async function getTenantBySlug(db: Db, slug: string): Promise<Tenant | nu
   return rows[0] ?? null;
 }
 
-/** Organisations a user belongs to (crosses tenants, so it uses a SECURITY DEFINER function). */
-export async function listUserTenants(db: Db, userId: string) {
-  const rows = await db.execute<{
-    tenant_id: string; slug: string; name: string; role: Role; brand_color: string; logo_file_id: string | null;
-  }>(sql`select * from app_user_tenants(${userId})`);
+export type UserTenant = {
+  tenant_id: string; slug: string; name: string; role: Role; brand_color: string; logo_file_id: string | null;
+  status: string; onboarded: boolean; locations: number;
+};
+
+/** Organizations a user belongs to (crosses tenants, so it uses a SECURITY DEFINER function). */
+export async function listUserTenants(db: Db, userId: string): Promise<UserTenant[]> {
+  const rows = await db.execute<UserTenant>(sql`select * from app_user_tenants(${userId})`);
   return [...rows];
 }
 
+export type WorkspaceInput = {
+  name: string;
+  slug: string;
+  country: string;
+  deviceTimezone?: string;
+  plan?: 'starter' | 'growth' | 'scale';
+  status?: 'trial' | 'active' | 'past_due';
+  timezone?: string;
+  currency?: string;
+};
+
 /**
- * Creates the organisation, owner membership and first location in one
- * transaction. Region (time zone, currency, formats) is detected from the
- * business country and the location's map pin, not asked for.
+ * Creates an organization at registration (or from the platform console).
+ * Region is detected from the country and refined by the first location's
+ * map pin during onboarding. With `owner` the person becomes its owner now;
+ * without (console), the owner joins through an invitation.
  */
-export async function createOrganization(
-  db: Db,
-  owner: { userId: string; ip?: string | null },
-  input: OnboardingInput,
-  logo?: UploadedFile | null,
-): Promise<Tenant> {
+export async function createWorkspace(db: Db, owner: { userId: string; ip?: string | null } | null, input: WorkspaceInput, actor?: Actor): Promise<Tenant> {
+  if (!(await isSlugAvailable(db, input.slug))) throw new OrgError('That workspace URL is already taken.', 'slug_taken');
   return db.transaction(async (tx) => {
-    const existing = await tx.select({ id: tenants.id }).from(tenants).where(eq(tenants.slug, input.slug)).limit(1);
-    if (existing.length) throw new OrgError('That web address is already taken.', 'slug_taken');
-
-    const country = input.profile.address.country || input.location.address.country;
-    const pin = input.location.address.lat != null ? input.location.address : input.profile.address;
-    const region = detectRegion(country, pin, input.deviceTimezone);
-
-    const prefs: TenantPreferences = tenantPreferencesSchema.parse({
-      formats: region.formats,
-      booking: input.booking,
-    });
+    const region = detectRegion(input.country, null, input.deviceTimezone);
+    const currency = input.currency ?? (CURRENCIES.some((c) => c.code === region.currency) ? region.currency : 'USD');
+    const prefs: TenantPreferences = tenantPreferencesSchema.parse({ formats: region.formats });
     const [tenant] = await tx
       .insert(tenants)
       .values({
         slug: input.slug,
-        name: input.profile.name,
-        legalName: input.profile.legalName ?? null,
-        email: input.profile.email ?? null,
-        phone: input.profile.phone ?? null,
-        website: input.profile.website ?? null,
-        taxId: input.profile.taxId ?? null,
-        ...addressColumns(input.profile.address),
-        addressCountry: input.profile.address.country,
-        brandColor: input.branding.brandColor,
-        themeMode: input.branding.themeMode,
-        radius: input.branding.radius,
+        name: input.name,
+        status: input.status ?? 'trial',
+        plan: input.plan ?? 'growth',
         country: region.country,
-        timezone: region.timezone,
-        currency: region.currency,
+        addressCountry: region.country,
+        timezone: input.timezone ?? region.timezone,
+        currency,
         locale: region.locale,
         settings: prefs,
-        onboardedAt: new Date(),
       })
       .returning();
     if (!tenant) throw new Error('Tenant insert returned nothing');
-
     await tx.execute(sql`select set_config('app.tenant_id', ${tenant.id}, true)`);
-    const actor: Actor = { type: 'user', userId: owner.userId, ip: owner.ip };
-
-    await tx.insert(memberships).values({ tenantId: tenant.id, userId: owner.userId, role: 'owner' });
-
-    const [location] = await tx
-      .insert(locations)
-      .values({ tenantId: tenant.id, ...locationValues(input.location, region.timezone), isPrimary: true, isActive: true })
-      .returning();
-    if (!location) throw new Error('Location insert returned nothing');
-    await setTaxRate(tx, tenant.id, location.id, input.booking.defaultTaxPercent);
-
-    await tx.insert(numberSequences).values([
-      { tenantId: tenant.id, scope: 'quote', prefix: prefs.numbering.quotePrefix },
-      { tenantId: tenant.id, scope: 'invoice', prefix: prefs.numbering.invoicePrefix },
-      { tenantId: tenant.id, scope: 'receipt', prefix: prefs.numbering.receiptPrefix },
-    ]);
-
-    let result = tenant;
-    if (logo) {
-      const fileId = await storeFile(tx, tenant.id, owner.userId, logo, 'logo', true);
-      [result] = (await tx.update(tenants).set({ logoFileId: fileId }).where(eq(tenants.id, tenant.id)).returning()) as [Tenant];
-    }
-
-    await audit(tx, tenant.id, actor, { type: 'tenant', id: tenant.id }, 'tenant.created', {
-      slug: input.slug,
-      location: location.name,
-      timezone: region.timezone,
-      currency: region.currency,
+    if (owner) await tx.insert(memberships).values({ tenantId: tenant.id, userId: owner.userId, role: 'owner' });
+    const who: Actor = actor ?? { type: 'user', userId: owner?.userId ?? null, ip: owner?.ip ?? null };
+    await audit(tx, tenant.id, who, { type: 'tenant', id: tenant.id }, 'tenant.created', {
+      slug: input.slug, name: input.name, plan: tenant.plan, status: tenant.status, timezone: tenant.timezone, currency,
     });
-    return result;
+    return tenant;
   });
 }
 
 /** Membership of the signed-in user in the tenant with this slug, or null. */
 export async function resolveTenantMembership(db: Db, slug: string, userId: string) {
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) return null;
+  if (!tenant || tenant.status === 'closed') return null;
   const membership = await withTenant(db, tenant.id, async (tx) => {
     const rows = await tx
       .select()
@@ -142,56 +114,39 @@ export async function resolveTenantMembership(db: Db, slug: string, userId: stri
       .limit(1);
     return rows[0] ?? null;
   });
-  return membership ? { tenant, membership } : null;
+  return { tenant, membership };
 }
 
 // --- settings updates ------------------------------------------------------
 
-async function updateTenant(
-  db: Db,
-  tenantId: string,
-  actor: Actor,
-  action: string,
-  values: Partial<typeof tenants.$inferInsert>,
-): Promise<Tenant> {
-  return withTenant(db, tenantId, async (tx) => {
-    const [before] = await tx.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
-    if (!before) throw new OrgError('Organization not found.', 'not_found');
-    const [after] = await tx.update(tenants).set(values).where(eq(tenants.id, tenantId)).returning();
-    if (!after) throw new OrgError('You cannot change this organization.', 'forbidden');
-    const pick = (t: Tenant) => Object.fromEntries(Object.keys(values).map((k) => [k, t[k as keyof Tenant]]));
-    const changes = diff(pick(before), pick(after));
-    if (Object.keys(changes).length) await audit(tx, tenantId, actor, { type: 'tenant', id: tenantId }, action, changes);
-    return after;
-  });
+async function updateTenantTx(tx: Tx, tenantId: string, actor: Actor, action: string, values: Partial<typeof tenants.$inferInsert>): Promise<Tenant> {
+  const [before] = await tx.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  if (!before) throw new OrgError('Organization not found.', 'not_found');
+  const [after] = await tx.update(tenants).set(values).where(eq(tenants.id, tenantId)).returning();
+  if (!after) throw new OrgError('You cannot change this organization.', 'forbidden');
+  const pick = (t: Tenant) => Object.fromEntries(Object.keys(values).filter((k) => k !== 'settings').map((k) => [k, t[k as keyof Tenant]]));
+  const changes = diff(pick(before), pick(after));
+  if (Object.keys(changes).length) await audit(tx, tenantId, actor, { type: 'tenant', id: tenantId }, action, changes);
+  return after;
 }
+
+function updateTenant(db: Db, tenantId: string, actor: Actor, action: string, values: Partial<typeof tenants.$inferInsert>) {
+  return withTenant(db, tenantId, (tx) => updateTenantTx(tx, tenantId, actor, action, values));
+}
+
+const profileColumns = (p: BusinessProfile) => ({
+  name: p.name,
+  legalName: p.legalName ?? null,
+  email: p.email ?? null,
+  phone: p.phone ?? null,
+  website: p.website ?? null,
+  taxId: p.taxId ?? null,
+  ...addressColumns(p.address),
+  addressCountry: p.address.country,
+});
 
 export function updateProfile(db: Db, tenantId: string, actor: Actor, p: BusinessProfile) {
-  return updateTenant(db, tenantId, actor, 'tenant.profile_updated', {
-    name: p.name,
-    legalName: p.legalName ?? null,
-    email: p.email ?? null,
-    phone: p.phone ?? null,
-    website: p.website ?? null,
-    taxId: p.taxId ?? null,
-    ...addressColumns(p.address),
-    addressCountry: p.address.country,
-  });
-}
-
-export function updateBranding(
-  db: Db,
-  tenantId: string,
-  actor: Actor,
-  b: Branding,
-  logos: { logoFileId?: string | null; logoDarkFileId?: string | null } = {},
-) {
-  return updateTenant(db, tenantId, actor, 'tenant.branding_updated', {
-    brandColor: b.brandColor,
-    themeMode: b.themeMode,
-    radius: b.radius,
-    ...logos,
-  });
+  return updateTenant(db, tenantId, actor, 'tenant.profile_updated', profileColumns(p));
 }
 
 export function updateRegional(db: Db, tenantId: string, actor: Actor, r: Regional) {
@@ -203,35 +158,149 @@ export function updateRegional(db: Db, tenantId: string, actor: Actor, r: Region
   });
 }
 
-/** Replace one section of tenants.settings (formats, booking, hours, numbering, communication). */
-export async function updatePreferences<K extends keyof TenantPreferences>(
-  db: Db,
-  tenantId: string,
-  actor: Actor,
-  section: K,
-  value: TenantPreferences[K],
-) {
+async function readPrefs(tx: Tx, tenantId: string) {
+  const [row] = await tx.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  if (!row) throw new OrgError('Organization not found.', 'not_found');
+  return parsePreferences(row.settings);
+}
+
+/** Replace sections of tenants.settings inside a transaction; audits what changed. */
+async function writePrefsTx(tx: Tx, tenantId: string, actor: Actor | null, patch: Partial<TenantPreferences>) {
+  const current = await readPrefs(tx, tenantId);
+  const next = tenantPreferencesSchema.parse({ ...current, ...patch });
+  await tx.update(tenants).set({ settings: next }).where(eq(tenants.id, tenantId));
+  if (actor) {
+    for (const section of Object.keys(patch) as (keyof TenantPreferences)[]) {
+      if (section === 'onboarding' || section === 'setupDone') continue;
+      const changes = diff(current[section] as Record<string, unknown>, next[section] as Record<string, unknown>);
+      if (Object.keys(changes).length) await audit(tx, tenantId, actor, { type: 'tenant', id: tenantId }, `tenant.${section}_updated`, changes);
+    }
+  }
+  return next;
+}
+
+/** Replace one section of tenants.settings (formats, booking, hours, numbering, communication, brand). */
+export function updatePreferences<K extends keyof TenantPreferences>(db: Db, tenantId: string, actor: Actor, section: K, value: TenantPreferences[K]) {
+  return withTenant(db, tenantId, (tx) => writePrefsTx(tx, tenantId, actor, { [section]: value } as Partial<TenantPreferences>));
+}
+
+/** Brand & theme: columns (colour, appearance, corners) + brand settings (sidebar, fonts, logo variants, customer-facing details). */
+export function updateBrand(db: Db, tenantId: string, actor: Actor, input: BrandStep, logos: { logoFileId?: string | null } = {}) {
   return withTenant(db, tenantId, async (tx) => {
-    const [row] = await tx.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
-    if (!row) throw new OrgError('Organization not found.', 'not_found');
-    const current = parsePreferences(row.settings);
-    const next = tenantPreferencesSchema.parse({ ...current, [section]: value });
-    await tx.update(tenants).set({ settings: next }).where(eq(tenants.id, tenantId));
-    if (section === 'numbering') {
-      const n = next.numbering;
-      for (const [scope, prefix] of [['quote', n.quotePrefix], ['invoice', n.invoicePrefix], ['receipt', n.receiptPrefix]] as const) {
-        await tx
-          .insert(numberSequences)
-          .values({ tenantId, scope, prefix })
-          .onConflictDoUpdate({ target: [numberSequences.tenantId, numberSequences.scope], set: { prefix } });
-      }
-    }
-    const changes = diff(current[section] as Record<string, unknown>, next[section] as Record<string, unknown>);
-    if (Object.keys(changes).length) {
-      await audit(tx, tenantId, actor, { type: 'tenant', id: tenantId }, `tenant.${section}_updated`, changes);
-    }
-    return next;
+    const current = await readPrefs(tx, tenantId);
+    const domainChanged = (input.brand.customDomain ?? null) !== (current.brand.customDomain ?? null);
+    await updateTenantTx(tx, tenantId, actor, 'tenant.branding_updated', {
+      brandColor: input.branding.brandColor,
+      themeMode: input.branding.themeMode,
+      radius: input.branding.radius,
+      ...logos,
+    });
+    return writePrefsTx(tx, tenantId, actor, {
+      brand: { ...input.brand, customDomainVerified: domainChanged ? false : current.brand.customDomainVerified },
+    });
   });
+}
+
+// --- onboarding --------------------------------------------------------------
+
+async function markStepTx(tx: Tx, tenantId: string, step: OnboardingStepKey, how: 'done' | 'skipped', nextIndex: number) {
+  const p = (await readPrefs(tx, tenantId)).onboarding;
+  const done = how === 'done' ? [...new Set([...p.done, step])] : p.done;
+  const skipped = how === 'skipped' ? [...new Set([...p.skipped, step])] : p.skipped.filter((s) => s !== step);
+  await writePrefsTx(tx, tenantId, null, { onboarding: { done, skipped, current: Math.max(0, Math.min(5, nextIndex)) } });
+}
+
+/** Remember where the person is ("Save & finish later" resumes here) or that a step was skipped. */
+export function markOnboarding(db: Db, tenantId: string, step: OnboardingStepKey, how: 'done' | 'skipped', nextIndex: number) {
+  return withTenant(db, tenantId, (tx) => markStepTx(tx, tenantId, step, how, nextIndex));
+}
+
+/** Step 1: business profile and region. */
+export function saveProfileStep(db: Db, tenantId: string, actor: Actor, input: ProfileStep) {
+  return withTenant(db, tenantId, async (tx) => {
+    const t = await updateTenantTx(tx, tenantId, actor, 'tenant.profile_updated', {
+      ...profileColumns(input.profile),
+      timezone: input.timezone,
+      currency: input.currency,
+    });
+    const prefs = await readPrefs(tx, tenantId);
+    await writePrefsTx(tx, tenantId, actor, { formats: { ...prefs.formats, dateFormat: input.dateFormat, weekStartsOn: input.weekStartsOn } });
+    await markStepTx(tx, tenantId, 'profile', 'done', 1);
+    return t;
+  });
+}
+
+/** Step 2: brand and theme. */
+export async function saveBrandStep(db: Db, tenantId: string, actor: Actor, input: BrandStep, logos: { logoFileId?: string | null } = {}) {
+  await updateBrand(db, tenantId, actor, input, logos);
+  await markOnboarding(db, tenantId, 'brand', 'done', 2);
+}
+
+/**
+ * Step 3: the first warehouse (location = warehouse) and the org's travel
+ * defaults. Saving again updates the primary location instead of adding one.
+ */
+export async function saveWarehouseStep(db: Db, tenantId: string, actor: Actor, input: WarehouseStep & { taxPercent?: number }) {
+  const primary = await withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx.select().from(locations).where(eq(locations.isPrimary, true)).limit(1);
+    return row ?? null;
+  });
+  const loc: LocationValues = { ...input.location, isPrimary: true, isActive: true };
+  const location = primary
+    ? await updateLocation(db, tenantId, actor, primary.id, loc, input.taxPercent ?? 0)
+    : await createLocation(db, tenantId, actor, loc, input.taxPercent ?? 0);
+  await withTenant(db, tenantId, async (tx) => {
+    const prefs = await readPrefs(tx, tenantId);
+    await writePrefsTx(tx, tenantId, actor, { booking: { ...prefs.booking, ...input.travel } });
+    await markStepTx(tx, tenantId, 'warehouse', 'done', 3);
+  });
+  return location;
+}
+
+/** Step 6: pick the plan and open the workspace. */
+export function launchWorkspace(db: Db, tenantId: string, actor: Actor, plan: 'starter' | 'growth' | 'scale') {
+  return withTenant(db, tenantId, async (tx) => {
+    await markStepTx(tx, tenantId, 'launch', 'done', 5);
+    // Launching puts the org live on everything released so far (Phase 1: catalog and booking).
+    const [cur] = await tx.select({ rolloutPhase: tenants.rolloutPhase }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+    return updateTenantTx(tx, tenantId, actor, 'tenant.launched', { plan, onboardedAt: new Date(), rolloutPhase: Math.max(1, cur?.rolloutPhase ?? 0) });
+  });
+}
+
+/** Home checklist: tick or untick an item by hand. */
+export function setSetupItem(db: Db, tenantId: string, item: string, done: boolean) {
+  return withTenant(db, tenantId, async (tx) => {
+    const prefs = await readPrefs(tx, tenantId);
+    const set = new Set(prefs.setupDone);
+    if (done) set.add(item);
+    else set.delete(item);
+    await writePrefsTx(tx, tenantId, null, { setupDone: [...set] });
+  });
+}
+
+/**
+ * One-call setup used by tests, seeding and the Phase 5 migration: a
+ * workspace with its first location and rental rules, already launched.
+ */
+export async function setupOrganization(
+  db: Db,
+  owner: { userId: string },
+  input: { slug: string; name: string; country?: string; location: LocationInput; booking?: Partial<BookingDefaults>; taxPercent?: number },
+) {
+  const actor: Actor = { type: 'user', userId: owner.userId };
+  const tenant = await createWorkspace(db, owner, { name: input.name, slug: input.slug, country: input.country ?? 'US' });
+  const location = await createLocation(db, tenant.id, actor, locationSchema.parse({ ...input.location, isPrimary: true }), input.taxPercent ?? 0);
+  if (input.booking) {
+    await withTenant(db, tenant.id, async (tx) => {
+      const prefs = await readPrefs(tx, tenant.id);
+      await writePrefsTx(tx, tenant.id, null, { booking: { ...prefs.booking, ...input.booking } });
+    });
+  }
+  // The org runs on the location's clock.
+  const launched = await withTenant(db, tenant.id, (tx) =>
+    updateTenantTx(tx, tenant.id, actor, 'tenant.launched', { timezone: location.timezone, onboardedAt: new Date() }),
+  );
+  return launched;
 }
 
 // --- files -------------------------------------------------------------------
@@ -265,7 +334,7 @@ export async function storeFile(
 
 export async function saveLogo(db: Db, tenantId: string, userId: string, file: UploadedFile) {
   if (!(LOGO_MIME as readonly string[]).includes(file.mime)) throw new OrgError('Upload a PNG, JPG, WebP or SVG image.', 'invalid');
-  if (file.bytes.length > LOGO_MAX_BYTES) throw new OrgError('The logo must be 1 MB or smaller.', 'invalid');
+  if (file.bytes.length > LOGO_MAX_BYTES) throw new OrgError('The logo must be 2 MB or smaller.', 'invalid');
   return withTenant(db, tenantId, (tx) => storeFile(tx, tenantId, userId, file, 'logo', true));
 }
 
@@ -295,6 +364,18 @@ export function listActivity(db: Db, tenantId: string, limit = 100) {
       from audit_log a left join users u on u.id = a.actor_user_id
       order by a.at desc limit ${limit}`);
     return [...rows];
+  });
+}
+
+/** Who changed a settings area last ("Last changed by Jordan Reyes · 2 days ago"). */
+export function lastChange(db: Db, tenantId: string, actionPrefix: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx.execute<{ at: string; actor_name: string | null; actor_type: string }>(sql`
+      select a.at, a.actor_type, u.name as actor_name
+      from audit_log a left join users u on u.id = a.actor_user_id
+      where a.action like ${actionPrefix + '%'}
+      order by a.at desc limit 1`);
+    return row ? { at: new Date(row.at), actorName: row.actor_name ?? (row.actor_type === 'platform' ? 'Platform support' : 'System') } : null;
   });
 }
 
