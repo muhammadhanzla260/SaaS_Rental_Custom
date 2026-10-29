@@ -16,3 +16,4 @@ export * from './services/messaging';
 export * from './services/money';
 export * from './services/ops';
 export * from './services/reports';
+export * from './services/coach';

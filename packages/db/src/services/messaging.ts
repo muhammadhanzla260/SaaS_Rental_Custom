@@ -170,7 +170,11 @@ function recipient(r: NonNullable<Awaited<ReturnType<typeof orderForMessages>>>,
  */
 export async function enqueueOrderMessage(
   tx: Tx, tenantId: string, orderId: string, type: MessageType, key: string,
-  opts: { automatic: boolean; meta?: Record<string, unknown>; channel?: Channel; audience?: 'customer' | 'contact' } = { automatic: true },
+  opts: {
+    automatic: boolean; meta?: Record<string, unknown>; channel?: Channel; audience?: 'customer' | 'contact';
+    /** A staff-pressed send that still honours its own on/off switch (coach texts). */
+    honourSwitch?: boolean;
+  } = { automatic: true },
 ) {
   const r = await orderForMessages(tx, tenantId, orderId);
   if (!r) return null;
@@ -180,7 +184,7 @@ export async function enqueueOrderMessage(
   const on = m.instant[type] ?? true;
   let skip: string | null = null;
   if (opts.automatic && !m.live) skip = 'Automations are off';
-  else if (opts.automatic && !on) skip = `${MESSAGE_TYPES[type].label} is switched off`;
+  else if ((opts.automatic || opts.honourSwitch) && !on) skip = `${MESSAGE_TYPES[type].label} is switched off`;
   const to = recipient(r, channel, opts.audience ?? 'customer');
   skip = skip ?? to.skip;
   return enqueueMessage(tx, tenantId, {

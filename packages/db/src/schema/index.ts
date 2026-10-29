@@ -5,3 +5,4 @@ export * from './commerce';
 export * from './platform';
 export * from './integrations';
 export * from './messaging';
+export * from './coach';

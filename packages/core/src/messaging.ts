@@ -25,6 +25,8 @@ export const MESSAGE_TYPES = {
   booking_confirmation: { label: 'Booking confirmation', group: 'instant', channels: ['email'], when: 'When an order is booked without a payment (a paid booking gets the payment confirmation instead).' },
   cancellation: { label: 'Cancellation', group: 'instant', channels: ['email'], when: 'When an order is cancelled, with refund or credit details.' },
   card_declined: { label: 'Card declined', group: 'instant', channels: ['email', 'sms'], when: 'To the customer when a charge fails, with a pay-now link.' },
+  coach_en_route: { label: 'Coach en route (Text 1)', group: 'instant', channels: ['sms'], when: 'When the coach presses Start En Route, with the ETA.' },
+  coach_arriving: { label: 'Coach 5 minutes away (Text 2)', group: 'instant', channels: ['sms'], when: 'Once the coach’s live ETA is 5 minutes or less. Tracking then stops.' },
   pre_event: { label: 'Pre-event reminder', group: 'scheduled', channels: ['email'], when: 'Before the event: what to expect and how to prepare.' },
   quality_check: { label: 'Quality check text', group: 'scheduled', channels: ['sms'], when: 'To the on-site contact, confirming time and setup spot.' },
   day_before: { label: 'Day-before reminder', group: 'scheduled', channels: ['email'], when: 'The day before: arrival window and checklist.' },
@@ -35,6 +37,7 @@ export const MESSAGE_TYPES = {
   declined_alert: { label: 'Card declined (office)', group: 'internal', channels: ['email'], when: 'Tells the office a charge failed.' },
   last_minute: { label: 'Last-minute booking', group: 'internal', channels: ['email'], when: 'A booking made shortly before its event.' },
   change_request: { label: 'Customer asked for changes', group: 'internal', channels: ['email'], when: 'From the quote page’s Request changes.' },
+  damage_report: { label: 'Damage reported', group: 'internal', channels: ['email'], when: 'A coach reported damage at close-out (warehouse maintenance flag on).' },
   daily_digest: { label: 'Tomorrow’s events', group: 'internal', channels: ['email'], when: 'Every evening: the events for tomorrow.' },
   weekly_report: { label: 'Weekly reports', group: 'internal', channels: ['email'], when: 'Mondays at 8:00 AM: the reports someone set to Email weekly.' },
 } as const satisfies Record<string, { label: string; group: MessageGroup; channels: readonly Channel[]; when: string }>;
@@ -178,6 +181,9 @@ export const TEMPLATE_FIELDS = [
   { key: 'brand.on_color', label: 'Text on brand colour', sample: '#ffffff' },
   { key: 'contract_link', label: 'Contract (PDF) link', sample: 'https://…/q/…/print?doc=agreement' },
   { key: 'quote_pdf_link', label: 'Quote (PDF) link', sample: 'https://…/q/…/print?doc=quote' },
+  { key: 'coach.name', label: 'Coach name', sample: 'Alex Rivera' },
+  { key: 'coach.eta_minutes', label: 'Coach ETA in minutes', sample: '5' },
+  { key: 'coach.eta_sentence', label: '" Estimated arrival: … minutes." (empty without an ETA)', sample: ' Estimated arrival: 18 minutes.' },
 ] as const;
 export type TemplateFieldKey = (typeof TEMPLATE_FIELDS)[number]['key'];
 export type FieldValues = Partial<Record<string, string>>;
@@ -244,6 +250,9 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
       body: 'Hi {customer.first_name},\n\nWe tried to charge {invoice.amount} for your event on {event.date}, but the card was declined. Please pay with the link below so we can keep your booking.' },
     sms: sms('{org.name}: the payment for your {event.date} event was declined. Pay here: {pay_link}'),
   },
+  // Odoo freedomfun_coach_portal wording.
+  coach_en_route: { sms: sms('{org.name}: Coach {coach.name} is en route to your location.{coach.eta_sentence}') },
+  coach_arriving: { sms: sms('{org.name}: Coach {coach.name} is about 5 minutes away from your location! (ETA ~{coach.eta_minutes} min)') },
   pre_event: { email: { subject: '3 days to go — {order.number}', button: null, buttonText: '',
     body: 'Hi {customer.first_name},\n\nYour {event.type} is coming up on {event.date} ({event.time}). Please make sure the setup area is clear and there is a power outlet within 50 ft.\n\nQuestions? Just reply.' } },
   quality_check: { sms: sms('Hi! {org.name} here. Confirming {event.date} {event.time} at {event.address}. Reply YES to confirm or call {org.phone}.') },
@@ -263,6 +272,8 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
     body: '{customer.name} booked {event.items} for {event.date} {event.time} at {event.address}.' } },
   change_request: { email: { subject: '{customer.name} asked for changes to {order.number}', button: null, buttonText: '',
     body: '{customer.name} asked for changes to quote {order.number} ({event.date}):\n\n{reason}' } },
+  damage_report: { email: { subject: 'Damage reported: {order.number} · {customer.name}', button: null, buttonText: '',
+    body: 'Coach {coach.name} reported damage at close-out for {order.number} ({event.date}):\n\n{reason}\n\nThe warehouse maintenance flag is on. Check the equipment before it goes out again.' } },
   daily_digest: { email: { subject: 'Tomorrow’s events', button: null, buttonText: '', body: '{reason}' } },
   weekly_report: { email: { subject: 'Your Monday reports', button: null, buttonText: '', body: '{reason}' } },
 };

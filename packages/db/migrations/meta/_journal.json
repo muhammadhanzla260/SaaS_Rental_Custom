@@ -232,6 +232,20 @@
       "when": 1793269554567,
       "tag": "0032_supabase_api_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793298685076,
+      "tag": "0033_coach_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793298760336,
+      "tag": "0034_coach_notes",
+      "breakpoints": true
     }
   ]
 }

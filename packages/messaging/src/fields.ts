@@ -33,6 +33,10 @@ export function fieldValues(ctx: MessageContext, extra: Extra = {}): FieldValues
     pay_link: ctx.payUrl ?? '',
     reason: typeof meta.reason === 'string' ? meta.reason : '',
     'cancel.outcome': typeof meta.outcome === 'string' ? meta.outcome : '',
+    // Coach texts: the name and ETA at the moment the coach pressed Start En Route (or the ETA hit 5).
+    'coach.name': typeof meta.coachName === 'string' ? meta.coachName : '',
+    'coach.eta_minutes': Number(meta.etaMinutes) > 0 ? String(meta.etaMinutes) : '',
+    'coach.eta_sentence': Number(meta.etaMinutes) > 0 ? ` Estimated arrival: ${meta.etaMinutes} minutes.` : '',
   };
   if (o) {
     const date = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' }).format(o.eventStartsAt);

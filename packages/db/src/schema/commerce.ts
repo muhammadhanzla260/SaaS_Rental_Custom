@@ -344,6 +344,8 @@ export const orders = pgTable(
     customerNotes: text('customer_notes'),
     /** Setup map (image or PDF, files table) shared with the crew. */
     setupMapFileId: uuid('setup_map_file_id'),
+    /** "Notes for coach" in the coach portal (Odoo coach_setup_instructions). */
+    coachNotes: text('coach_notes'),
     /** Policies staff confirmed the customer agreed to when booking for them: { key: { at, by } }. */
     policyAcks: jsonb('policy_acks').notNull().default({}),
     /** What happened to the money when it was cancelled: wallet credit, refund, rain check ("Rained out") or nothing paid. */
