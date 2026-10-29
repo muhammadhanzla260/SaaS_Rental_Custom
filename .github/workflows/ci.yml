@@ -27,8 +27,6 @@ jobs:
       APP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
       BETTER_AUTH_URL: http://localhost:3000
-      # Test-only key: it encrypts the saved SMTP and gateway passwords in this throwaway test database.
-      APP_ENCRYPTION_KEY: VyW42mwWxjjYbR0J0A0qf-qiveQyFptzbNG0p9C7V6Q
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
