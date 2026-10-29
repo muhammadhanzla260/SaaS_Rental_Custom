@@ -7,25 +7,26 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
  * back to a browser; screens only show that a secret is saved.
  */
 
-function key(): Buffer {
-  const raw = process.env.APP_ENCRYPTION_KEY?.trim();
+/** The key from APP_ENCRYPTION_KEY, or an explicit one (copying a workspace re-encrypts with the target's key). */
+function key(explicit?: string): Buffer {
+  const raw = (explicit ?? process.env.APP_ENCRYPTION_KEY)?.trim();
   if (!raw) throw new Error('APP_ENCRYPTION_KEY is not set. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64url\'))"');
   const buf = Buffer.from(raw, raw.includes('+') || raw.includes('/') ? 'base64' : 'base64url');
   if (buf.length !== 32) throw new Error('APP_ENCRYPTION_KEY must decode to exactly 32 bytes.');
   return buf;
 }
 
-export function encryptSecret(plain: string): string {
+export function encryptSecret(plain: string, keyText?: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const cipher = createCipheriv('aes-256-gcm', key(keyText), iv);
   const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return ['v1', iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), enc.toString('base64url')].join('.');
 }
 
-export function decryptSecret(sealed: string): string {
+export function decryptSecret(sealed: string, keyText?: string): string {
   const [v, iv, tag, data] = sealed.split('.');
   if (v !== 'v1' || !iv || !tag || data === undefined) throw new Error('Unknown secret format');
-  const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'));
+  const decipher = createDecipheriv('aes-256-gcm', key(keyText), Buffer.from(iv, 'base64url'));
   decipher.setAuthTag(Buffer.from(tag, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
 }
