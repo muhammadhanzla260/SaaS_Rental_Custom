@@ -1,6 +1,6 @@
 import 'server-only';
 import { ROLE_LABELS, type Role } from '@rental/core';
-import { appUrl, platformEmail, sendPlatformEmail } from './mailer';
+import { appUrl, platformEmail, sendPlatformEmailOrLink } from './mailer';
 
 /** Invitation email; returns the link so screens can offer "copy link" when platform email is not set up. */
 export async function sendInviteEmail(opts: { email: string; name?: string | null; role: Role; token: string; orgName: string; inviter: string }) {
@@ -15,6 +15,6 @@ export async function sendInviteEmail(opts: { email: string; name?: string | nul
     ],
     cta: { label: 'Accept invitation', url },
   });
-  const r = await sendPlatformEmail({ to: opts.email, subject: `${opts.inviter} invited you to ${opts.orgName}`, ...mail });
+  const r = await sendPlatformEmailOrLink({ to: opts.email, subject: `${opts.inviter} invited you to ${opts.orgName}`, ...mail });
   return { url, delivered: r.delivered };
 }

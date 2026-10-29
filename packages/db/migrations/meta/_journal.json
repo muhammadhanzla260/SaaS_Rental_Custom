@@ -99,6 +99,132 @@
       "when": 1792846489022,
       "tag": "0013_users_admin_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792852797101,
+      "tag": "0014_phase1_catalog_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792852818687,
+      "tag": "0015_phase1_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792862357134,
+      "tag": "0016_deposit_none",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792935124546,
+      "tag": "0017_messaging",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792935172622,
+      "tag": "0018_messaging_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792935176815,
+      "tag": "0019_messaging_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792935262774,
+      "tag": "0020_order_token_enc",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792941397229,
+      "tag": "0021_money",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792941405852,
+      "tag": "0022_money_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792953964025,
+      "tag": "0023_payment_confirmations",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792955603705,
+      "tag": "0024_pos_inputs",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792957248917,
+      "tag": "0025_cancel_outcomes",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792979004306,
+      "tag": "0026_ops_board",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792980243861,
+      "tag": "0027_report_schedules",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792981009947,
+      "tag": "0028_tip_only_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793119159237,
+      "tag": "0029_order_line_locked_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793120384426,
+      "tag": "0030_one_invoice_per_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793240745504,
+      "tag": "0031_order_copied_from",
+      "breakpoints": true
     }
   ]
 }

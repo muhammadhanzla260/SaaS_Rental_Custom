@@ -49,25 +49,25 @@ export const ORG_NAV: NavGroup[] = [
     label: 'Workspace',
     items: [
       { id: 'home', label: 'Home', icon: 'home', href: '' },
-      { id: 'ops', label: 'Action needed', icon: 'ops', phase: 3 },
-      { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar' },
-      { id: 'orders', label: 'Orders', icon: 'orders', href: '/orders', match: ['/orders/'] },
+      { id: 'ops', label: 'Action needed', icon: 'ops', href: '/actions', permission: 'orders.view' },
+      { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar', permission: 'orders.view' },
+      { id: 'orders', label: 'Orders', icon: 'orders', href: '/orders', permission: 'orders.view' },
       { id: 'pos', label: 'New order', icon: 'pos', href: '/orders/new', permission: 'orders.create' },
-      { id: 'customers', label: 'Customers', icon: 'customers', href: '/customers' },
+      { id: 'customers', label: 'Customers', icon: 'customers', href: '/customers', permission: 'orders.view' },
     ],
   },
   {
     label: 'Catalog',
     items: [
-      { id: 'products', label: 'Products', icon: 'products', href: '/catalog' },
-      { id: 'inventory', label: 'Inventory', icon: 'inventory', phase: 1 },
+      { id: 'products', label: 'Products', icon: 'products', href: '/products', permission: 'orders.view', match: ['/products/'] },
+      { id: 'inventory', label: 'Inventory', icon: 'inventory', href: '/inventory', permission: 'orders.view' },
     ],
   },
   {
     label: 'Money',
     items: [
-      { id: 'invoices', label: 'Invoices & payments', icon: 'invoices', phase: 2 },
-      { id: 'reports', label: 'Reports', icon: 'reports', phase: 3 },
+      { id: 'invoices', label: 'Invoices & payments', icon: 'invoices', href: '/invoices', permission: 'orders.view' },
+      { id: 'reports', label: 'Reports', icon: 'reports', href: '/reports', permission: 'reports.view' },
     ],
   },
   {
@@ -83,7 +83,7 @@ export const ORG_NAV: NavGroup[] = [
       { id: 'workspace', label: 'Workspace & brand', icon: 'workspace', href: '/settings/workspace', permission: 'settings.manage' },
       { id: 'locations', label: 'Locations', icon: 'locations', href: '/settings/locations', permission: 'settings.manage' },
       { id: 'team', label: 'Team & roles', icon: 'team', href: '/settings/team', permission: 'members.manage' },
-      { id: 'messaging', label: 'Email & SMS', icon: 'messaging', phase: 2 },
+      { id: 'messaging', label: 'Email & SMS', icon: 'messaging', href: '/settings/messaging', permission: 'settings.manage', match: ['/settings/messaging/'] },
       { id: 'activity', label: 'Activity log', icon: 'activity', href: '/settings/activity', permission: 'settings.manage' },
     ],
   },

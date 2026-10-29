@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useId, useRef, type ComponentProps, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { cx } from './core';
 
 export const controlClass = cx(
@@ -11,6 +11,9 @@ export const controlClass = cx(
   'disabled:cursor-not-allowed disabled:bg-sunken disabled:text-fg-3 aria-[invalid=true]:border-danger aria-[invalid=true]:shadow-[0_0_0_4px_rgb(194_39_45/0.12)]',
   'max-sm:h-11',
 );
+
+/** Our controls are full width unless the caller gives them a width (w-28, max-w-xs…). */
+const sized = (base: string, className?: string) => (className && /(^|\s)(min-|max-)?w-/.test(className) ? base.replace(/(^|\s)w-full(?=\s|$)/, ' ') : base);
 
 export function Field({
   label, hint, error, htmlFor, children, className, optional, labelAction,
@@ -34,10 +37,11 @@ export function Field({
   );
 }
 
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; mono?: boolean };
+// ComponentProps includes `ref` (a plain prop in React 19), so callers can focus or read the caret.
+type InputProps = ComponentProps<'input'> & { invalid?: boolean; mono?: boolean };
 
 export function Input({ className, invalid, mono, ...rest }: InputProps) {
-  return <input aria-invalid={invalid || undefined} className={cx(controlClass, mono && 'mono', className)} {...rest} />;
+  return <input aria-invalid={invalid || undefined} className={cx(sized(controlClass, className), mono && 'mono', className)} {...rest} />;
 }
 
 /** Input with a fixed prefix/suffix (".tentpole.app", "mi", "$"). */
@@ -45,7 +49,7 @@ export function AffixInput({ prefix, suffix, className, invalid, mono, ...rest }
   return (
     <div
       className={cx(
-        'flex h-10 w-full items-stretch overflow-hidden rounded-[var(--radius-control)] border border-control bg-surface transition-[border-color,box-shadow] duration-150',
+        sized('flex h-10 w-full', className), 'items-stretch overflow-hidden rounded-[var(--radius-control)] border border-control bg-surface transition-[border-color,box-shadow] duration-150',
         'focus-within:border-accent focus-within:shadow-[0_0_0_4px_var(--accent-soft)] max-sm:h-11',
         invalid && 'border-danger',
         className,
@@ -58,7 +62,7 @@ export function AffixInput({ prefix, suffix, className, invalid, mono, ...rest }
   );
 }
 
-export function Textarea({ className, invalid, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
+export function Textarea({ className, invalid, ...rest }: ComponentProps<'textarea'> & { invalid?: boolean }) {
   return <textarea aria-invalid={invalid || undefined} className={cx(controlClass, 'h-auto min-h-24 py-2.5 leading-relaxed', className)} {...rest} />;
 }
 
@@ -67,7 +71,7 @@ export function Select({ className, children, invalid, ...rest }: SelectHTMLAttr
     <select
       aria-invalid={invalid || undefined}
       className={cx(
-        controlClass,
+        sized(controlClass, className),
         'cursor-pointer appearance-none bg-[length:16px] bg-[right_10px_center] bg-no-repeat pr-9',
         "bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23535C6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
         className,

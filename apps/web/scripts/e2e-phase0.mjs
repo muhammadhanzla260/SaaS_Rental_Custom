@@ -239,7 +239,7 @@ try {
   await page.waitForFunction(() => !document.body.innerText.includes('Unsaved changes'), { timeout: 15000 });
   await go(`/${slug}/settings/workspace?tab=rules`);
   check(await page.$eval('#rr-deposit', (e) => e.value) === '35', 'rental rules: deposit changed to 35% and saved');
-  for (const tab of ['profile', 'warehouses', 'connect']) {
+  for (const tab of ['profile', 'warehouses', 'payments']) {
     await go(`/${slug}/settings/workspace?tab=${tab}`);
     await sleep(300);
     await shot(`07-workspace-${tab}`, tab === 'profile');

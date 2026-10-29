@@ -4,3 +4,4 @@ export * from './audit';
 export * from './commerce';
 export * from './platform';
 export * from './integrations';
+export * from './messaging';

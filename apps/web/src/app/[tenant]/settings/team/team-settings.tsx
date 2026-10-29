@@ -126,7 +126,7 @@ function PersonDrawer({ open, onClose, slug, editing, locations, me }: { open: b
             </fieldset>
           )}
           {v.role === 'sales' && (
-            <Field label="Commission" htmlFor="tm-comm" hint="Shown in the Sales Commission report (Phase 3).">
+            <Field label="Commission" htmlFor="tm-comm" hint="Used by Reports → Sales Commission Report.">
               <AffixInput id="tm-comm" className="max-w-[180px]" mono inputMode="decimal" suffix="%" value={v.commissionPct == null ? '' : String(v.commissionPct)} onChange={(e) => { const t = e.target.value.replace(/[^0-9.]/g, ''); form.set('commissionPct', t === '' ? null : Number(t)); }} />
             </Field>
           )}

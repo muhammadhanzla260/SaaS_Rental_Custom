@@ -65,7 +65,7 @@ deposits, invoices and receipts.
 | Part | Choice |
 | --- | --- |
 | Web app | Next.js 16 (App Router), React 19, Tailwind CSS 4, deployed on Vercel |
-| Database | PostgreSQL 17 (Neon in production; an embedded local server for development) |
+| Database | PostgreSQL 17 (Supabase in production; an embedded local server for development) |
 | Data access | Drizzle ORM, SQL migrations, row-level security |
 | Auth | Better Auth (email and password, sessions in our own database) |
 | Background jobs | graphile-worker (queue in Postgres), on Railway |
@@ -119,17 +119,37 @@ tenant can neither read nor write another tenant's rows.
   go through two small `SECURITY DEFINER` functions.
 - Migrations and the worker use the owner role. Worker code must still scope every query to one tenant.
 
+## Branches and releases
+
+`main` is what is live. Nothing is committed to it directly.
+
+| Branch | What it is | Deploys to |
+| --- | --- | --- |
+| `main` | The live app. Changes only through a reviewed pull request. | Production: the live URL, the production database and the worker |
+| `revamp/phase-0`, `revamp/phase-1`, `revamp/phase-2`, … | One branch per phase. All work for that phase happens here. | A Vercel preview link per push, on the staging database |
+
+- **Start a phase:** branch `revamp/phase-N` from the previous phase's branch (or from `main` once that
+  phase is live), and work only there.
+- **Go live:** open a pull request from `revamp/phase-N` into `main`, check the preview link, and merge.
+  Production updates on its own. A phase branch built on the previous one takes that phase live too.
+- **Data stays apart:** previews use the staging database, so testing a phase never touches live bookings
+  or charges a real customer.
+- `main` is protected on GitHub: pull requests only, no direct pushes.
+
 ## Deploying
 
-You create the accounts and add the keys as environment variables. Never commit `.env`.
+You create the accounts and add the keys as environment variables. Never commit `.env` or
+`.env.production`. Everything runs in the same US East region, so each database query stays fast.
 
-1. **Neon.** Create a project (Postgres 17). Put the owner connection string in `DATABASE_URL_OWNER` and
-   choose a strong `APP_DB_PASSWORD`. Run `pnpm db:migrate` once; it creates the `rental_app` role and
-   sets its password. Then set `DATABASE_URL` to the **pooled** connection string with user
-   `rental_app` and that password.
-2. **Vercel.** Import the repo, set Root Directory to `apps/web`, and add `DATABASE_URL`,
-   `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (your domain) and `NEXT_PUBLIC_MAPBOX_TOKEN`.
-3. **Railway.** New service from the repo, config file `apps/worker/railway.json`, with env var
-   `DATABASE_URL_OWNER` (the direct, non-pooled Neon connection).
+1. **Supabase.** Two projects in East US (North Virginia): `production` and `staging`. For each, put the
+   owner connection string in `DATABASE_URL_OWNER` and choose a strong `APP_DB_PASSWORD`. Run
+   `pnpm db:migrate` once; it creates the `rental_app` role and sets its password. Then set `DATABASE_URL`
+   to the **transaction pooler** connection string with user `rental_app` and that password.
+2. **Vercel.** Import the repo, set Root Directory to `apps/web` and the production branch to `main`, and add
+   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `APP_URL`, `APP_ENCRYPTION_KEY` and
+   `NEXT_PUBLIC_MAPBOX_TOKEN` (production values for Production, staging values for Preview).
+3. **Railway.** New service from the repo on `main`, config file `apps/worker/railway.json`, with
+   `DATABASE_URL_OWNER` (the **session pooler** connection, which keeps the job queue's listener working)
+   and `DATABASE_URL`.
 
 CI (GitHub Actions) runs migrations, typecheck, tests and the production build against PostgreSQL 17 on every push.

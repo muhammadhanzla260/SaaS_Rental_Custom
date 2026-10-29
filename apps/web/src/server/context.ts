@@ -89,6 +89,13 @@ export async function requirePermission(slug: string, permission: Permission) {
   return { ...ctx, actor: await actorFor(ctx) };
 }
 
+/** For read-only server actions (search, availability): support sessions may read too. */
+export async function requireView(slug: string, permission: Permission = 'orders.view') {
+  const ctx = await getTenantContext(slug);
+  if (!ctx.impersonation && !can(ctx.role, permission, ctx.membership?.permissions ?? [])) throw new ActionError('Your role cannot see this.');
+  return ctx;
+}
+
 /** For server actions that change settings: owner or admin. */
 export function requireSettingsAccess(slug: string) {
   return requirePermission(slug, 'settings.manage');

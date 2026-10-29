@@ -16,6 +16,8 @@ const pg = new EmbeddedPostgres({
   password: 'postgres',
   port,
   persistent: true,
+  // UTF-8 like Neon (Windows would otherwise pick WIN1252, which cannot store emoji or most non-Latin names).
+  initdbFlags: ['--encoding=UTF8', '--locale=C'],
   onLog: () => {},
 });
 

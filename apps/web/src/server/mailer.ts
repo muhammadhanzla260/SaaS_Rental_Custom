@@ -37,6 +37,20 @@ export async function sendPlatformEmail(mail: PlatformMail): Promise<{ delivered
   return { delivered: false, previewPath: file };
 }
 
+/**
+ * For emails that carry a link the screen can also show (invites): a refused
+ * recipient or a mail-server outage must not undo the work already saved, so
+ * the failure is logged and the caller offers "copy link" instead.
+ */
+export async function sendPlatformEmailOrLink(mail: PlatformMail): Promise<{ delivered: boolean }> {
+  try {
+    return await sendPlatformEmail(mail);
+  } catch (e) {
+    console.error(`[mail] ${mail.subject} → ${mail.to} not sent: ${(e as Error).message.split('\n')[0]}`);
+    return { delivered: false };
+  }
+}
+
 export function appUrl(path = '') {
   return `${(process.env.BETTER_AUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')}${path}`;
 }

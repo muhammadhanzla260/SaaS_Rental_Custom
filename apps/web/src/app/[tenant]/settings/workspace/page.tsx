@@ -1,5 +1,5 @@
 import { getIntegrations, lastChange, listLocations } from '@rental/db';
-import { formatPhone, parseLocationSettings } from '@rental/core';
+import { formatPhone, parseLocationSettings, resolveAgreement } from '@rental/core';
 import { timeAgo } from '@/lib/audit-text';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -8,7 +8,7 @@ import { WorkspaceSettings, type WorkspaceInitial } from './workspace-settings';
 
 export const metadata = { title: 'Workspace & brand' };
 
-const TABS = ['brand', 'profile', 'warehouses', 'connect', 'rules'] as const;
+const TABS = ['brand', 'profile', 'warehouses', 'payments', 'rules', 'agreement'] as const;
 
 export default async function WorkspacePage({ params, searchParams }: { params: Promise<{ tenant: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { tenant: slug } = await params;
@@ -42,19 +42,14 @@ export default async function WorkspacePage({ params, searchParams }: { params: 
       dateFormat: prefs.formats.dateFormat === 'DD/MM/YYYY' ? 'DD/MM/YYYY' : 'MM/DD/YYYY',
       weekStartsOn: prefs.formats.weekStartsOn,
     },
-    connect: {
-      mail: {
-        mode: (mail?.mode as 'smtp') ?? 'platform', provider: (mail?.provider as 'google') ?? 'other', host: mail?.host ?? '', port: mail?.port ?? 587,
-        security: (mail?.security as 'starttls') ?? 'starttls', username: mail?.username ?? '', password: '', fromName: mail?.fromName ?? '', fromEmail: mail?.fromEmail ?? '',
-        hasSecret: !!mail?.hasSecret, verifiedAt: mail?.verifiedAt?.toISOString() ?? null,
-      },
-      sms: { provider: (sms?.provider as 'none') ?? 'none', sendingNumber: sms?.sendingNumber ?? '', accountId: sms?.accountId ?? '', apiKey: '', hasSecret: !!sms?.hasSecret },
-      payments: {
-        provider: (pay?.provider as 'manual') ?? 'manual', publishableKey: pay?.publishableKey ?? '', secretKey: '', merchantId: pay?.merchantId ?? '',
-        hasSecret: !!pay?.hasSecret, keyMode: pay?.keyMode ?? null,
-      },
+    payments: {
+      provider: (pay?.provider as 'manual') ?? 'manual', publishableKey: pay?.publishableKey ?? '', secretKey: '', merchantId: pay?.merchantId ?? '',
+      hasSecret: !!pay?.hasSecret, keyMode: pay?.keyMode ?? null,
     },
+    mailReady: mail?.mode === 'smtp' ? (mail.verifiedAt ? 'verified' : 'untested') : 'platform',
+    smsReady: !!sms && sms.provider !== 'none',
     rules: prefs.booking,
+    agreement: resolveAgreement(prefs.agreement),
     warehouses: locs.map((l) => ({
       id: l.id, name: l.name, code: l.code, city: [l.city, l.region].filter(Boolean).join(', '), isPrimary: l.isPrimary, isActive: l.isActive,
       pinned: l.lat != null, freeMiles: parseLocationSettings(l.settings).freeTravelMiles ?? prefs.booking.freeTravelDistance, timezone: l.timezone,
@@ -64,7 +59,8 @@ export default async function WorkspacePage({ params, searchParams }: { params: 
   return (
     <WorkspaceSettings
       slug={slug}
-      tab={(TABS as readonly string[]).includes(tab ?? '') ? (tab as (typeof TABS)[number]) : 'brand'}
+      // Old links (?tab=connect) land on Payments: mail and texts moved to Email & SMS.
+      tab={tab === 'connect' ? 'payments' : (TABS as readonly string[]).includes(tab ?? '') ? (tab as (typeof TABS)[number]) : 'brand'}
       initial={initial}
       orgName={tenant.name}
       currency={tenant.currency}

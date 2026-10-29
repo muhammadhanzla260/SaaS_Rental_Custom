@@ -290,6 +290,18 @@ h1, h2, h3 {
 .text-gradient { color: var(--accent-text); }
 .brand-glow { background: transparent; }
 
+/* Product tile tints (--tb background, --tf ink, set inline). Dark mode mixes them toward the surface. */
+.tint { background: var(--tb); color: var(--tf); }
+[data-theme='dark'] .tint {
+  background: color-mix(in srgb, var(--tf) 18%, var(--bg-sunken));
+  color: color-mix(in srgb, var(--tf) 45%, white);
+}
+
+/* Calendar: quotes hold nothing (dashed), cleanup buffer (hatched). */
+.hatch {
+  background-image: repeating-linear-gradient(135deg, var(--bg-sunken) 0 4px, transparent 4px 8px);
+}
+
 /* Horizontal chip rows: scrollable without a visible scrollbar. */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }

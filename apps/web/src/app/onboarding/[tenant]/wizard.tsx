@@ -490,7 +490,7 @@ function StepTeam({ form, links, ownerEmail }: { form: Form; links: { email: str
     <>
       <StepHead title="Invite your team" sub="Add the people who quote, deliver and keep the books. You're the owner." />
       {links.some((l) => !l.delivered) && (
-        <Notice kind="info" className="mb-5">Platform email is not set up yet, so copy each link and send it yourself. Links work once and expire in 7 days.</Notice>
+        <Notice kind="info" className="mb-5">Some invites couldn’t be emailed, so copy those links and send them yourself. Links work once and expire in 7 days.</Notice>
       )}
       {links.length > 0 && (
         <ul className="mb-5 flex flex-col gap-2">
