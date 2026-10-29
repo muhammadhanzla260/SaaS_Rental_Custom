@@ -335,10 +335,14 @@ export function bookingRequirements(o: {
   contactName?: string | null;
   contactMobile?: string | null;
   contactConfirmed: boolean;
+  /** A copied order starts with no salesperson (Odoo: the copying rep must pick one, so commission isn't misplaced). */
+  salespersonRequired?: boolean;
+  salesperson?: string | null;
 }): string[] {
   const blank = (v: string | null | undefined) => !v || !String(v).trim();
   const a = o.billing.address ?? {};
   return [
+    o.salespersonRequired && blank(o.salesperson) && 'Salesperson',
     blank(o.billing.name) && 'Customer name',
     blank(o.billing.email) && 'Email',
     blank(o.billing.phone) && 'Primary phone',

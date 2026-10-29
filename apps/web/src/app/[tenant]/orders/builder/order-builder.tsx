@@ -1,5 +1,6 @@
 'use client';
 
+import { Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bookingRequirements, formatEventTime, formatMoney, ORDER_STATUS, SERVICE_MODES, type OrderStatus } from '@rental/core';
@@ -8,7 +9,7 @@ import { CustomerFormDrawer } from '@/components/customers/customer-form';
 import { Button, cx, Notice, Pill, SaveBar, Select, useToast } from '@/components/kit';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import {
-  availabilityAction, getCustomerAction, resolveOverpaymentAction, saveCustomerAddressAction, saveOrderAction,
+  availabilityAction, duplicateOrderAction, getCustomerAction, resolveOverpaymentAction, saveCustomerAddressAction, saveOrderAction,
   transitionOrderAction, travelForOrderAction, usableCreditsAction, validateCouponAction,
 } from '@/server/actions/commerce';
 import { emailInvoiceAction } from '@/server/actions/money';
@@ -44,7 +45,7 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   const [shake, setShake] = useState(0);
   const [refused, setRefused] = useState<Set<string>>(new Set());
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState<null | 'save' | 'quote' | 'cancel'>(null);
+  const [busy, setBusy] = useState<null | 'save' | 'quote' | 'cancel' | 'copy'>(null);
   const [custLoading, setCustLoading] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
   /** The Payment Options window, open on this tab. */
@@ -301,6 +302,16 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   }
 
   // Cancel and rain check change the order on the server (status, date, version): reload it fresh.
+  /** Duplicate order: a new draft from this form, opened straight away (the server leaves the money and paperwork behind). */
+  async function duplicate() {
+    if (!meta.id) return;
+    setBusy('copy');
+    const r = await duplicateOrderAction(data.slug, meta.id);
+    if (!r.ok) { setBusy(null); return setError(r.error); }
+    toast(r.message ?? 'Copied as a new draft.');
+    router.push(`/${data.slug}/orders/${r.data!.id}`);
+  }
+
   const reloadOrder = () => { setCancelOpen(false); setRainOpen(false); window.location.reload(); };
   async function reopen() {
     if (!meta.id) return;
@@ -326,10 +337,28 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
   const st = ORDER_STATUS[status];
   const canBook = !booked && !cancelled && !readOnly;
   // Odoo POS "Still required to continue": the server checks the same list when booking.
+  const copied = data.order?.copiedFrom ?? null;
   const missing = bookingRequirements({
     billing: { name: d.billing.name || d.customer?.name, email: d.billing.email, phone: d.billing.phone, address: d.billing.address },
     eventStreet: d.eventAddress.line1, contactName: d.contact.name, contactMobile: d.contact.mobile, contactConfirmed: d.contact.confirmed,
+    salespersonRequired: !!copied, salesperson: d.salespersonUserId,
   });
+  // A copy keeps the original's date and time: warn until someone changes them.
+  const sameTime = !!copied && !booked && !cancelled
+    && copied.startsAt === priced.startsAt.toISOString() && copied.endsAt === priced.endsAt.toISOString();
+  // A copy keeps the original's locked prices: offer today's, item by item (hand-set prices are left alone).
+  const repriced = !copied || booked || cancelled || readOnly ? [] : d.lines.flatMap((l) => {
+    const p = l.productId && l.price === '' ? data.products.find((x) => x.id === l.productId) : undefined;
+    const now = p ? lockedFor(p, l.serviceMode, d.locationId) : null;
+    return now && (now.basePrice !== l.basePrice || now.extraRate !== l.extraRate) ? [{ key: l.key, ...now }] : [];
+  });
+  const repricedTotal = repriced.length
+    ? priceDraft({ ...d, lines: d.lines.map((l) => ({ ...l, ...repriced.find((x) => x.key === l.key) })) }, { ...data, credits }).quote.summary.totalCents
+    : 0;
+  const usePricesToday = () => set((x) => ({ lines: x.lines.map((l) => {
+    const r = repriced.find((y) => y.key === l.key);
+    return r ? { ...l, basePrice: r.basePrice, extraRate: r.extraRate } : l;
+  }) }));
   const bookBlocked = d.lines.length === 0 || short.size > 0 || missing.length > 0;
   const balance = s.totalCents - meta.paidCents;
   const paySummary: PaySummary = {
@@ -407,6 +436,12 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
         </>
       )}
       {!booked && meta.id && !cancelled && !readOnly && <Button variant="ghost" onClick={() => setCancelOpen(true)}>Cancel order</Button>}
+      {meta.id && data.perms.create && !data.readOnly && (
+        <Button variant="ghost" icon={<Copy className="size-4" />} onClick={duplicate} pending={busy === 'copy'} disabled={dirty}
+          title={dirty ? 'Save or discard your changes first' : 'A new draft with this order’s details. No payments, invoice or signature are copied.'}>
+          Duplicate order
+        </Button>
+      )}
       {cancelled && data.perms.create && !data.readOnly && (!data.order?.cancelOutcome || data.order.cancelOutcome === 'none'
         ? <Button variant="secondary" onClick={reopen}>Reopen as a draft</Button>
         : <p className="text-center text-[12px] text-fg-2">What was paid became credit or a refund, so this order stays closed. Start a new order and apply the credit.</p>)}
@@ -437,6 +472,22 @@ export function OrderBuilder({ data }: { data: BuilderData }) {
           <Notice kind="warning" className="mb-4">Booked without payment · {data.order.unpaidReason}{data.order.expectedPaymentOn ? ` · expected ${data.order.expectedPaymentOn}` : ''}{data.order.followUpNotes ? ` · ${data.order.followUpNotes}` : ''}</Notice>
         )}
         {loc?.paused && !booked && <Notice kind="warning" className="mb-4">{loc.name} is paused for new orders. You can still save drafts.</Notice>}
+        {sameTime && (
+          <Notice kind="warning" className="mb-4">
+            Copied from {copied?.number ?? 'another order'} with the same date and time ({windowLabel}). Change them below if this is a new event.
+          </Notice>
+        )}
+        {repriced.length > 0 && (
+          <Notice kind="info" className="mb-4">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="flex-1">
+                {repriced.length === 1 ? '1 item has' : `${repriced.length} items have`} a different price today than on {copied?.number ?? 'the original order'}.
+                {' '}This copy keeps the original prices ({money(s.totalCents)}); today’s prices make it {money(repricedTotal)}.
+              </span>
+              <Button size="sm" variant="secondary" onClick={usePricesToday}>Use today’s prices</Button>
+            </span>
+          </Notice>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
           <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-6">

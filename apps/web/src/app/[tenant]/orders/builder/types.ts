@@ -39,6 +39,8 @@ export type BuilderOrder = {
   taxPercent: number; taxOverridden: boolean; depositKind: 'percent' | 'amount' | 'none'; depositValue: number;
   internalNotes: string; customerNotes: string; totalCents: number; depositDueCents: number; paidCents: number; creditCents: number;
   unpaidReason: string | null; expectedPaymentOn: string | null; followUpNotes: string | null; cancelReason: string | null; bookedAt: string | null;
+  /** Made with Duplicate order: the original's number, and the date and time as copied (ISO), for the same-date warning. */
+  copiedFrom: { number: string | null; startsAt: string | null; endsAt: string | null } | null;
   lines: { productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null; baseCents: number | null; extraRateCents: number | null }[];
   credits: { creditId: string; amountCents: number }[];
   payments: { id: string; number: string; method: string; amountCents: number; tipCents: number; reference: string | null; receivedAt: string; status: string; cardLast4: string | null }[];

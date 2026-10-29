@@ -363,6 +363,11 @@ export const orders = pgTable(
     followUpNotes: text('follow_up_notes'),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
     cancelReason: text('cancel_reason'),
+    /**
+     * Staff-only: the order this one was copied from (Duplicate order). Only the form was copied; nothing
+     * else links the two (own number, payments, invoice). Not a foreign key, so removing either is fine.
+     */
+    copiedFromOrderId: uuid('copied_from_order_id'),
     version: integer('version').notNull().default(1),
     createdByUserId: text('created_by_user_id'),
     createdAt: createdAt(),

@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "copied_from_order_id" uuid;

@@ -54,6 +54,9 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
     Promise.all(locations.map(async (l) => [l.id, await getPaymentCredentials(db, ctx.tenant.id, l.id)] as const)),
   ]);
   const agreement = resolveAgreement(prefs.agreement);
+  // A copy's first version holds its date and time as copied, and which order it came from.
+  const created = order?.copiedFromOrderId ? order.versions.find((v) => v.action === 'created') : null;
+  const createdAs = (created?.diff ?? {}) as Record<string, string>;
   const usedIds = new Set(order?.lines.map((l) => l.productId) ?? []);
 
   return {
@@ -139,6 +142,9 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
           totalCents: order.totalCents, depositDueCents: order.depositDueCents, paidCents: order.paidCents, creditCents: order.creditCents,
           unpaidReason: order.unpaidReason, expectedPaymentOn: order.expectedPaymentOn, followUpNotes: order.followUpNotes,
           cancelReason: order.cancelReason, bookedAt: order.bookedAt?.toISOString() ?? null,
+          copiedFrom: created
+            ? { number: /Copied from (\S+)/.exec(created.reason ?? '')?.[1] ?? null, startsAt: createdAs.Starts ?? null, endsAt: createdAs.Ends ?? null }
+            : null,
           lines: order.lines.map((l) => ({
             productId: l.productId, name: l.name, serviceMode: l.serviceMode as ServiceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
             unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface, baseCents: l.baseCents, extraRateCents: l.extraRateCents,

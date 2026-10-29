@@ -408,20 +408,46 @@ async function linesOf(tx: Tx, tenantId: string, orderId: string) {
 
 // --- create / update -----------------------------------------------------------------------------
 
-export function createOrder(db: Db, tenantId: string, actor: Actor, input: OrderInput, prefs: TenantPreferences) {
+export function createOrder(db: Db, tenantId: string, actor: Actor, input: OrderInput, prefs: TenantPreferences, copiedFrom?: { id: string; number: string }) {
   return withTenant(db, tenantId, async (tx) => {
     const priced = await priceOrder(tx, tenantId, input, prefs);
     const number = await nextDocumentNumber(tx, 'quote', prefs, input.locationId);
     const [order] = await tx
       .insert(orders)
-      .values({ tenantId, number, status: 'draft', createdByUserId: actor.userId ?? null, ...orderValues(input, priced, prefs) })
+      .values({ tenantId, number, status: 'draft', createdByUserId: actor.userId ?? null, copiedFromOrderId: copiedFrom?.id ?? null, ...orderValues(input, priced, prefs) })
       .returning();
     const lines = await writeLines(tx, tenantId, order!.id, input, priced);
     await writeCredits(tx, tenantId, order!.id, priced);
-    await recordVersion(tx, tenantId, actor, order!, 'created', snapshot(order!, lines));
-    await audit(tx, tenantId, actor, { type: 'order', id: order!.id }, 'order.created', { number, totalCents: order!.totalCents });
+    await recordVersion(tx, tenantId, actor, order!, 'created', snapshot(order!, lines), copiedFrom ? `Copied from ${copiedFrom.number}` : null);
+    await audit(tx, tenantId, actor, { type: 'order', id: order!.id }, 'order.created', { number, totalCents: order!.totalCents, ...(copiedFrom ? { copiedFrom: copiedFrom.number } : {}) });
     return order!;
   });
+}
+
+/**
+ * Duplicate order (Odoo "Duplicate"): a new draft with its own number, filled in from another order's
+ * form so the salesperson doesn't start over. Only the form is copied. Nothing of the original's money
+ * or paperwork comes along: no payments, invoice, receipts, signature, policy confirmations, quote link,
+ * messages, coupon or credits, and the original is not touched.
+ * - Same date and time and the original's locked prices (the builder warns, and offers today's prices).
+ * - Billing comes from the customer's current details, not the old order's.
+ * - No salesperson (one must be picked before it's quoted or booked), referral cleared, and the
+ *   event-day contact must be confirmed again.
+ */
+export async function duplicateOrder(db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences) {
+  const source = await getOrder(db, tenantId, id);
+  if (!source) throw new OrgError('Order not found.', 'not_found');
+  const input = orderInputFrom(source, source.lines, [], {
+    billing: { email: undefined, phone: undefined, phone2: undefined },
+    salespersonUserId: null,
+    referredByCustomerId: null,
+    source: 'Repeat customer',
+    contactConfirmed: false,
+    couponCode: undefined,
+    coupon: 0,
+    credits: [],
+  });
+  return createOrder(db, tenantId, actor, input, prefs, { id: source.id, number: source.number });
 }
 
 export type SaveResult = { order: Order; overpaidCents: number; changed: number };

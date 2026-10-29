@@ -22,4 +22,10 @@ describe('bookingRequirements (Odoo "Still required to continue")', () => {
   it('a missing billing address is reported field by field', () => {
     expect(bookingRequirements({ ...complete, billing: { ...complete.billing, address: null } })).toEqual(['Billing address', 'City', 'State', 'ZIP code']);
   });
+
+  it('a copied order needs a salesperson; other orders do not', () => {
+    expect(bookingRequirements({ ...complete, salespersonRequired: true, salesperson: '' })).toEqual(['Salesperson']);
+    expect(bookingRequirements({ ...complete, salespersonRequired: true, salesperson: 'user-1' })).toEqual([]);
+    expect(bookingRequirements({ ...complete, salesperson: null })).toEqual([]);
+  });
 });

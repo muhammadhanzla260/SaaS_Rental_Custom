@@ -8,7 +8,7 @@ import {
   unitSchema, type OrderInput,
 } from '@rental/core';
 import {
-  addUnit, cancelOrder, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateProduct, findDuplicateCustomers,
+  addUnit, cancelOrder, createCategory, createCredit, createCustomer, createOrder, createProduct, deleteCategory, duplicateOrder, duplicateProduct, findDuplicateCustomers,
   getCustomer, getOrder, importCustomers, latestSignature, listCustomers, productAvailability, recordPayment, recordTip, removeCustomerAddress, removeUnit, renameCategory,
   resolveOverpayment, saveCustomerAddress, saveDocument, saveImage, setCustomerMessaging, setProductStatus, setUnitStatus, transitionOrder, updateCustomer,
   rescheduleOrder, updateOrder, updateProduct, usableCredits, validateCoupon, voidCredit,
@@ -300,6 +300,16 @@ export async function saveOrderAction(slug: string, id: string | null, input: un
   });
 }
 
+/** Duplicate order: a new draft filled in from this one's form (own number; no payments or paperwork come along). */
+export async function duplicateOrderAction(slug: string, id: string): Promise<ActionResult<{ id: string; number: string }>> {
+  return run(async () => {
+    const ctx = await requirePermission(slug, 'orders.create');
+    const copy = await duplicateOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), ctx.prefs);
+    refresh(slug);
+    return { ok: true, data: { id: copy.id, number: copy.number }, message: `Copied as ${copy.number}, a new draft.` };
+  });
+}
+
 const actionSchema = z.enum(['send_quote', 'book', 'complete', 'cancel', 'reopen']);
 const ACTION_DONE: Record<OrderAction, string> = {
   send_quote: 'Marked as quote sent. Quotes still hold nothing; emailing them arrives in Phase 2.',
@@ -325,6 +335,7 @@ async function bookingBlocked(tenantId: string, orderId: string, prefs: Paramete
       address: b.address?.line1 ? b.address : { line1: c?.line1, city: c?.city, region: c?.region, postalCode: c?.postalCode },
     },
     eventStreet: o.eventLine1, contactName: o.eventContactName, contactMobile: o.eventContactMobile, contactConfirmed: o.contactConfirmed,
+    salespersonRequired: !!o.copiedFromOrderId, salesperson: o.salespersonUserId,
   });
   if (missing.length) return `Still required to book: ${missing.join(', ')}.`;
   if (await latestSignature(db, tenantId, orderId)) return null;
@@ -351,6 +362,11 @@ export async function transitionOrderAction(
     if (a.data === 'book') {
       const blocked = await bookingBlocked(ctx.tenant.id, uuid.parse(id), ctx.prefs, booking?.policies ?? {});
       if (blocked) return { ok: false, error: blocked };
+    }
+    if (a.data === 'send_quote') {
+      // A quote can be booked by the customer straight away, so a copy needs its salesperson first.
+      const o = await getOrder(db, ctx.tenant.id, uuid.parse(id));
+      if (o?.copiedFromOrderId && !o.salespersonUserId) return { ok: false, error: 'Choose a salesperson before sending the quote.' };
     }
     const r = await transitionOrder(db, ctx.tenant.id, ctx.actor, uuid.parse(id), a.data, ctx.prefs, { reason: opts.reason?.slice(0, 500), booking });
     // Booking shows its own done step in Payment Options (the order reloads when it closes); a refresh would remount it away.
