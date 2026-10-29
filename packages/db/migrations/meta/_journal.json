@@ -225,6 +225,13 @@
       "when": 1793240745504,
       "tag": "0031_order_copied_from",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793269554567,
+      "tag": "0032_supabase_api_roles",
+      "breakpoints": true
     }
   ]
 }
