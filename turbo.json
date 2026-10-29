@@ -13,7 +13,12 @@
     "PLATFORM_MAIL_FROM",
     "MESSAGING_DELIVERY",
     "APP_URL",
-    "MESSAGING_OUTBOX_DIR"
+    "MESSAGING_OUTBOX_DIR",
+    "PLATFORM_APP_DOMAIN",
+    "R2_ENDPOINT",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET"
   ],
   "tasks": {
     "build": {
