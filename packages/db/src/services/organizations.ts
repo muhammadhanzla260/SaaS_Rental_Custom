@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import {
   CURRENCIES, detectRegion, locationSchema, parsePreferences, tenantPreferencesSchema,
@@ -6,6 +6,7 @@ import {
   type ProfileStep, type Regional, type Role, type TenantPreferences, type WarehouseStep,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
+import { objectKey, objectStore } from '../storage';
 import { files, locations, memberships, tenants } from '../schema';
 import { audit, diff, type Actor } from './audit';
 import { createLocation, updateLocation } from './locations';
@@ -314,12 +315,18 @@ export async function storeFile(
   isPublic: boolean,
 ): Promise<string> {
   const sha256 = createHash('sha256').update(file.bytes).digest('hex');
+  // With object storage configured the bytes go to the bucket first; the row only records where.
+  const id = randomUUID();
+  const store = objectStore();
+  if (store) await store.put(objectKey(tenantId, id), file.bytes, file.mime);
   const [row] = await tx
     .insert(files)
     .values({
       tenantId,
-      storage: 'db',
-      content: file.bytes,
+      id,
+      storage: store ? 's3' : 'db',
+      storageKey: store ? objectKey(tenantId, id) : null,
+      content: store ? null : file.bytes,
       filename: file.filename.slice(0, 200),
       mime: file.mime,
       sizeBytes: file.bytes.length,

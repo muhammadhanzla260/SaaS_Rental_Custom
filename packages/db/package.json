@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@rental/core": "workspace:*",
+    "aws4fetch": "1.0.20",
     "drizzle-orm": "0.45.4",
     "postgres": "3.4.9"
   },

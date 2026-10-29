@@ -8,6 +8,7 @@ export * from './services/platform';
 export * from './services/integrations';
 export * from './services/numbering';
 export { encryptSecret, decryptSecret, sha256Hex } from './crypto';
+export { objectKey, objectStore, readFileBytes, setObjectStore, type ObjectStore } from './storage';
 export * from './services/catalog';
 export * from './services/customers';
 export * from './services/orders';
