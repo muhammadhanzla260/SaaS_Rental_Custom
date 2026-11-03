@@ -11,8 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { customerSchema, orderSchema, parsePreferences, productSchema, wallTimeToUtc } from '@rental/core';
 import {
-  createCustomer, createDb, createOrder, createProduct, listLocations, listMessages, replanAll, resolveOrderToken, saveMailAccount, schema,
-  recordGatewayPayment, recordPayment, setupOrganization, transitionOrder, updateOrder, updatePreferences,
+  claimMessage, createCustomer, createDb, createOrder, createProduct, enqueueMessage, finishMessage, listLocations, listMessages, replanAll, resolveOrderToken,
+  saveMailAccount, schema, recordGatewayPayment, recordPayment, setupOrganization, transitionOrder, updateOrder, updatePreferences, withTenant,
 } from '@rental/db';
 import { dispatchMessage, dispatchOrder } from './dispatch';
 
@@ -109,6 +109,25 @@ describe('payment confirmations (Odoo triggers)', () => {
     await transitionOrder(db, tenantId, actor, b.id, 'book', prefs, { paymentFollows: true });
     await recordGatewayPayment(db, tenantId, { type: 'customer' }, b.id, { gateway: 'stripe', ref: `pi_test_${run}`, amountCents: b.totalCents, brand: 'visa', last4: '4242' });
     expect((await msgs(b.id)).filter((m) => ['booking_confirmation', 'payment_partial', 'payment_paid'].includes(m.type)).map((m) => m.type)).toEqual(['payment_paid']);
+  });
+});
+
+describe('delivery bookkeeping', () => {
+  it('a sent message stays sent when its copy holds text the database cannot store (QA B-03)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(sat, '14:00', '15:00'), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'send_quote', prefs);
+    const q = (await msgs(o.id)).find((m) => m.type === 'quote')!;
+    expect(await claimMessage(db, tenantId, q.id)).toBeTruthy();
+    // Emoji and arrows are fine in production (UTF-8) but not in the local WIN1252 database.
+    await finishMessage(db, tenantId, q.id, { ok: true, subject: 'Party time \u{1F389}', html: '<p>→</p>', text: '\u{1F389}', providerRef: `outbox:b03-${run}`, to: null });
+    expect((await msgs(o.id)).find((m) => m.id === q.id)).toMatchObject({ status: 'sent', providerRef: `outbox:b03-${run}` });
+  });
+
+  it('a staff action leaves a due balance charge queued for the worker (QA B-10)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(sat, '16:00', '17:00'), prefs);
+    await withTenant(db, tenantId, (tx) => enqueueMessage(tx, tenantId, { key: `b10-${run}`, type: 'charge_balance', channel: 'email', orderId: o.id, toAddress: `maria-${run}@example.test` }));
+    expect(await dispatchOrder(db, tenantId, o.id)).toEqual([]);
+    expect((await msgs(o.id)).find((m) => m.type === 'charge_balance')).toMatchObject({ status: 'queued' });
   });
 });
 

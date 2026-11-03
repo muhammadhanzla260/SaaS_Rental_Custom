@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, ilike, inArray, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   addDays, defaultTemplate, MESSAGE_TYPES, outsideQuietHours, parsePreferences, resolveMessaging, SCHEDULED_TYPES, scheduledAt, templateSchema,
   utcToWallTime, type Channel, type MessageType, type TemplateInput, type TenantPreferences,
@@ -349,33 +349,49 @@ export function claimMessage(db: Db, tenantId: string, id: string) {
   });
 }
 
-/** Queued messages of one order that are due now (sent right after a staff action). */
-export function dueForOrder(db: Db, tenantId: string, orderId: string) {
+/**
+ * Queued messages of one order that are due now (sent right after a staff action). `withCharge`
+ * false leaves the event-day balance charge to the worker, which is the one that can charge cards.
+ */
+export function dueForOrder(db: Db, tenantId: string, orderId: string, withCharge = true) {
   return withTenant(db, tenantId, (tx) =>
     tx
       .select({ id: messages.id })
       .from(messages)
-      .where(and(eq(messages.tenantId, tenantId), eq(messages.orderId, orderId), eq(messages.status, 'queued'), lte(messages.scheduledFor, new Date()))),
+      .where(and(
+        eq(messages.tenantId, tenantId), eq(messages.orderId, orderId), eq(messages.status, 'queued'), lte(messages.scheduledFor, new Date()),
+        withCharge ? undefined : ne(messages.type, 'charge_balance'),
+      )),
   );
 }
 
 /**
  * Worker only (owner connection, all workspaces): claim up to `limit` due
  * messages with SKIP LOCKED so parallel workers never take the same one.
+ * Suspended and closed workspaces are left alone: nothing is sent or charged
+ * for them until they are live again.
  */
 export async function claimDueMessages(ownerDb: Db, limit = 20) {
   const rows = await ownerDb.execute<{ tenant_id: string; id: string }>(sql`
     update messages set status = 'sending', attempts = attempts + 1, updated_at = now()
     where (tenant_id, id) in (
-      select tenant_id, id from messages where status = 'queued' and scheduled_for <= now()
-      order by scheduled_for limit ${limit} for update skip locked)
+      select m.tenant_id, m.id from messages m join tenants t on t.id = m.tenant_id
+      where m.status = 'queued' and m.scheduled_for <= now() and t.status in ('active','trial','past_due')
+      order by m.scheduled_for limit ${limit} for update of m skip locked)
     returning tenant_id, id`);
   return [...rows].map((r) => ({ tenantId: r.tenant_id, id: r.id }));
 }
 
-/** Messages stuck in 'sending' (a crash mid-send) go back to the queue after 10 minutes. */
+/**
+ * Messages stuck in 'sending' (the process stopped mid-send) go back to the queue after
+ * 30 minutes, until their third attempt. After that they are marked failed for staff to
+ * look at, since the last attempt may already have reached the customer.
+ */
 export async function releaseStuckMessages(ownerDb: Db) {
-  await ownerDb.execute(sql`update messages set status = 'queued' where status = 'sending' and updated_at < now() - interval '10 minutes'`);
+  await ownerDb.execute(sql`
+    update messages set status = case when attempts >= 3 then 'failed' else 'queued' end,
+      last_error = case when attempts >= 3 then 'Sending was interrupted several times; check it reached the customer before resending.' else last_error end
+    where status = 'sending' and updated_at < now() - interval '30 minutes'`);
 }
 
 export type SendOutcome =
@@ -383,20 +399,32 @@ export type SendOutcome =
   | { ok: false; error: string; permanent?: boolean; subject?: string | null; html?: string | null; text?: string | null }
   | { skipped: string };
 
-/** Record how a send went. Failures retry with backoff (5, 15, 45 min…) up to the workspace's retry limit. */
+/**
+ * Record how a send went. Failures retry with backoff (5, 15, 45 min…) up to the workspace's retry limit.
+ * The status is written on its own first; the copy of what was sent (subject, body, error text) follows
+ * in a savepoint, so text the database cannot store never leaves a sent message looking unsent
+ * (which would send it again).
+ */
 export function finishMessage(db: Db, tenantId: string, id: string, outcome: SendOutcome, retries = 3) {
   return withTenant(db, tenantId, async (tx) => {
     const [m] = await tx.select().from(messages).where(and(eq(messages.tenantId, tenantId), eq(messages.id, id))).limit(1);
     if (!m) return null;
+    const where = and(eq(messages.tenantId, tenantId), eq(messages.id, id));
+    const copy = async (values: Partial<typeof messages.$inferInsert>) => {
+      try {
+        await tx.transaction((sp) => sp.update(messages).set(values).where(where));
+      } catch {
+        // The status written above stands.
+      }
+    };
     if ('skipped' in outcome) {
-      await tx.update(messages).set({ status: 'skipped', lastError: outcome.skipped }).where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      await tx.update(messages).set({ status: 'skipped', lastError: null }).where(where);
+      await copy({ lastError: outcome.skipped });
       return 'skipped';
     }
     if (outcome.ok) {
-      await tx
-        .update(messages)
-        .set({ status: 'sent', sentAt: new Date(), subject: outcome.subject, html: outcome.html, text: outcome.text, providerRef: outcome.providerRef, lastError: null, toAddress: outcome.to ?? m.toAddress })
-        .where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      await tx.update(messages).set({ status: 'sent', sentAt: new Date(), providerRef: outcome.providerRef, lastError: null }).where(where);
+      await copy({ subject: outcome.subject, html: outcome.html, text: outcome.text, toAddress: outcome.to ?? m.toAddress });
       return 'sent';
     }
     const again = !outcome.permanent && m.attempts <= retries;
@@ -404,11 +432,11 @@ export function finishMessage(db: Db, tenantId: string, id: string, outcome: Sen
       .update(messages)
       .set({
         status: again ? 'queued' : 'failed',
-        lastError: outcome.error.slice(0, 1000),
+        lastError: 'Sending failed.',
         scheduledFor: again ? new Date(Date.now() + 5 * 60_000 * 3 ** Math.max(0, m.attempts - 1)) : m.scheduledFor,
-        ...(outcome.subject !== undefined ? { subject: outcome.subject, html: outcome.html ?? null, text: outcome.text ?? null } : {}),
       })
-      .where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      .where(where);
+    await copy({ lastError: outcome.error.slice(0, 1000), ...(outcome.subject !== undefined ? { subject: outcome.subject, html: outcome.html ?? null, text: outcome.text ?? null } : {}) });
     return again ? 'retrying' : 'failed';
   });
 }

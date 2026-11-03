@@ -111,7 +111,7 @@ const builders: Record<string, Builder> = {
     return {
       subtitle: `Booked revenue by event date · ${monthName} 1 – ${Number(cap.slice(8))}`,
       kpis: [
-        { label: 'Revenue', value: revenue, kind: 'money', sub: change == null ? 'No bookings this time last year' : `${change >= 0 ? '+' : '−'}${Math.abs(change)}% vs last ${monthName}` },
+        { label: 'Revenue', value: revenue, kind: 'money', sub: change == null ? 'No bookings this time last year' : `${change >= 0 ? '+' : '-'}${Math.abs(change)}% vs last ${monthName}` },
         { label: 'Orders', value: orders, kind: 'number', sub: orders ? `avg ${money(Math.round(revenue / orders))} per order` : undefined },
         { label: 'Collected', value: sum(locs, 'collected'), kind: 'money', tone: 'success', sub: `${pct(sum(locs, 'collected'), revenue)}% of revenue` },
         { label: 'Outstanding', value: sum(locs, 'outstanding'), kind: 'money', tone: 'warning', sub: `${sum(locs, 'unpaid')} orders` },
