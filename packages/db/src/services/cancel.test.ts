@@ -13,7 +13,12 @@ import { tenants, users } from '../schema';
 import { usableCredits } from './customers';
 import { listLocations } from './locations';
 import { createProduct, productAvailability } from './catalog';
-import { cancelOrder, createOrder, getOrder, planRefund, refundablePayments, rescheduleOrder, transitionOrder } from './orders';
+import { recordGatewayPayment } from './money';
+import { actionNeeded } from './ops';
+import {
+  cancelOrder, createOrder, getOrder, markRefundSent, owedRefund, planRefund, prepareCardRefunds, refundablePayments, rescheduleOrder, resolveOverpayment,
+  recordPayment, settleOwedRefund, settleStalePendingRefund, transitionOrder,
+} from './orders';
 import { setupOrganization, updatePreferences } from './organizations';
 
 const app = createDb(process.env.DATABASE_URL!, { max: 4 });
@@ -104,6 +109,51 @@ describe('cancel with a money outcome', () => {
     expect(r.refunds[0]).toMatchObject({ amountCents: 18543, method: 'check', gateway: 'manual' });
     expect(r.refunds[0]!.number).toMatch(/^RF-\d{4}$/);
     expect(await refundablePayments(db, tenantId, o.id)).toEqual([]);
+  });
+
+  it('card refunds are written before the gateway is asked; a retry reuses them and the cancel confirms them (QA B-15)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(54)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { paymentFollows: true });
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_b15_${run}`, amountCents: 10000, brand: 'visa', last4: '4242' });
+    const first = await prepareCardRefunds(db, tenantId, actor, o.id, 6000, 'Cancelled');
+    expect(first).toMatchObject([{ cents: 6000, intentRef: `pi_b15_${run}`, gatewayRef: null }]);
+    // The gateway made it, then the cancel failed: the retry gets the same row, not a second refund.
+    await markRefundSent(db, tenantId, first[0]!.id, `re_b15_${run}`);
+    const again = await prepareCardRefunds(db, tenantId, actor, o.id, 6000, 'Cancelled');
+    expect(again).toMatchObject([{ id: first[0]!.id, gatewayRef: `re_b15_${run}` }]);
+    // While it is pending, that money cannot be planned again.
+    expect((await refundablePayments(db, tenantId, o.id))[0]!.refundableCents).toBe(4000);
+    const done = again.map((r) => ({ paymentId: r.paymentId, cents: r.cents, gateway: 'stripe', method: 'card', ref: r.gatewayRef, refundId: r.id }));
+    const r = await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Customer changed plans', outcome: 'refund', amount: 60 }, done);
+    expect(r.refunds).toMatchObject([{ id: first[0]!.id, status: 'done', gatewayRef: `re_b15_${run}`, amountCents: 6000 }]);
+    expect(r.order.paidCents).toBe(4000);
+  });
+
+  it('a card refund whose cancel never went through is recorded an hour later, and the office is told (QA B-15)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(56)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { paymentFollows: true });
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_stale_${run}`, amountCents: 9000, brand: 'visa', last4: '4242' });
+    const [p] = await prepareCardRefunds(db, tenantId, actor, o.id, 9000, 'Cancelled');
+    expect(await settleStalePendingRefund(db, tenantId, p!.id, `re_stale_${run}`)).toBe('done');
+    expect((await getOrder(db, tenantId, o.id))!).toMatchObject({ status: 'booked', paidCents: 0 });
+    expect((await messagesOf(o.id)).some((m) => m.type === 'payment_alert')).toBe(true);
+  });
+
+  it('"refund the overpayment" is owed on the Ops board until it is given back (QA B-16)', async () => {
+    const o = await bookedWithDeposit(day(57));
+    // The customer pays the whole balance by check, plus $50 too much.
+    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'check', amount: (o.totalCents - o.paidCents) / 100 + 50 });
+    const over = (await getOrder(db, tenantId, o.id))!;
+    expect(over.paidCents - over.totalCents).toBe(5000);
+    await resolveOverpayment(db, tenantId, actor, o.id, 'refund');
+    const owed = await owedRefund(db, tenantId, o.id);
+    expect(owed!.refund).toMatchObject({ status: 'owed', amountCents: 5000, method: 'check', gateway: 'manual' });
+    const board = await actionNeeded(db, tenantId, { currency: 'USD' });
+    expect(board.cards.find((c) => c.orderId === o.id && c.rule === 'refund')).toMatchObject({ action: 'refund_now' });
+    await settleOwedRefund(db, tenantId, actor, owed!.refund.id, null);
+    expect(await owedRefund(db, tenantId, o.id)).toBeNull();
+    expect((await actionNeeded(db, tenantId, { currency: 'USD' })).cards.some((c) => c.orderId === o.id && c.rule === 'refund')).toBe(false);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(over.totalCents);
   });
 
   it('rain check: an RC credit valid for the workspace’s months, the order shows as rained out', async () => {

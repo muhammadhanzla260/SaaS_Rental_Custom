@@ -579,8 +579,8 @@ export async function uploadSetupMapAction(slug: string, formData: FormData): Pr
 
 /**
  * Cancel an order and settle what was paid (wallet credit, refund or rain check).
- * Card refunds are made at the gateway first, so money only moves when the
- * gateway says yes; then the cancel is recorded in one transaction.
+ * Card refunds are written as pending, made at the gateway, then confirmed with
+ * the cancel in one transaction (a failed cancel keeps them; a retry reuses them).
  */
 export async function cancelOrderAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ outcome: string; code: string | null }>> {
   return run<{ outcome: string; code: string | null }>(async () => {
@@ -592,7 +592,7 @@ export async function cancelOrderAction(slug: string, id: string, input: unknown
     const o = await getOrder(db, ctx.tenant.id, orderId);
     if (!o) return { ok: false, error: 'Order not found.' };
     if (c.outcome !== 'none' && Math.round(c.amount * 100) > o.paidCents) return { ok: false, error: 'That is more than was paid.' };
-    const done = c.outcome === 'refund' ? await refundToCards(db, ctx.tenant.id, orderId, Math.round(c.amount * 100), `Cancelled ${o.number}: ${c.reason}`) : [];
+    const done = c.outcome === 'refund' ? await refundToCards(db, ctx.tenant.id, ctx.actor, orderId, Math.round(c.amount * 100), `Cancelled ${o.number}: ${c.reason}`) : [];
     const r = await cancelOrder(db, ctx.tenant.id, ctx.actor, orderId, ctx.prefs, c, done);
     // No revalidatePath: it would refresh this page mid-result (the new version remounts the editor).
     // Every page is rendered per request, so others are fresh anyway; Done reloads the order.

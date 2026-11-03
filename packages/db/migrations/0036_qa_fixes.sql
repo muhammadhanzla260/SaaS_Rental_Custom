@@ -1,6 +1,6 @@
 ALTER TABLE "orders" ADD COLUMN "charge_lock_until" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "refunds" ADD COLUMN "status" text DEFAULT 'done' NOT NULL;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_status" CHECK ("refunds"."status" in ('pending','done','owed'));;--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_status" CHECK ("refunds"."status" in ('pending','done','owed'));--> statement-breakpoint
 -- Reserve equipment for a booked order line (QA B-06, B-07).
 -- The order's own holds now count: reserveAll deletes them first, so what is left are the lines of
 -- this save, and the same product on two lines can no longer take more units than exist.

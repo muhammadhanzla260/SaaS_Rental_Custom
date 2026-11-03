@@ -552,8 +552,9 @@ export const payments = pgTable(
  * gateway (gatewayRef = the gateway's refund id); the rest is handed back by
  * staff (cash, check...). The order's paid amount goes down by the refund.
  * status: pending (written before the gateway is asked, so a failed cancel
- * cannot lose a refund the gateway made), done, or owed (an overpayment the
- * office still has to give back; on the Ops board until it is).
+ * cannot lose a refund the gateway made), done, owed (an overpayment the
+ * office still has to give back; on the Ops board until it is), or void (a
+ * pending refund the gateway never made).
  */
 export const refunds = pgTable(
   'refunds',
@@ -575,7 +576,7 @@ export const refunds = pgTable(
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
     unique('refunds_number').on(t.tenantId, t.number),
-    check('refunds_status', sql`${t.status} in ('pending','done','owed')`),
+    check('refunds_status', sql`${t.status} in ('pending','done','owed','void')`),
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
     check('refunds_amount', sql`${t.amountCents} > 0`),
     check('refunds_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),
@@ -599,7 +600,7 @@ export const opsSnoozes = pgTable(
   (t) => [
     primaryKey({ columns: [t.tenantId, t.orderId, t.rule] }),
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
-    check('ops_snoozes_rule', sql`${t.rule} in ('deposit','final_payment','call','contact','quote')`),
+    check('ops_snoozes_rule', sql`${t.rule} in ('deposit','final_payment','call','contact','quote','refund')`),
   ],
 );
 

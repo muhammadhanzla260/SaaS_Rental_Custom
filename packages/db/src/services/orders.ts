@@ -496,8 +496,9 @@ export function updateOrder(
 }
 
 /**
- * After a save leaves the customer overpaid: refund it (recorded as owed back),
- * move it to wallet credit, or keep it as an overpayment.
+ * After a save leaves the customer overpaid: refund it (a refunds row marked owed,
+ * on the Ops board until it is given back), move it to wallet credit, or keep it
+ * as an overpayment.
  */
 export function resolveOverpayment(db: Db, tenantId: string, actor: Actor, id: string, choice: 'refund' | 'wallet' | 'keep') {
   return withTenant(db, tenantId, async (tx) => {
@@ -514,6 +515,16 @@ export function resolveOverpayment(db: Db, tenantId: string, actor: Actor, id: s
       await tx.insert(credits).values({
         tenantId, customerId: o.customerId, kind: 'wallet', code: num.number, amountCents: over,
         reason: `Overpayment on ${o.number}`, sourceOrderId: o.id, createdByUserId: actor.userId ?? null,
+      });
+    }
+    if (choice === 'refund') {
+      // Back to the card it came from when one can take it all, else handed back by staff.
+      const pays = await refundableTx(tx, tenantId, id);
+      const from = pays.find((p) => p.gateway !== 'manual' && p.gatewayRef && p.refundableCents >= over) ?? pays[0] ?? null;
+      const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+      await tx.insert(refunds).values({
+        tenantId, number: num.number, orderId: id, paymentId: from?.id ?? null, amountCents: over, method: from?.method ?? 'other', gateway: from?.gateway ?? 'manual',
+        reason: `Overpaid on ${o.number}`, status: 'owed', createdByUserId: actor.userId ?? null,
       });
     }
     const [after] = await tx
@@ -663,12 +674,115 @@ export function transitionOrder(
 
 /** Received payments of an order, newest first (what a refund comes back from). */
 export function refundablePayments(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, (tx) => refundableTx(tx, tenantId, orderId));
+}
+
+/** Every refund row but a void one counts, pending and owed too, so the same money is never planned twice. */
+async function refundableTx(tx: Tx, tenantId: string, orderId: string) {
+  const pays = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt));
+  const done = await tx.select({ paymentId: refunds.paymentId, cents: sql<number>`sum(${refunds.amountCents})::bigint` }).from(refunds)
+    .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), ne(refunds.status, 'void'))).groupBy(refunds.paymentId);
+  const back = new Map(done.map((d) => [d.paymentId, Number(d.cents)]));
+  return pays.map((p) => ({ ...p, refundableCents: Math.max(0, p.amountCents - (back.get(p.id) ?? 0)) })).filter((p) => p.refundableCents > 0);
+}
+
+export type PendingRefund = { id: string; number: string; paymentId: string | null; cents: number; intentRef: string; gatewayRef: string | null };
+
+/**
+ * Before a cancel refunds cards: write the card refunds as pending rows (order locked), so the
+ * gateway is asked with our row id as its idempotency key and a cancel that fails afterwards
+ * cannot lose a refund the gateway made. A retry gets the same rows back, never new ones.
+ */
+export function prepareCardRefunds(db: Db, tenantId: string, actor: Actor, orderId: string, amountCents: number, reason: string) {
+  return withTenant(db, tenantId, async (tx): Promise<PendingRefund[]> => {
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).for('update').limit(1);
+    if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (!ALLOWED.cancel.includes(order.status as OrderStatus)) throw new OrgError(`This order is ${order.status.replace('_', ' ')}; it cannot be cancelled now.`, 'invalid');
+    if (amountCents > order.paidCents) throw new OrgError('That is more than was paid.', 'invalid');
+    const intentOf = async (paymentId: string | null) =>
+      paymentId ? (await tx.select({ ref: payments.gatewayRef }).from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.id, paymentId))).limit(1))[0]?.ref ?? null : null;
+    const open = await tx.select().from(refunds).where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), eq(refunds.status, 'pending')));
+    if (open.length) {
+      const rows: PendingRefund[] = [];
+      for (const r of open) rows.push({ id: r.id, number: r.number, paymentId: r.paymentId, cents: r.amountCents, intentRef: (await intentOf(r.paymentId))!, gatewayRef: r.gatewayRef });
+      return rows.filter((r) => r.intentRef);
+    }
+    const plan = planRefund(await refundableTx(tx, tenantId, orderId), amountCents);
+    if (plan.unallocatedCents > 0) throw new OrgError('That is more than was paid.', 'invalid');
+    const rows: PendingRefund[] = [];
+    for (const p of plan.parts.filter((x) => x.gateway === 'stripe' && x.intentRef)) {
+      const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+      const [row] = await tx.insert(refunds).values({
+        tenantId, number: num.number, orderId, paymentId: p.paymentId, amountCents: p.cents, method: p.method, gateway: p.gateway, reason, status: 'pending',
+        createdByUserId: actor.userId ?? null,
+      }).returning();
+      rows.push({ id: row!.id, number: row!.number, paymentId: p.paymentId, cents: p.cents, intentRef: p.intentRef!, gatewayRef: null });
+    }
+    return rows;
+  });
+}
+
+/** The gateway made a pending refund: keep its id at once (the cancel confirms the row). */
+export function markRefundSent(db: Db, tenantId: string, refundId: string, ref: string) {
+  return withTenant(db, tenantId, (tx) => tx.update(refunds).set({ gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId))));
+}
+
+/**
+ * A pending card refund whose cancel never completed (an hour later). If the gateway made it, it
+ * is recorded as done against the order's paid amount and the office is told; if not, it is void.
+ */
+export function settleStalePendingRefund(db: Db, tenantId: string, refundId: string, ref: string | null) {
   return withTenant(db, tenantId, async (tx) => {
-    const pays = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt));
-    const done = await tx.select({ paymentId: refunds.paymentId, cents: sql<number>`sum(${refunds.amountCents})::bigint` }).from(refunds)
-      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId))).groupBy(refunds.paymentId);
-    const back = new Map(done.map((d) => [d.paymentId, Number(d.cents)]));
-    return pays.map((p) => ({ ...p, refundableCents: Math.max(0, p.amountCents - (back.get(p.id) ?? 0)) })).filter((p) => p.refundableCents > 0);
+    const [r] = await tx.select().from(refunds).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId), eq(refunds.status, 'pending'))).limit(1);
+    if (!r) return null;
+    if (!ref) {
+      await tx.update(refunds).set({ status: 'void' }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId)));
+      return 'void' as const;
+    }
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, r.orderId))).for('update').limit(1);
+    if (!order) return null;
+    await tx.update(refunds).set({ status: 'done', gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId)));
+    // A cancel that completed meanwhile already took it off the paid amount.
+    if (order.status !== 'cancelled') {
+      await tx.update(orders).set({ paidCents: order.paidCents - r.amountCents, version: order.version + 1 }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, order.id)));
+      await syncInvoices(tx, tenantId, order.id);
+      await enqueueOfficeAlert(tx, tenantId, 'payment_alert', `${order.id}:payment_alert:${r.id}`, order.id, {
+        reason: `${money(r.amountCents)} was refunded to the card for ${order.number} (${r.number}), but the cancellation did not go through. The order is still ${order.status.replace('_', ' ')}: cancel it or take the payment again.`,
+      });
+    }
+    await audit(tx, tenantId, { type: 'system' }, { type: 'order', id: order.id }, 'order.refund', { number: order.number, refund: r.number, cents: r.amountCents, source: 'pending' });
+    return 'done' as const;
+  });
+}
+
+/** Pending refunds older than an hour (for the reconciler), with the payment they come back from. */
+export function stalePendingRefunds(db: Db, tenantId: string) {
+  return withTenant(db, tenantId, (tx) =>
+    tx.select({ id: refunds.id, gatewayRef: refunds.gatewayRef, intentRef: payments.gatewayRef }).from(refunds)
+      .leftJoin(payments, and(eq(payments.tenantId, refunds.tenantId), eq(payments.id, refunds.paymentId)))
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.status, 'pending'), lt(refunds.createdAt, new Date(Date.now() - 3_600_000)))),
+  );
+}
+
+/** The refund owed on an order (from "refund the overpayment"), with the payment it comes back from. */
+export function owedRefund(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx.select({ refund: refunds, intentRef: payments.gatewayRef, last4: payments.cardLast4 }).from(refunds)
+      .leftJoin(payments, and(eq(payments.tenantId, refunds.tenantId), eq(payments.id, refunds.paymentId)))
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), eq(refunds.status, 'owed'))).orderBy(asc(refunds.createdAt)).limit(1);
+    return row ?? null;
+  });
+}
+
+/** The refund owed was given back (to the card, or by staff): it is done. The paid amount already left it out. */
+export function settleOwedRefund(db: Db, tenantId: string, actor: Actor, refundId: string, ref: string | null) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [r] = await tx.update(refunds).set({ status: 'done', gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId), eq(refunds.status, 'owed'))).returning();
+    if (!r) throw new OrgError('That refund was already given back.', 'invalid');
+    const [order] = await tx.update(orders).set({ version: sql`${orders.version} + 1` }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, r.orderId))).returning();
+    await recordVersion(tx, tenantId, actor, order!, 'refund', { [`Refund ${r.number}`]: { from: 'owed', to: `${money(r.amountCents)} · ${ref ? 'to the card' : `${r.method}, handed back`}` } });
+    await audit(tx, tenantId, actor, { type: 'order', id: r.orderId }, 'order.refund', { number: order!.number, refund: r.number, cents: r.amountCents, gateway: r.gateway });
+    return r;
   });
 }
 
@@ -689,7 +803,8 @@ export function planRefund(pays: { id: string; gateway: string; method: string; 
   return { parts, unallocatedCents: left };
 }
 
-export type DoneRefund = { paymentId: string | null; cents: number; gateway: string; method: string; ref: string | null };
+/** refundId: the pending row prepareCardRefunds wrote for a card refund the gateway made. */
+export type DoneRefund = { paymentId: string | null; cents: number; gateway: string; method: string; ref: string | null; refundId?: string };
 
 async function insertCreditTx(tx: Tx, tenantId: string, actor: Actor, o: Order, kind: 'wallet' | 'rain_check' | 'goodwill', cents: number, reason: string, validUntil: string | null) {
   const prefix = kind === 'rain_check' ? 'RC-' : kind === 'goodwill' ? 'GW-' : 'WC-';
@@ -752,6 +867,13 @@ export function cancelOrder(
         if (left > 0) throw new OrgError(`${money(left)} was paid by card and could not be refunded at the gateway.`, 'invalid');
       }
       for (const r of rows) {
+        if (r.refundId) {
+          const [row] = await tx.update(refunds).set({ status: 'done', gatewayRef: r.ref, reason: why })
+            .where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, r.refundId), eq(refunds.orderId, id), eq(refunds.status, 'pending'))).returning();
+          if (!row) throw new OrgError('A card refund for this order was already recorded. Reload the order.', 'conflict');
+          made.push(row);
+          continue;
+        }
         const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
         const [row] = await tx.insert(refunds).values({
           tenantId, number: num.number, orderId: id, paymentId: r.paymentId, amountCents: r.cents, method: r.method, gateway: r.gateway, gatewayRef: r.ref,

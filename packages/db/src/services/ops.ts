@@ -13,8 +13,8 @@ import { OrgError } from './errors';
 import { enqueueOrderMessage } from './messaging';
 import { recordVersion } from './orders';
 
-export type OpsRule = 'deposit' | 'final_payment' | 'call' | 'contact' | 'quote';
-export type OpsAction = 'pay_link' | 'retry_charge' | 'mark_called' | 'text_contact' | 'follow_up' | 'open';
+export type OpsRule = 'deposit' | 'final_payment' | 'call' | 'contact' | 'quote' | 'refund';
+export type OpsAction = 'pay_link' | 'retry_charge' | 'mark_called' | 'text_contact' | 'follow_up' | 'refund_now' | 'open';
 
 export const OPS_COLUMNS: { rule: OpsRule; label: string }[] = [
   { rule: 'deposit', label: 'Deposit needed' },
@@ -22,6 +22,7 @@ export const OPS_COLUMNS: { rule: OpsRule; label: string }[] = [
   { rule: 'call', label: 'Pre-event call due' },
   { rule: 'contact', label: 'Contact not confirmed' },
   { rule: 'quote', label: 'Quotes going cold' },
+  { rule: 'refund', label: 'Refund owed' },
 ];
 
 export type OpsCard = {
@@ -110,6 +111,20 @@ export function actionNeeded(db: Db, tenantId: string, opts: { locationId?: stri
         // Oldest quotes first; the badge says how old it is.
         if (age >= 3) add(r, 'quote', `Quote sent ${age} days ago · event ${short(day)}`, -age, 'follow_up', { badge: `${age} days`, tone: age >= 7 ? 'overdue' : 'later' });
       }
+    }
+    // Overpayments the office chose to refund: on the board until the money is given back.
+    const owed = (await tx.execute<{ id: string; number: string; location_id: string; customer: string | null; tz: string; cents: string; owed_at: string; method: string; last4: string | null; card: boolean }>(sql`
+      select o.id, o.number, o.location_id, c.display_name as customer, coalesce(l.timezone, t.timezone) as tz, r.amount_cents::text as cents, r.created_at::text as owed_at,
+             r.method, p.card_last4 as last4, (r.gateway <> 'manual' and p.gateway_ref is not null) as card
+      from refunds r join orders o on o.tenant_id = r.tenant_id and o.id = r.order_id
+      join customers c on c.tenant_id = o.tenant_id and c.id = o.customer_id
+      join locations l on l.tenant_id = o.tenant_id and l.id = o.location_id join tenants t on t.id = o.tenant_id
+      left join payments p on p.tenant_id = r.tenant_id and p.id = r.payment_id
+      where r.tenant_id = ${tenantId}::uuid and r.status = 'owed' ${loc}`)) as unknown as { id: string; number: string; location_id: string; customer: string | null; tz: string; cents: string; owed_at: string; method: string; last4: string | null; card: boolean }[];
+    for (const r of owed) {
+      const since = days(utcToWallTime(new Date(r.owed_at), r.tz).date, utcToWallTime(now, r.tz).date);
+      const how = r.card ? `back to the card${r.last4 ? ` ending ${r.last4}` : ''}` : `hand back (${r.method})`;
+      add(r, 'refund', `${money(Number(r.cents))} overpaid · ${how}`, -since, 'refund_now', since ? { badge: `${since} days`, tone: since >= 3 ? 'overdue' : 'later' } : { badge: 'Today', tone: 'today' });
     }
     cards.sort((a, b) => a.dueIn - b.dueIn || a.number.localeCompare(b.number));
 

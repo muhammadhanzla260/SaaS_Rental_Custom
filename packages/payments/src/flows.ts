@@ -5,9 +5,10 @@
 import { parsePreferences, utcToWallTime } from '@rental/core';
 import {
   alertPayment, chargeInProgress, claimChargeLock, currentOrderStatus, findGatewayPayment, getPaymentCredentials, OrgError, productAvailability,
-  recordChargeFailure, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, stripeSecrets, transitionOrder, withTenant, type Actor, type Db, type MessageContext, type QuoteContext,
+  recordChargeFailure, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, settleStalePendingRefund, stalePendingRefunds, stripeSecrets,
+  transitionOrder, withTenant, type Actor, type Db, type MessageContext, type QuoteContext,
 } from '@rental/db';
-import { cancelIntent, chargeSaved, createIntent, ensureStripeCustomer, orderIntents, readIntent, refundIntent, stripeClient } from './stripe';
+import { cancelIntent, chargeSaved, createIntent, ensureStripeCustomer, orderIntents, readIntent, refundForRow, refundIntent, stripeClient } from './stripe';
 
 export type Due = { amountCents: number; purpose: 'deposit' | 'full' | 'balance' | 'none'; label: string };
 
@@ -271,6 +272,10 @@ export async function reconcileStripe(db: Db, tenantId: string, sinceHours = 72)
       const row = await recordGatewayRefund(db, tenantId, { paymentRef: r.payment_intent, ref: r.id, amountCents: r.amount, reason: r.reason?.replace(/_/g, ' ') ?? 'refunded in Stripe' });
       if (row) out.refunds++;
     }
+    for (const p of await stalePendingRefunds(db, tenantId)) {
+      const ref = p.gatewayRef ?? (p.intentRef ? await refundForRow(stripe, p.intentRef, p.id).catch(() => null) : null);
+      if ((await settleStalePendingRefund(db, tenantId, p.id, ref)) === 'done') out.refunds++;
+    }
     for await (const d of stripe.disputes.list({ created: { gte: since }, limit: 100 })) {
       const ref = typeof d.payment_intent === 'string' ? d.payment_intent : d.payment_intent?.id;
       const pay = ref ? await findGatewayPayment(db, tenantId, ref) : null;
@@ -445,24 +450,43 @@ export async function chargeCardOnFile(
 
 /**
  * Refund part of a cancelled order's payments to the cards they came from
- * (newest first). Returns what the gateway refunded, for cancelOrder to record;
- * the rest of the amount comes from cash/check payments (handed back by staff).
+ * (newest first). The refunds are written as pending rows first and the gateway
+ * is asked with each row's id as its idempotency key; cancelOrder then marks them
+ * done. The rest of the amount comes from cash/check payments (handed back by staff).
  */
-export async function refundToCards(db: Db, tenantId: string, orderId: string, amountCents: number, reason: string) {
-  const { getPaymentCredentials, planRefund, refundablePayments, getOrder } = await import('@rental/db');
+export async function refundToCards(db: Db, tenantId: string, actor: Actor, orderId: string, amountCents: number, reason: string) {
+  const { getOrder, markRefundSent, prepareCardRefunds } = await import('@rental/db');
   const order = await getOrder(db, tenantId, orderId);
   if (!order) throw new OrgError('Order not found.', 'not_found');
-  const plan = planRefund(await refundablePayments(db, tenantId, orderId), amountCents);
-  if (plan.unallocatedCents > 0) throw new OrgError('That is more than was paid.', 'invalid');
-  const cards = plan.parts.filter((p) => p.gateway === 'stripe' && p.intentRef);
-  if (!cards.length) return [];
   const creds = await getPaymentCredentials(db, tenantId, order.locationId);
+  const rows = await prepareCardRefunds(db, tenantId, actor, orderId, amountCents, reason);
+  if (!rows.length) return [];
   if (!creds || creds.provider !== 'stripe' || !creds.secret) throw new OrgError('Card payments are not connected, so the card refund cannot be made. Choose wallet credit or a rain check instead.', 'invalid');
   const stripe = stripeClient(creds.secret);
-  const done: { paymentId: string; cents: number; gateway: string; method: string; ref: string }[] = [];
-  for (const p of cards) {
-    const ref = await refundIntent(stripe, p.intentRef!, reason, p.cents);
-    done.push({ paymentId: p.paymentId, cents: p.cents, gateway: 'stripe', method: 'card', ref });
+  const done: { paymentId: string | null; cents: number; gateway: string; method: string; ref: string; refundId: string }[] = [];
+  for (const r of rows) {
+    const ref = r.gatewayRef ?? (await refundForRow(stripe, r.intentRef, r.id)) ?? (await refundIntent(stripe, r.intentRef, reason, r.cents, r.id));
+    if (!r.gatewayRef) await markRefundSent(db, tenantId, r.id, ref);
+    done.push({ paymentId: r.paymentId, cents: r.cents, gateway: 'stripe', method: 'card', ref, refundId: r.id });
   }
   return done;
+}
+
+/** Ops board → Refund now: give back a refund owed, to its card when it came from one, else handed back by staff. */
+export async function refundOwed(db: Db, tenantId: string, actor: Actor, orderId: string) {
+  const { getOrder, owedRefund, settleOwedRefund } = await import('@rental/db');
+  const owed = await owedRefund(db, tenantId, orderId);
+  if (!owed) throw new OrgError('Nothing is owed back on this order any more.', 'invalid');
+  const r = owed.refund;
+  if (r.gateway === 'stripe' && owed.intentRef) {
+    const order = await getOrder(db, tenantId, orderId);
+    const creds = await getPaymentCredentials(db, tenantId, order!.locationId);
+    if (!creds || creds.provider !== 'stripe' || !creds.secret) throw new OrgError('Card payments are not connected, so the card refund cannot be made.', 'invalid');
+    const stripe = stripeClient(creds.secret);
+    const ref = (await refundForRow(stripe, owed.intentRef, r.id)) ?? (await refundIntent(stripe, owed.intentRef, r.reason ?? 'Overpayment', r.amountCents, r.id));
+    await settleOwedRefund(db, tenantId, actor, r.id, ref);
+    return { cents: r.amountCents, to: owed.last4 ? `the card ending ${owed.last4}` : 'the card', number: r.number };
+  }
+  await settleOwedRefund(db, tenantId, actor, r.id, null);
+  return { cents: r.amountCents, to: null, number: r.number };
 }
