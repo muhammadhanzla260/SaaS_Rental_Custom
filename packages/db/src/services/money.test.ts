@@ -12,7 +12,9 @@ import { tenants, users } from '../schema';
 import { createProduct } from './catalog';
 import { createCustomer } from './customers';
 import { listLocations } from './locations';
-import { latestSignature, listInvoices, recordGatewayPayment, saveCardTx, signAgreement, syncOrderInvoices } from './money';
+import {
+  chargeInProgress, claimChargeLock, latestSignature, listInvoices, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, signAgreement, syncOrderInvoices,
+} from './money';
 import { createOrder, getOrder, orderInputFrom, recordPayment, recordTip, transitionOrder, updateOrder } from './orders';
 import { setupOrganization } from './organizations';
 import { withTenant } from '../client';
@@ -139,6 +141,28 @@ describe('gateway payments and cards', () => {
     const all = await Promise.all(Array.from({ length: 6 }, () => recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, p)));
     expect(all.filter((r) => !r.duplicate)).toHaveLength(1);
     expect(new Set(all.map((r) => r.payment.id)).size).toBe(1);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+  });
+
+  it('one card charge at a time per order; a crashed charge frees the order after its lease (QA B-17)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(38)), prefs);
+    const all = await Promise.all([1, 2, 3].map(() => claimChargeLock(db, tenantId, o.id)));
+    expect(all.filter(Boolean)).toHaveLength(1);
+    expect(await chargeInProgress(db, tenantId, o.id)).toBe(true);
+    await releaseChargeLock(db, tenantId, o.id);
+    expect(await chargeInProgress(db, tenantId, o.id)).toBe(false);
+    expect(await claimChargeLock(db, tenantId, o.id)).toBe(true);
+    await owner.db.execute(sql`update orders set charge_lock_until = now() - interval '1 second' where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    expect(await claimChargeLock(db, tenantId, o.id)).toBe(true);
+  });
+
+  it('a refund made in Stripe is recorded once and lowers what was paid (QA B-02)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(39)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_refund_${run}`, amountCents: 8000, brand: 'visa', last4: '4242' });
+    const r = { paymentRef: `pi_refund_${run}`, ref: `re_${run}`, amountCents: 3000, reason: 'requested by customer' };
+    expect(await recordGatewayRefund(db, tenantId, r)).toMatchObject({ amountCents: 3000, gateway: 'stripe', status: 'done' });
+    expect(await recordGatewayRefund(db, tenantId, r)).toBeNull();
     expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
   });
 

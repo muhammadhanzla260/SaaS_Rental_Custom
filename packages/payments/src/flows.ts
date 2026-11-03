@@ -4,10 +4,10 @@
  */
 import { parsePreferences, utcToWallTime } from '@rental/core';
 import {
-  currentOrderStatus, findGatewayPayment, getPaymentCredentials, OrgError, productAvailability, recordChargeFailure, recordGatewayPayment, saveCardTx,
-  transitionOrder, withTenant, type Actor, type Db, type MessageContext, type QuoteContext,
+  alertPayment, chargeInProgress, claimChargeLock, currentOrderStatus, findGatewayPayment, getPaymentCredentials, OrgError, productAvailability,
+  recordChargeFailure, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, stripeSecrets, transitionOrder, withTenant, type Actor, type Db, type MessageContext, type QuoteContext,
 } from '@rental/db';
-import { chargeSaved, createIntent, ensureStripeCustomer, readIntent, refundIntent, stripeClient } from './stripe';
+import { cancelIntent, chargeSaved, createIntent, ensureStripeCustomer, orderIntents, readIntent, refundIntent, stripeClient } from './stripe';
 
 export type Due = { amountCents: number; purpose: 'deposit' | 'full' | 'balance' | 'none'; label: string };
 
@@ -53,6 +53,26 @@ async function bookOrRefund(
   }
 }
 
+/**
+ * Run a card charge while holding the order's charge lease, so two charges (auto-charge, staff,
+ * Retry charge) never take the same balance at the same moment. null: another charge is running.
+ */
+async function oneChargeAtATime<T>(db: Db, tenantId: string, orderId: string, charge: () => Promise<T>): Promise<T | null> {
+  if (!(await claimChargeLock(db, tenantId, orderId))) return null;
+  try {
+    return await charge();
+  } finally {
+    await releaseChargeLock(db, tenantId, orderId).catch((e) => console.error('[charge lock]', (e as Error).message));
+  }
+}
+
+/** Money that arrived on a cancelled order goes straight back, and the office hears about it. */
+async function refundCancelled(db: Db, q: QuoteContext, stripe: ReturnType<typeof stripeClient>, intentId: string, amountCents: number) {
+  await refundIntent(stripe, intentId, `${q.order.number} was cancelled before this payment arrived`);
+  await alertPayment(db, q.tenant.id, q.order.id, `cancelled:${intentId}`,
+    `A card payment of $${(amountCents / 100).toFixed(2)} arrived after ${q.order.number} was cancelled. It was refunded to the card in full.`);
+}
+
 async function stripeFor(db: Db, q: QuoteContext) {
   const creds = await getPaymentCredentials(db, q.tenant.id, q.order.locationId);
   if (!creds || creds.provider !== 'stripe' || !creds.secret || !creds.publishableKey) return null;
@@ -73,6 +93,7 @@ export async function startCardPayment(db: Db, q: QuoteContext, opts: { saveCard
   if (!s) throw new OrgError(`${q.tenant.name} has not set up card payments yet. Please call them to book.`, 'invalid');
   const avail = await stillAvailable(db, q);
   if (!avail.ok) throw new OrgError(`Sorry — ${avail.short.join(', ')} ${avail.short.length === 1 ? 'is' : 'are'} no longer available for this time. Please contact ${q.tenant.name}.`, 'invalid');
+  if (await chargeInProgress(db, q.tenant.id, q.order.id)) throw new OrgError('A card payment on this order is being taken right now. Refresh this page in a minute.', 'invalid');
   const existing = q.card?.gateway === 'stripe' ? q.card.gatewayCustomerId : null;
   const customerId = await ensureStripeCustomer(s.stripe, existing, {
     name: q.customer.displayName ?? 'Customer', email: q.customer.email, phone: q.customer.phone, ref: `${q.tenant.id}:${q.customer.id}`,
@@ -113,6 +134,10 @@ export async function finishCardPayment(db: Db, q: QuoteContext, intentId: strin
     const status = await currentOrderStatus(db, q.tenant.id, q.order.id);
     return { ok: true, paymentNumber: done.number, last4: done.cardLast4, brand: done.cardBrand, booked: status === 'booked' || status === 'completed' };
   }
+  if (q.order.status === 'cancelled') {
+    await refundCancelled(db, q, s.stripe, i.id, i.amountCents);
+    return { ok: false, error: `This order was cancelled, so the payment was refunded to your card in full. Please contact ${q.tenant.name}.` };
+  }
   let booked = false;
   if (q.order.status === 'draft' || q.order.status === 'quote_sent') {
     // The payment confirmation below also confirms the booking (one email, like Odoo).
@@ -142,35 +167,120 @@ export async function finishCardPayment(db: Db, q: QuoteContext, intentId: strin
  * alerts the office (recordChargeFailure).
  */
 export function balanceCharger(db: Db) {
-  return async (ctx: MessageContext) => {
-    const o = ctx.order!;
-    const due = o.totalCents - o.paidCents;
-    if (due <= 0) return { ok: false as const, skip: 'Nothing left to pay' };
-    const { quoteContext } = await import('@rental/db');
-    const q = await quoteContext(db, ctx.tenant.id, o.id);
-    if (!q) return { ok: false as const, skip: 'Order not found' };
-    const balance = q.invoices.find((i) => (i.kind === 'balance' || i.kind === 'full') && i.status !== 'paid');
-    if (balance && !balance.autoCharge) return { ok: false as const, skip: 'Auto-charge is switched off for this invoice' };
-    const card = q.card?.gateway === 'stripe' ? q.card : null;
-    if (!card || !card.gatewayCustomerId) return { ok: false as const, skip: 'No saved card — the balance stays open' };
-    const s = await stripeFor(db, q);
-    if (!s) return { ok: false as const, skip: 'No card gateway connected' };
-    const eventDay = utcToWallTime(o.eventStartsAt, q.location.timezone).date;
-    const r = await chargeSaved(s.stripe, {
-      amountCents: due, currency: q.tenant.currency, customerId: card.gatewayCustomerId, paymentMethodId: card.gatewayMethodId,
-      description: `${q.tenant.name} · ${o.number} · balance`, metadata: { tenant_id: q.tenant.id, order_id: o.id, purpose: 'balance' },
-      idempotencyKey: `${o.id}:auto-balance:${eventDay}:${due}`,
+  type Result = { ok: true; payment: { number: string; amountCents: number; method: string; last4: string | null } } | { ok: false; skip?: string; error?: string; retry?: boolean };
+  return async (ctx: MessageContext): Promise<Result> => {
+    const orderId = ctx.order!.id;
+    if (ctx.order!.totalCents - ctx.order!.paidCents <= 0) return { ok: false, skip: 'Nothing left to pay' };
+    const done = await oneChargeAtATime(db, ctx.tenant.id, orderId, async (): Promise<Result> => {
+      const { quoteContext } = await import('@rental/db');
+      let q = await quoteContext(db, ctx.tenant.id, orderId);
+      if (!q) return { ok: false, skip: 'Order not found' };
+      const s = await stripeFor(db, q);
+      if (!s) return { ok: false, skip: 'No card gateway connected' };
+      // The customer may have paid from the email link a moment ago: record that first.
+      const sync = await syncOrderPayments(db, q.tenant.id, orderId, s.stripe);
+      if (sync.processing) return { ok: false, error: 'A card payment on this order is still processing at the bank.', retry: true };
+      if (sync.recorded) q = (await quoteContext(db, ctx.tenant.id, orderId))!;
+      const o = q.order;
+      const due = o.totalCents - o.paidCents;
+      if (due <= 0) return { ok: false, skip: 'Nothing left to pay' };
+      const balance = q.invoices.find((i) => (i.kind === 'balance' || i.kind === 'full') && i.status !== 'paid');
+      if (balance && !balance.autoCharge) return { ok: false, skip: 'Auto-charge is switched off for this invoice' };
+      const card = q.card?.gateway === 'stripe' ? q.card : null;
+      if (!card || !card.gatewayCustomerId) return { ok: false, skip: 'No saved card. The balance stays open.' };
+      const eventDay = utcToWallTime(o.eventStartsAt, q.location.timezone).date;
+      const r = await chargeSaved(s.stripe, {
+        amountCents: due, currency: q.tenant.currency, customerId: card.gatewayCustomerId, paymentMethodId: card.gatewayMethodId,
+        description: `${q.tenant.name} · ${o.number} · balance`, metadata: { tenant_id: q.tenant.id, order_id: o.id, purpose: 'balance' },
+        idempotencyKey: `${o.id}:auto-balance:${eventDay}:${due}`,
+      });
+      if (!r.ok) {
+        await recordChargeFailure(db, q.tenant.id, o.id, balance?.id ?? null, r.declined ? `Card declined: ${r.message}` : r.message);
+        return { ok: false, error: r.message };
+      }
+      const p = await recordGatewayPayment(db, q.tenant.id, { type: 'system' }, o.id, {
+        gateway: 'stripe', ref: r.intentId, amountCents: due, brand: r.card.brand, last4: r.card.last4, receipt: false,
+        steps: { authorizedAt: new Date().toISOString(), capturedAt: new Date().toISOString() },
+      });
+      await closeOpenPayForms(s.stripe, o.id, r.intentId);
+      return { ok: true, payment: { number: p.payment.number, amountCents: due, method: 'card', last4: r.card.last4 } };
     });
-    if (!r.ok) {
-      await recordChargeFailure(db, q.tenant.id, o.id, balance?.id ?? null, r.declined ? `Card declined: ${r.message}` : r.message);
-      return { ok: false as const, error: r.message };
-    }
-    const p = await recordGatewayPayment(db, q.tenant.id, { type: 'system' }, o.id, {
-      gateway: 'stripe', ref: r.intentId, amountCents: due, brand: r.card.brand, last4: r.card.last4, receipt: false,
-      steps: { authorizedAt: new Date().toISOString(), capturedAt: new Date().toISOString() },
-    });
-    return { ok: true as const, payment: { number: p.payment.number, amountCents: due, method: 'card', last4: r.card.last4 } };
+    return done ?? { ok: false, error: 'Another card payment on this order is being taken right now.', retry: true };
   };
+}
+
+/** Pay forms left open on the quote page can no longer take a balance that was just paid another way. */
+async function closeOpenPayForms(stripe: ReturnType<typeof stripeClient>, orderId: string, exceptId: string) {
+  for (const i of await orderIntents(stripe, orderId)) {
+    if (i.id !== exceptId && ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(i.status)) await cancelIntent(stripe, i.id);
+  }
+}
+
+/**
+ * Record a PaymentIntent that succeeded at Stripe but was never finished in the app (the tab
+ * closed, the phone lost signal, a 3-D Secure return that never came back). Same steps as the
+ * page would have taken: book the order when that was the point, record the payment once.
+ */
+async function settleIntent(db: Db, tenantId: string, orderId: string, intentId: string, purpose: string) {
+  if (purpose.startsWith('staff_')) return finishStaffCardPayment(db, tenantId, orderId, { type: 'system' }, intentId);
+  const { quoteContext } = await import('@rental/db');
+  const q = await quoteContext(db, tenantId, orderId);
+  if (!q) return null;
+  return finishCardPayment(db, q, intentId);
+}
+
+/** Card payments Stripe took for one order that the app has not recorded yet: record them now. */
+export async function syncOrderPayments(db: Db, tenantId: string, orderId: string, stripe: ReturnType<typeof stripeClient>) {
+  let recorded = 0;
+  let processing = false;
+  for (const i of await orderIntents(stripe, orderId)) {
+    if (i.metadata?.tenant_id !== tenantId) continue;
+    if (i.status === 'processing') processing = true;
+    if (i.status !== 'succeeded' || (await findGatewayPayment(db, tenantId, i.id))) continue;
+    await settleIntent(db, tenantId, orderId, i.id, i.metadata.purpose ?? '');
+    recorded++;
+  }
+  return { recorded, processing };
+}
+
+/**
+ * Worker, every 15 minutes: bring a workspace's books in line with Stripe for the last few days.
+ * Card payments that succeeded but were never recorded are recorded (and book their order);
+ * refunds made in the Stripe dashboard are recorded against their payment; new disputes are
+ * sent to the office. Without this, money could sit at Stripe that the app never shows.
+ */
+export async function reconcileStripe(db: Db, tenantId: string, sinceHours = 72) {
+  const since = Math.floor(Date.now() / 1000) - sinceHours * 3600;
+  const out = { payments: 0, refunds: 0, disputes: 0, errors: [] as string[] };
+  for (const secret of await stripeSecrets(db, tenantId)) {
+    const stripe = stripeClient(secret);
+    for await (const i of stripe.paymentIntents.list({ created: { gte: since }, limit: 100 })) {
+      const orderId = i.metadata?.order_id;
+      if (i.metadata?.tenant_id !== tenantId || !orderId || i.status !== 'succeeded') continue;
+      if (await findGatewayPayment(db, tenantId, i.id)) continue;
+      try {
+        await settleIntent(db, tenantId, orderId, i.id, i.metadata.purpose ?? '');
+        out.payments++;
+      } catch (e) {
+        out.errors.push(`${i.id}: ${(e as Error).message}`);
+      }
+    }
+    for await (const r of stripe.refunds.list({ created: { gte: since }, limit: 100 })) {
+      // Our own refunds are recorded where they are made (cancel); these are the ones made in Stripe.
+      if (r.metadata?.source === 'tentpole' || r.status !== 'succeeded' || typeof r.payment_intent !== 'string') continue;
+      const row = await recordGatewayRefund(db, tenantId, { paymentRef: r.payment_intent, ref: r.id, amountCents: r.amount, reason: r.reason?.replace(/_/g, ' ') ?? 'refunded in Stripe' });
+      if (row) out.refunds++;
+    }
+    for await (const d of stripe.disputes.list({ created: { gte: since }, limit: 100 })) {
+      const ref = typeof d.payment_intent === 'string' ? d.payment_intent : d.payment_intent?.id;
+      const pay = ref ? await findGatewayPayment(db, tenantId, ref) : null;
+      if (!pay) continue;
+      await alertPayment(db, tenantId, pay.orderId, `dispute:${d.id}:${d.status}`,
+        `The customer disputed the $${(d.amount / 100).toFixed(2)} card payment ${pay.number} with their bank (reason: ${d.reason.replace(/_/g, ' ')}; status: ${d.status.replace(/_/g, ' ')}). Answer it in your Stripe dashboard before the deadline.`);
+      out.disputes++;
+    }
+  }
+  return out;
 }
 
 // --- staff card payments (order Payment Options, Invoices → Record payment) ---------------------------------
@@ -215,6 +325,10 @@ async function settleStaffCard(
 ): Promise<StaffCardResult> {
   const done = await findGatewayPayment(db, q.tenant.id, i.id);
   if (done) return { number: done.number, last4: done.cardLast4, brand: done.cardBrand, booked: false };
+  if (q.order.status === 'cancelled') {
+    await refundCancelled(db, q, s.stripe, i.id, p.amountCents + p.tipCents);
+    throw new OrgError('This order was cancelled, so the charge was refunded in full.', 'invalid');
+  }
   let booked = false;
   if (p.purpose === 'book' && (q.order.status === 'draft' || q.order.status === 'quote_sent')) {
     const b = await bookOrRefund(db, q, s.stripe, i.id, actor, { method: 'card', policies: p.policies ?? {} });
@@ -287,6 +401,13 @@ export async function finishStaffCardPayment(db: Db, tenantId: string, orderId: 
 
 /** Charge the customer's saved card now (partial allowed, plus a tip), booking the order when asked. */
 export async function chargeSavedCardForOrder(db: Db, tenantId: string, orderId: string, actor: Actor, p: StaffCard): Promise<StaffCardResult> {
+  const r = await oneChargeAtATime(db, tenantId, orderId, () => chargeSavedCard(db, tenantId, orderId, actor, p));
+  if (!r) throw new OrgError('Another card payment on this order is being taken right now. Check Invoices & payments in a minute.', 'invalid');
+  return r;
+}
+
+async function chargeSavedCard(db: Db, tenantId: string, orderId: string, actor: Actor, p: StaffCard): Promise<StaffCardResult> {
+  // Read inside the lease: what is left to pay is what it is now, after any charge that just finished.
   const q = await staffQuote(db, tenantId, orderId);
   checkStaffCard(q, p);
   const card = q.card?.gateway === 'stripe' ? q.card : null;
@@ -300,12 +421,19 @@ export async function chargeSavedCardForOrder(db: Db, tenantId: string, orderId:
   const total = p.amountCents + p.tipCents;
   const r = await chargeSaved(s.stripe, {
     amountCents: total, currency: q.tenant.currency, customerId: card.gatewayCustomerId, paymentMethodId: card.gatewayMethodId,
-    description: `${q.tenant.name} · ${q.order.number} · ${p.purpose === 'tip' ? 'tip' : 'payment'}`, metadata: { tenant_id: tenantId, order_id: orderId, purpose: `staff_${p.purpose}` },
+    description: `${q.tenant.name} · ${q.order.number} · ${p.purpose === 'tip' ? 'tip' : 'payment'}`,
+    // Like a new-card payment, what to record travels with the charge (the reconciler reads it if recording fails).
+    metadata: {
+      tenant_id: tenantId, order_id: orderId, order_number: q.order.number, purpose: `staff_${p.purpose}`,
+      amount_cents: String(p.amountCents), tip_cents: String(p.tipCents), receipt: p.receipt ? '1' : '0',
+    },
     // A double click on the same order version makes one charge, not two.
     idempotencyKey: `${orderId}:staff-${p.purpose}:${total}:v${q.order.version}`,
   });
   if (!r.ok) throw new OrgError(r.declined ? `Card declined: ${r.message}` : r.message, 'invalid');
-  return settleStaffCard(db, q, s, actor, p, { id: r.intentId, created: new Date(), card: r.card, saved: null });
+  const settled = await settleStaffCard(db, q, s, actor, p, { id: r.intentId, created: new Date(), card: r.card, saved: null });
+  if (p.purpose !== 'tip') await closeOpenPayForms(s.stripe, orderId, r.intentId);
+  return settled;
 }
 
 /** Invoices → Record payment → Card on file. */

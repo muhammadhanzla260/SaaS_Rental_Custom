@@ -38,6 +38,7 @@ export const MESSAGE_TYPES = {
   last_minute: { label: 'Last-minute booking', group: 'internal', channels: ['email'], when: 'A booking made shortly before its event.' },
   change_request: { label: 'Customer asked for changes', group: 'internal', channels: ['email'], when: 'From the quote page’s Request changes.' },
   damage_report: { label: 'Damage reported', group: 'internal', channels: ['email'], when: 'A coach reported damage at close-out (warehouse maintenance flag on).' },
+  payment_alert: { label: 'Card payment needs attention', group: 'internal', channels: ['email'], when: 'A dispute, a refund made in Stripe, or a payment that arrived after the order was cancelled.' },
   daily_digest: { label: 'Tomorrow’s events', group: 'internal', channels: ['email'], when: 'Every evening: the events for tomorrow.' },
   weekly_report: { label: 'Weekly reports', group: 'internal', channels: ['email'], when: 'Mondays at 8:00 AM: the reports someone set to Email weekly.' },
 } as const satisfies Record<string, { label: string; group: MessageGroup; channels: readonly Channel[]; when: string }>;
@@ -274,6 +275,7 @@ export const DEFAULT_TEMPLATES: Record<MessageType, Partial<Record<Channel, Defa
     body: '{customer.name} asked for changes to quote {order.number} ({event.date}):\n\n{reason}' } },
   damage_report: { email: { subject: 'Damage reported: {order.number} · {customer.name}', button: null, buttonText: '',
     body: 'Coach {coach.name} reported damage at close-out for {order.number} ({event.date}):\n\n{reason}\n\nThe warehouse maintenance flag is on. Check the equipment before it goes out again.' } },
+  payment_alert: { email: { subject: 'Card payment: {order.number} · {customer.name}', button: null, buttonText: '', body: '{reason}' } },
   daily_digest: { email: { subject: 'Tomorrow’s events', button: null, buttonText: '', body: '{reason}' } },
   weekly_report: { email: { subject: 'Your Monday reports', button: null, buttonText: '', body: '{reason}' } },
 };

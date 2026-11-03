@@ -159,6 +159,14 @@ export function saveConnectStep(db: Db, tenantId: string, actor: Actor, input: {
  * Card gateway for a sale at a location: the location's own account if it has
  * one, else the workspace's. The secret is decrypted for server use only.
  */
+/** Every Stripe secret a workspace has connected (one per account), for the payment reconciler. */
+export function stripeSecrets(db: Db, tenantId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const rows = await tx.select({ secret: paymentAccounts.secretEnc }).from(paymentAccounts).where(and(eq(paymentAccounts.tenantId, tenantId), eq(paymentAccounts.provider, 'stripe')));
+    return [...new Set(rows.filter((r) => r.secret).map((r) => decryptSecret(r.secret!)))];
+  });
+}
+
 export function getPaymentCredentials(db: Db, tenantId: string, locationId: string | null) {
   return withTenant(db, tenantId, async (tx) => {
     const own = locationId

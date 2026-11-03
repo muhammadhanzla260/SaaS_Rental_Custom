@@ -5,6 +5,7 @@
  *                     charge saved cards for balances due today
  *   daily_digest      every 15 min: tomorrow's events to the office at each workspace's digest time
  *   weekly_reports    every 15 min: on Mondays from 8:00 AM (workspace time), the reports set to Email weekly
+ *   reconcile_payments every 15 min: card payments, refunds and disputes at Stripe the app has not recorded
  *   ensure_partitions nightly: next month's audit_log partition
  *
  * Two connections: the owner (cross-workspace scans, SKIP LOCKED claims) and the
@@ -18,7 +19,7 @@ import { sql } from 'drizzle-orm';
 import { parsePreferences, resolveMessaging, utcToWallTime } from '@rental/core';
 import { createDb, enqueueMessage, queueWeeklyReports, tomorrowsEvents, withTenant } from '@rental/db';
 import { dispatchDue } from '@rental/messaging';
-import { balanceCharger } from '@rental/payments';
+import { balanceCharger, reconcileStripe } from '@rental/payments';
 
 config({ path: resolve(import.meta.dirname, '../../../.env'), quiet: true });
 
@@ -91,10 +92,29 @@ const tasks: Record<string, Task> = {
       if (row) logger.info(`weekly reports queued for ${t.id}`);
     }
   },
+
+  /**
+   * Card payments Stripe took that the app never recorded (a closed tab, a lost connection),
+   * refunds made in the Stripe dashboard and new disputes, for every live workspace with Stripe.
+   */
+  reconcile_payments: async (_payload, { logger }) => {
+    const tenants = await owner.db.execute<{ id: string }>(
+      sql`select t.id from tenants t where t.status in ('active','trial','past_due')
+          and exists (select 1 from payment_accounts a where a.tenant_id = t.id and a.provider = 'stripe' and a.secret_enc is not null)`,
+    );
+    for (const t of tenants) {
+      try {
+        const r = await reconcileStripe(app.db, t.id);
+        if (r.payments || r.refunds || r.disputes || r.errors.length) logger.info(`reconciled ${t.id}: ${JSON.stringify(r)}`);
+      } catch (e) {
+        logger.error(`reconcile ${t.id} failed: ${(e as Error).message}`);
+      }
+    }
+  },
 };
 
 // Times are UTC. Fields: minute hour day month weekday task
-const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '*/15 * * * * weekly_reports', '15 3 * * * ensure_partitions'].join('\n');
+const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '*/15 * * * * weekly_reports', '15 3 * * * ensure_partitions', '*/15 * * * * reconcile_payments'].join('\n');
 
 const once = process.argv.includes('--once');
 const runner = await run({
