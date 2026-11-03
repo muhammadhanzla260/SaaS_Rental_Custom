@@ -51,10 +51,18 @@ async function smtpTransport(a: SmtpAccount, timeoutMs = 15000): Promise<Transpo
 }
 
 let platform: Transporter | null = null;
+/** nodemailer reads connection options from the URL's query; ones already in the URL win. */
+export function withTimeouts(url: string) {
+  const u = new URL(url);
+  for (const [k, v] of [['connectionTimeout', '15000'], ['greetingTimeout', '15000'], ['socketTimeout', '30000']]) if (!u.searchParams.has(k!)) u.searchParams.set(k!, v!);
+  return u.toString();
+}
+
 async function platformTransport() {
   const url = process.env.PLATFORM_SMTP_URL?.trim();
   if (!url) return null;
-  if (!platform) platform = (await import('nodemailer')).createTransport(url);
+  // Timeouts like a workspace's own SMTP, so a stuck platform server cannot hold a send forever.
+  if (!platform) platform = (await import('nodemailer')).createTransport(withTimeouts(url));
   return platform;
 }
 

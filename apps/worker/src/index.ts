@@ -7,6 +7,7 @@
  *   weekly_reports    every 15 min: on Mondays from 8:00 AM (workspace time), the reports set to Email weekly
  *   reconcile_payments every 15 min: card payments, refunds and disputes at Stripe the app has not recorded
  *   ensure_partitions nightly: next month's audit_log partition
+ *   housekeeping      nightly: coach GPS history past its retention, closed workspaces past their grace
  *
  * Two connections: the owner (cross-workspace scans, SKIP LOCKED claims) and the
  * restricted app role (everything that reads or writes one workspace's data, with
@@ -17,7 +18,7 @@ import { run, type Task } from 'graphile-worker';
 import { resolve } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { parsePreferences, resolveMessaging, utcToWallTime } from '@rental/core';
-import { createDb, enqueueMessage, queueWeeklyReports, tomorrowsEvents, withTenant } from '@rental/db';
+import { createDb, enqueueMessage, purgeClosedWorkspaces, purgeOldGpsPings, queueWeeklyReports, tomorrowsEvents, withTenant } from '@rental/db';
 import { dispatchDue } from '@rental/messaging';
 import { balanceCharger, reconcileStripe } from '@rental/payments';
 
@@ -39,6 +40,13 @@ const tasks: Record<string, Task> = {
       );
       logger.info(`audit partition ready: ${rows[0]?.part}`);
     });
+  },
+
+  /** Privacy and the closed-workspace promise: GPS points are kept only as long as promised, closed workspaces go after 30 days. */
+  housekeeping: async (_payload, { logger }) => {
+    const pings = await purgeOldGpsPings(owner.db);
+    const purged = await purgeClosedWorkspaces(owner.db);
+    logger.info(`housekeeping: ${pings} GPS points removed${purged.length ? `, closed workspaces deleted: ${purged.join(', ')}` : ''}`);
   },
 
   dispatch_due: async (_payload, { logger }) => {
@@ -114,7 +122,7 @@ const tasks: Record<string, Task> = {
 };
 
 // Times are UTC. Fields: minute hour day month weekday task
-const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '*/15 * * * * weekly_reports', '15 3 * * * ensure_partitions', '*/15 * * * * reconcile_payments'].join('\n');
+const crontab = ['* * * * * dispatch_due', '*/15 * * * * daily_digest', '*/15 * * * * weekly_reports', '15 3 * * * ensure_partitions', '45 3 * * * housekeeping', '*/15 * * * * reconcile_payments'].join('\n');
 
 const once = process.argv.includes('--once');
 const runner = await run({

@@ -1,8 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { onboardingPercent, onboardingProgressSchema } from '@rental/core';
 import { withTenant, type Db } from '../client';
 import { sha256Hex } from '../crypto';
-import { tenants } from '../schema';
+import { files, tenants } from '../schema';
+import { objectStore } from '../storage';
 import { audit, diff, type Actor } from './audit';
 import { OrgError } from './errors';
 import { createWorkspace, type Tenant } from './organizations';
@@ -192,4 +193,33 @@ export async function listPlatformAudit(db: Db, adminId: string, opts: { limit?:
     id: r.id, at: new Date(r.at), tenantId: r.tenant_id, tenantName: r.tenant_name, tenantSlug: r.tenant_slug, actorType: r.actor_type,
     actorName: r.actor_name, actorEmail: r.actor_email, entityType: r.entity_type, action: r.action, changes: r.changes, ip: r.ip,
   }));
+}
+
+/**
+ * Worker, daily: closed workspaces past their 30-day grace (purge_after) are deleted for good: their
+ * files in the bucket, their audit history, then the workspace with everything in it (cascade).
+ * A few per run, and each one checked again at the moment of deletion, so a workspace reopened
+ * meanwhile is never touched.
+ */
+export async function purgeClosedWorkspaces(ownerDb: Db, limit = 3, only?: string[]) {
+  const due = await ownerDb.select({ id: tenants.id, slug: tenants.slug }).from(tenants)
+    .where(and(eq(tenants.status, 'closed'), isNotNull(tenants.purgeAfter), lt(tenants.purgeAfter, new Date()), only ? inArray(tenants.id, only) : undefined)).limit(limit);
+  const purged: string[] = [];
+  for (const t of due) {
+    const store = objectStore();
+    if (store?.remove) {
+      const keys = await ownerDb.select({ key: files.storageKey }).from(files).where(and(eq(files.tenantId, t.id), isNotNull(files.storageKey)));
+      for (const k of keys) await store.remove(k.key!);
+    }
+    const gone = await ownerDb.transaction(async (tx) => {
+      const [still] = await tx.select({ id: tenants.id }).from(tenants)
+        .where(and(eq(tenants.id, t.id), eq(tenants.status, 'closed'), lt(tenants.purgeAfter, new Date()))).for('update').limit(1);
+      if (!still) return false;
+      await tx.execute(sql`delete from audit_log where tenant_id = ${t.id}::uuid`);
+      await tx.delete(tenants).where(eq(tenants.id, t.id));
+      return true;
+    });
+    if (gone) purged.push(t.slug);
+  }
+  return purged;
 }
