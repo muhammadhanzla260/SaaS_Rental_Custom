@@ -157,6 +157,15 @@ async function countOwners(tx: Tx, tenantId: string) {
   return row?.n ?? 0;
 }
 
+/** The locations a member is limited to, or null when they work at every location. */
+export function memberLocationIds(db: Db, tenantId: string, membership: { id: string; allLocations: boolean }) {
+  if (membership.allLocations) return Promise.resolve(null);
+  return withTenant(db, tenantId, async (tx) => {
+    const rows = await tx.select({ id: membershipLocations.locationId }).from(membershipLocations).where(eq(membershipLocations.membershipId, membership.id));
+    return rows.length ? rows.map((r) => r.id) : null;
+  });
+}
+
 async function setMemberLocations(tx: Tx, tenantId: string, membershipId: string, ids: string[]) {
   await tx.delete(membershipLocations).where(eq(membershipLocations.membershipId, membershipId));
   if (ids.length) await tx.insert(membershipLocations).values(ids.map((locationId) => ({ tenantId, membershipId, locationId })));

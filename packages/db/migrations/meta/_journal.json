@@ -274,6 +274,13 @@
       "when": 1793722312214,
       "tag": "0039_audit_partitions_utc",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793722845281,
+      "tag": "0040_location_scope",
+      "breakpoints": true
     }
   ]
 }

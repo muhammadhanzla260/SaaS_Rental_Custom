@@ -1,5 +1,7 @@
 import 'server-only';
 import { createDb, type Db } from '@rental/db';
+// Registers the per-request location scope with withTenant.
+import './scope';
 
 // One pool per server process; reused across hot reloads in development.
 const globalForDb = globalThis as unknown as { rentalDb?: Db };
