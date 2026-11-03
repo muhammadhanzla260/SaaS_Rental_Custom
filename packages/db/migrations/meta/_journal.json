@@ -281,6 +281,13 @@
       "when": 1793722845281,
       "tag": "0040_location_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793723117489,
+      "tag": "0041_tenants_read_own",
+      "breakpoints": true
     }
   ]
 }
