@@ -147,6 +147,13 @@ export async function getCustomerAction(slug: string, id: string): Promise<Actio
   });
 }
 
+/** Tax exempt takes the tax off every order of the customer: only a role that may override tax can switch it. */
+async function checkTaxExempt(ctx: Awaited<ReturnType<typeof requirePermission>>, id: string | null, wanted: boolean) {
+  if (ctx.can('orders.override_tax')) return;
+  const was = id ? (await getCustomer(db, ctx.tenant.id, uuid.parse(id)))?.taxExempt ?? false : false;
+  if (wanted !== was) throw new ActionError('Your role cannot mark customers tax exempt. Ask a manager.');
+}
+
 export async function saveCustomerAction(
   slug: string,
   id: string | null,
@@ -157,6 +164,7 @@ export async function saveCustomerAction(
     const ctx = await requirePermission(slug, 'customers.manage');
     const parsed = customerSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    await checkTaxExempt(ctx, id, parsed.data.taxExempt);
     if (!opts.allowDuplicate) {
       const dupes = await findDuplicateCustomers(db, ctx.tenant.id, parsed.data.email, parsed.data.phone, id ?? undefined);
       if (dupes.length) {
@@ -254,6 +262,18 @@ async function checkOverrides(ctx: Awaited<ReturnType<typeof requirePermission>>
       if (!l.productId || l.overridePrice == null) continue;
       if (had.get(l.productId) !== Math.round(l.overridePrice * 100)) throw new ActionError('Your role cannot change unit prices. Ask a manager.');
     }
+    // Custom items, the order discount and a manual coupon amount set prices too: they may stay as they
+    // were on the order, but only a role (or person) with price override may set or change them.
+    const customs = new Set((before?.lines ?? []).filter((l) => !l.productId).map((l) => `${l.name}:${l.unitCents}`));
+    for (const l of input.lines) {
+      if (l.productId || !l.overridePrice) continue;
+      if (!customs.has(`${l.name ?? 'Custom item'}:${Math.round(l.overridePrice * 100)}`)) throw new ActionError('Your role cannot price custom items. Ask a manager.');
+    }
+    const discountWas = before?.discountKind ? `${before.discountKind}:${Number(before.discountValue)}` : '';
+    const discountNow = input.discount && input.discount.value > 0 ? `${input.discount.kind}:${input.discount.value}` : '';
+    if (discountNow && discountNow !== discountWas) throw new ActionError('Your role cannot give discounts. Ask a manager.');
+    const manualWas = before && !before.couponCode ? before.couponCents : 0;
+    if (!input.couponCode && input.coupon > 0 && Math.round(input.coupon * 100) !== manualWas) throw new ActionError('Your role cannot enter a coupon amount. Use a coupon code, or ask a manager.');
     // The locked base package and additional-time rate: kept from the order as it was, else the product's price today.
     const locked = new Map((before?.lines ?? []).filter((l) => l.productId).map((l) => [`${l.productId}:${l.serviceMode}`, l]));
     for (const l of input.lines) {
@@ -555,6 +575,7 @@ export async function quickCustomerAction(slug: string, input: unknown): Promise
     const ctx = await requirePermission(slug, 'customers.manage');
     const parsed = customerSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    await checkTaxExempt(ctx, null, parsed.data.taxExempt);
     const dupes = await findDuplicateCustomers(db, ctx.tenant.id, parsed.data.email, parsed.data.phone);
     if (dupes.length) return { ok: false, error: `${dupes[0]!.displayName} already uses this email or phone. Search for them instead.` };
     const c = await createCustomer(db, ctx.tenant.id, ctx.actor, parsed.data);

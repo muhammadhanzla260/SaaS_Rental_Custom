@@ -228,7 +228,8 @@ export function orderSummary(input: SummaryInput): OrderSummary {
           ? roundCents((merch * Math.max(0, input.coupon.value)) / 100)
           : roundCents(Math.max(0, input.coupon.value) * 100),
       )
-    : Math.max(0, input.couponCents ?? 0);
+    // A manual coupon amount takes off merchandise only, like a code coupon (never fees or tax).
+    : Math.min(merch, Math.max(0, input.couponCents ?? 0));
   const pct = input.taxPercent || 0;
   const taxOn = (base: number) => (pct ? roundCents((Math.max(0, base) * pct) / 100) : 0);
 

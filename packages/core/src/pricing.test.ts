@@ -64,6 +64,12 @@ describe('order summary (Odoo _compute_amounts)', () => {
     miscFeesCents: 0,
     taxPercent: 8.25,
   };
+  it('a manual coupon amount never takes off more than the merchandise, so fees and tax stay (QA B-13)', () => {
+    const s = orderSummary({ ...base, couponCents: 500000 });
+    expect(s.couponCents).toBe(59900);
+    expect(s.taxCents).toBeGreaterThan(0);
+    expect(s.totalCents).toBeGreaterThan(0);
+  });
   it('waiver on merchandise before discount, one-pass tax, 30% deposit', () => {
     const s = orderSummary({ ...base, discount: { kind: 'percent', value: 10 } });
     expect(s).toMatchObject({
