@@ -206,6 +206,15 @@ describe('orders (acceptance tests)', () => {
     expect((await usableCredits(db, tenantId, customerId)).map((c) => c.balanceCents).sort((a, b) => a - b)).toEqual([2000, 18543]);
   });
 
+  it('one credit cannot be spent by three orders saved at the same moment (QA B-05)', async () => {
+    const wc = await createCredit(db, tenantId, actor, customerId, creditSchema.parse({ kind: 'wallet', amount: 100 }));
+    const input = (day: number) => orderInput(t(day, 13), t(day, 17), [{ productId: castleId }], { credits: [{ creditId: wc.id, amount: 100 }] });
+    // Three open connections first, so the saves really run side by side.
+    await Promise.all([1, 2, 3].map(() => app.client`select pg_sleep(0.05)`));
+    const results = await Promise.allSettled([createOrder(db, tenantId, actor, input(10), prefs), createOrder(db, tenantId, actor, input(11), prefs), createOrder(db, tenantId, actor, input(12), prefs)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  });
+
   it('6 · two people booking the last unit at once: exactly one succeeds', async () => {
     const x = await createOrder(db, tenantId, actor, orderInput(t(28, 10), t(28, 12), [{ productId: screenId }]), prefs);
     const y = await createOrder(db, tenantId, actor, orderInput(t(28, 11), t(28, 13), [{ productId: screenId }]), prefs);
@@ -225,6 +234,19 @@ describe('orders (rules)', () => {
     await expect(transitionOrder(db, tenantId, actor, tooSoon.id, 'book', prefs)).rejects.toThrow(/Refused/);
     await transitionOrder(db, tenantId, actor, first.id, 'cancel', prefs);
     await transitionOrder(db, tenantId, actor, tooSoon.id, 'book', prefs);
+  });
+
+  it('the cleanup is kept whichever booking comes first (QA B-07)', async () => {
+    const later = await createOrder(db, tenantId, actor, orderInput(t(23, 14, 30), t(23, 18), [{ productId: screenId }]), prefs);
+    await transitionOrder(db, tenantId, actor, later.id, 'book', prefs);
+    // Ends at 13:00, so its 3 h cleanup runs into the 14:30 booking of the only screen.
+    const earlier = await createOrder(db, tenantId, actor, orderInput(t(23, 10), t(23, 13), [{ productId: screenId }]), prefs);
+    await expect(transitionOrder(db, tenantId, actor, earlier.id, 'book', prefs)).rejects.toThrow(/Refused/);
+  });
+
+  it('one order cannot take more units than exist by listing the product twice (QA B-06)', async () => {
+    const o = await createOrder(db, tenantId, actor, orderInput(t(24, 10), t(24, 13), [{ productId: screenId }, { productId: screenId, serviceMode: 'dropoff' }]), prefs);
+    await expect(transitionOrder(db, tenantId, actor, o.id, 'book', prefs)).rejects.toThrow(/Refused/);
   });
 
   it('serialized stock: a unit in maintenance cannot be booked; services never run out', async () => {

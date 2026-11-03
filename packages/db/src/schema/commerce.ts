@@ -338,6 +338,11 @@ export const orders = pgTable(
     totalCents: bigint('total_cents', { mode: 'number' }).notNull().default(0),
     depositDueCents: bigint('deposit_due_cents', { mode: 'number' }).notNull().default(0),
     paidCents: bigint('paid_cents', { mode: 'number' }).notNull().default(0),
+    /**
+     * A card charge on this order is in progress until then (auto-charge, staff charge): a second
+     * charge waits for it, so the same balance is never taken twice. A lease, so a crash frees it.
+     */
+    chargeLockUntil: timestamp('charge_lock_until', { withTimezone: true }),
     summary: jsonb('summary').notNull().default({}),
     source: text('source'),
     internalNotes: text('internal_notes'),
@@ -546,6 +551,9 @@ export const payments = pgTable(
  * Money given back (cancel → refund). Card payments are refunded through the
  * gateway (gatewayRef = the gateway's refund id); the rest is handed back by
  * staff (cash, check...). The order's paid amount goes down by the refund.
+ * status: pending (written before the gateway is asked, so a failed cancel
+ * cannot lose a refund the gateway made), done, or owed (an overpayment the
+ * office still has to give back; on the Ops board until it is).
  */
 export const refunds = pgTable(
   'refunds',
@@ -560,12 +568,14 @@ export const refunds = pgTable(
     gateway: text('gateway').notNull().default('manual'),
     gatewayRef: text('gateway_ref'),
     reason: text('reason'),
+    status: text('status').notNull().default('done'),
     createdByUserId: text('created_by_user_id'),
     createdAt: createdAt(),
   },
   (t) => [
     primaryKey({ columns: [t.tenantId, t.id] }),
     unique('refunds_number').on(t.tenantId, t.number),
+    check('refunds_status', sql`${t.status} in ('pending','done','owed')`),
     foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('cascade'),
     check('refunds_amount', sql`${t.amountCents} > 0`),
     check('refunds_gateway', sql`${t.gateway} in ('manual','stripe','ipos')`),

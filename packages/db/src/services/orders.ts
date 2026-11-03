@@ -124,6 +124,9 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
   }
 
   // Credits: each amount must fit what is left on it; the engine then caps the total at what is owed.
+  // Lock them first: two orders saved at the same moment would otherwise both see the full balance.
+  const creditIds = [...new Set(input.credits.filter((c) => c.amount > 0).map((c) => c.creditId))].sort();
+  if (creditIds.length) await tx.select({ id: credits.id }).from(credits).where(and(eq(credits.tenantId, tenantId), inArray(credits.id, creditIds))).orderBy(credits.id).for('update');
   const usable = input.credits.length ? await usableCreditsTx(tx, tenantId, input.customerId, orderId) : [];
   const wanted = input.credits
     .filter((c) => c.amount > 0)
