@@ -283,7 +283,9 @@ function RecordPaymentModal({ slug, doc, currency, open, onClose }: { slug: stri
   const [state, setState] = useState<'form' | 'busy' | 'done'>('form');
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState('');
-  useEffect(() => { if (open) { setState('form'); setErr(null); } }, [open]);
+  // One per opening of the dialog: a double click or a retry after a lost connection records the payment once.
+  const requestKey = useRef('');
+  useEffect(() => { if (open) { setState('form'); setErr(null); requestKey.current = crypto.randomUUID(); } }, [open]);
   const link = f.method === 'pay_link';
   const card = f.method === 'card_on_file';
   const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
@@ -292,7 +294,7 @@ function RecordPaymentModal({ slug, doc, currency, open, onClose }: { slug: stri
   async function submit() {
     setErr(null);
     setState('busy');
-    const r = await recordInvoicePaymentAction(slug, { invoiceId: doc.id, method: f.method, amount: link ? doc.dueCents / 100 : f.amount, tip: f.tip || 0, reference: f.reference || undefined, receipt: f.receipt });
+    const r = await recordInvoicePaymentAction(slug, { invoiceId: doc.id, method: f.method, amount: link ? doc.dueCents / 100 : f.amount, tip: f.tip || 0, reference: f.reference || undefined, receipt: f.receipt, requestKey: requestKey.current || undefined });
     if (!r.ok) {
       setState('form');
       return setErr(r.fieldErrors ? Object.values(r.fieldErrors)[0]! : r.error);

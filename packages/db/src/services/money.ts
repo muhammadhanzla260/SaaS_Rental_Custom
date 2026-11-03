@@ -268,10 +268,12 @@ export type GatewayPayment = {
  */
 export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, orderId: string, p: GatewayPayment) {
   return withTenant(db, tenantId, async (tx) => {
-    const [dupe] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, p.ref))).limit(1);
-    if (dupe) return { payment: dupe, duplicate: true };
+    // Lock the order first, so two calls with the same ref wait for each other instead of
+    // both inserting (the loser used to get a raw unique-constraint error).
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).for('update').limit(1);
     if (!order) throw new OrgError('Order not found.', 'not_found');
+    const [dupe] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, p.ref))).limit(1);
+    if (dupe) return { payment: dupe, duplicate: true };
     // The receipt carries the order's number and belongs to the order's one invoice.
     const [inv] = await tx
       .select({ id: invoices.id })
@@ -299,6 +301,22 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
       await enqueuePaymentConfirmation(tx, tenantId, { id: orderId, totalCents: order.totalCents, paidCents: order.paidCents + p.amountCents }, pay!.id);
     }
     return { payment: pay!, duplicate: false };
+  });
+}
+
+/** The payment already recorded for a gateway id (a PaymentIntent), if any. */
+export function findGatewayPayment(db: Db, tenantId: string, ref: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [pay] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, ref))).limit(1);
+    return pay ?? null;
+  });
+}
+
+/** An order's status as it is right now (after a step that may have raced with another). */
+export function currentOrderStatus(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [o] = await tx.select({ status: orders.status }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    return o?.status ?? null;
   });
 }
 

@@ -132,6 +132,28 @@ describe('gateway payments and cards', () => {
     expect(first.payment.number).toBe(o.number);
   });
 
+  it('records it once when the same payment is reported many times at the same moment (QA B-21)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(36)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    const p = { gateway: 'stripe' as const, ref: `pi_race_${run}`, amountCents: 5000, brand: 'visa', last4: '4242' };
+    const all = await Promise.all(Array.from({ length: 6 }, () => recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, p)));
+    expect(all.filter((r) => !r.duplicate)).toHaveLength(1);
+    expect(new Set(all.map((r) => r.payment.id)).size).toBe(1);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+  });
+
+  it('a double submit of the same cash payment form records it once (QA B-21)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(37)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    const form = { method: 'cash', amount: 50, requestKey: randomUUID() };
+    const [a, b] = await Promise.all([recordPayment(db, tenantId, actor, o.id, prefs, form), recordPayment(db, tenantId, actor, o.id, prefs, form)]);
+    expect(a.payment.id).toBe(b.payment.id);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+    // A new form is a new payment.
+    await recordPayment(db, tenantId, actor, o.id, prefs, { ...form, requestKey: randomUUID() });
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(10000);
+  });
+
   it('saving a card switches on auto-charge for open balances', async () => {
     const o = await createOrder(db, tenantId, actor, input(day(35)), prefs);
     await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);

@@ -391,6 +391,7 @@ const paymentSchema = z.object({
   reference: z.string().trim().max(80).optional(),
   note: z.string().trim().max(500).optional(),
   receipt: z.boolean().default(true),
+  requestKey: z.string().uuid().optional(),
 });
 
 export async function recordPaymentAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ number: string }>> {

@@ -4,8 +4,8 @@
  */
 import { parsePreferences, utcToWallTime } from '@rental/core';
 import {
-  getPaymentCredentials, OrgError, productAvailability, recordChargeFailure, recordGatewayPayment, saveCardTx, transitionOrder, withTenant,
-  type Actor, type Db, type MessageContext, type QuoteContext,
+  currentOrderStatus, findGatewayPayment, getPaymentCredentials, OrgError, productAvailability, recordChargeFailure, recordGatewayPayment, saveCardTx,
+  transitionOrder, withTenant, type Actor, type Db, type MessageContext, type QuoteContext,
 } from '@rental/db';
 import { chargeSaved, createIntent, ensureStripeCustomer, readIntent, refundIntent, stripeClient } from './stripe';
 
@@ -32,6 +32,25 @@ export async function stillAvailable(db: Db, q: QuoteContext) {
   for (const l of q.lines) if (l.product_id) need.set(l.product_id, (need.get(l.product_id) ?? 0) + l.quantity);
   const short = [...need].filter(([id, n]) => avail[id] && !avail[id]!.overbook && avail[id]!.free < n).map(([id]) => q.lines.find((l) => l.product_id === id)!.name);
   return short.length ? { ok: false as const, short } : { ok: true as const };
+}
+
+/**
+ * Book the order a card just paid for. When booking fails, look again before refunding: another finish
+ * of the same payment (a refresh, a double click, the page retrying) may have booked it a moment ago,
+ * and then the money stays with the booking. Only an order that is still not booked gets the refund.
+ */
+async function bookOrRefund(
+  db: Db, q: QuoteContext, stripe: ReturnType<typeof stripeClient>, intentId: string, actor: Actor, booking?: { method: 'card'; policies: Record<string, boolean> },
+): Promise<{ booked: boolean; refused?: string }> {
+  try {
+    await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', parsePreferences(q.tenant.settings), { booking, paymentFollows: true });
+    return { booked: true };
+  } catch (e) {
+    const now = await currentOrderStatus(db, q.tenant.id, q.order.id);
+    if (now === 'booked' || now === 'completed') return { booked: false };
+    await refundIntent(stripe, intentId, `Could not book ${q.order.number}: ${(e as Error).message}`);
+    return { booked: false, refused: (e as Error).message };
+  }
 }
 
 async function stripeFor(db: Db, q: QuoteContext) {
@@ -87,19 +106,20 @@ export async function finishCardPayment(db: Db, q: QuoteContext, intentId: strin
   if (i.status === 'processing') return { ok: false, error: 'Your bank is still processing the payment. Refresh this page in a minute.' };
   if (i.status !== 'succeeded') return { ok: false, error: 'The payment did not go through. No money was taken.' };
 
-  const prefs = parsePreferences(q.tenant.settings);
   const actor = { type: 'customer' as const };
+  // Already recorded (this payment was finished a moment ago): say so again, change nothing.
+  const done = await findGatewayPayment(db, q.tenant.id, i.id);
+  if (done) {
+    const status = await currentOrderStatus(db, q.tenant.id, q.order.id);
+    return { ok: true, paymentNumber: done.number, last4: done.cardLast4, brand: done.cardBrand, booked: status === 'booked' || status === 'completed' };
+  }
   let booked = false;
   if (q.order.status === 'draft' || q.order.status === 'quote_sent') {
-    try {
-      // The payment confirmation below also confirms the booking (one email, like Odoo).
-      await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', prefs, { paymentFollows: true });
-      booked = true;
-    } catch (e) {
-      // Someone else booked the last unit between "Pay" and now: give the money back at once.
-      await refundIntent(s.stripe, i.id, `Could not book ${q.order.number}: ${(e as Error).message}`);
-      return { ok: false, error: `Sorry — the equipment was booked by someone else a moment ago. Your card was refunded in full. ${(e as Error).message}` };
-    }
+    // The payment confirmation below also confirms the booking (one email, like Odoo).
+    const b = await bookOrRefund(db, q, s.stripe, i.id, actor);
+    // Someone else booked the last unit between "Pay" and now: the money went back at once.
+    if (b.refused) return { ok: false, error: `Sorry — the equipment was booked by someone else a moment ago. Your card was refunded in full. ${b.refused}` };
+    booked = true;
   }
   const r = await recordGatewayPayment(db, q.tenant.id, actor, q.order.id, {
     gateway: 'stripe', ref: i.id, amountCents: i.amountCents, brand: i.card.brand, last4: i.card.last4,
@@ -193,17 +213,13 @@ async function settleStaffCard(
   db: Db, q: QuoteContext, s: NonNullable<Awaited<ReturnType<typeof stripeFor>>>, actor: Actor, p: StaffCard,
   i: { id: string; created: Date; card: { brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null }; saved: { customerId: string | null; methodId: string } | null },
 ): Promise<StaffCardResult> {
+  const done = await findGatewayPayment(db, q.tenant.id, i.id);
+  if (done) return { number: done.number, last4: done.cardLast4, brand: done.cardBrand, booked: false };
   let booked = false;
   if (p.purpose === 'book' && (q.order.status === 'draft' || q.order.status === 'quote_sent')) {
-    try {
-      await transitionOrder(db, q.tenant.id, actor, q.order.id, 'book', parsePreferences(q.tenant.settings), {
-        booking: { method: 'card', policies: p.policies ?? {} }, paymentFollows: true,
-      });
-      booked = true;
-    } catch (e) {
-      await refundIntent(s.stripe, i.id, `Could not book ${q.order.number}: ${(e as Error).message}`);
-      throw new OrgError(`The card was charged, but the order could not be booked, so the charge was refunded in full. ${(e as Error).message}`, 'invalid');
-    }
+    const b = await bookOrRefund(db, q, s.stripe, i.id, actor, { method: 'card', policies: p.policies ?? {} });
+    if (b.refused) throw new OrgError(`The card was charged, but the order could not be booked, so the charge was refunded in full. ${b.refused}`, 'invalid');
+    booked = b.booked;
   }
   const r = await recordGatewayPayment(db, q.tenant.id, actor, q.order.id, {
     gateway: 'stripe', ref: i.id, amountCents: p.amountCents, tipCents: p.tipCents, brand: i.card.brand, last4: i.card.last4, receipt: p.receipt,

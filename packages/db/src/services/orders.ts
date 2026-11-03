@@ -539,7 +539,7 @@ const ALLOWED: Record<OrderAction, OrderStatus[]> = {
 
 async function recordPaymentTx(
   tx: Tx, tenantId: string, actor: Actor, order: Order, prefs: TenantPreferences,
-  p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null },
+  p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; requestKey?: string | null },
 ) {
   // Receipts carry the order's number (Q-AUS-00098), like its quote and invoice.
   const number = order.number;
@@ -558,7 +558,7 @@ async function recordPaymentTx(
     .insert(payments)
     .values({
       tenantId, number, orderId: order.id, method: p.method, amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId, reference: p.reference ?? null,
-      note: p.note ?? null, createdByUserId: actor.userId ?? null,
+      note: p.note ?? null, createdByUserId: actor.userId ?? null, steps: p.requestKey ? { requestKey: p.requestKey } : {},
     })
     .returning();
   return pay!;
@@ -810,16 +810,26 @@ export async function rescheduleOrder(db: Db, tenantId: string, actor: Actor, id
 /** Record money received outside a gateway (cash, check, Zelle...). */
 export function recordPayment(
   db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences,
-  p: { method: string; amount: number; tip?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; receipt?: boolean },
+  p: {
+    method: string; amount: number; tip?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; receipt?: boolean;
+    /** One per payment form: a second submit of the same form returns the first payment instead of recording it again. */
+    requestKey?: string | null;
+  },
 ) {
   return withTenant(db, tenantId, async (tx) => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
     if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (p.requestKey) {
+      // The order row is locked, so a double submit waits here and then finds the first one.
+      const [seen] = await tx.select().from(payments)
+        .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, id), sql`${payments.steps}->>'requestKey' = ${p.requestKey}`)).limit(1);
+      if (seen) return { order, payment: seen };
+    }
     if (order.status === 'cancelled') throw new OrgError('This order is cancelled.', 'invalid');
     const cents = toCents(p.amount);
     if (cents <= 0) throw new OrgError('Enter the amount received.', 'invalid');
     const pay = await recordPaymentTx(tx, tenantId, actor, order, prefs, {
-      method: p.method, amountCents: cents, tipCents: p.tip ? toCents(p.tip) : 0, invoiceId: p.invoiceId, reference: p.reference, note: p.note,
+      method: p.method, amountCents: cents, tipCents: p.tip ? toCents(p.tip) : 0, invoiceId: p.invoiceId, reference: p.reference, note: p.note, requestKey: p.requestKey,
     });
     const [after] = await tx
       .update(orders)
