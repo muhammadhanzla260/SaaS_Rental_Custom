@@ -23,7 +23,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['postgres'],
   poweredByHeader: false,
   experimental: {
-    serverActions: { bodySizeLimit: '6mb' },
+    // Vercel refuses bodies over 4.5 MB; uploads are 4 MB at most (photos are shrunk in the browser).
+    serverActions: { bodySizeLimit: '4.5mb' },
   },
   headers: async () => [{ source: '/:path*', headers: securityHeaders }],
 };

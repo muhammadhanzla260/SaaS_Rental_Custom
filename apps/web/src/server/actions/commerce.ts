@@ -21,7 +21,7 @@ import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 import { dispatchOrder } from '@rental/messaging';
 import { chargeSavedCardForOrder, finishStaffCardPayment, refundToCards, startStaffCardPayment, type StaffCardResult } from '@rental/payments';
-import { listMessages } from '@rental/db';
+import { IMAGE_MAX_BYTES, IMAGE_MIME, listMessages } from '@rental/db';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
 const uuid = z.string().uuid();
@@ -34,8 +34,9 @@ export async function saveProductAction(slug: string, id: string | null, formDat
     const parsed = productSchema.safeParse(JSON.parse(String(formData.get('payload') ?? '{}')));
     if (!parsed.success) return invalid(parsed.error);
     const upload = await readUpload(formData.get('image'));
-    if (upload && !/^image\/(png|jpe?g|webp|gif)$/.test(upload.mime)) return { ok: false, error: 'Use a PNG, JPG, WebP or GIF image.' };
-    if (upload && upload.bytes.length > 5 * 1024 * 1024) return { ok: false, error: 'Photos must be under 5 MB.' };
+    // The same rules saveImage applies, said up front.
+    if (upload && !(IMAGE_MIME as readonly string[]).includes(upload.mime)) return { ok: false, error: 'Use a PNG, JPG or WebP image.' };
+    if (upload && upload.bytes.length > IMAGE_MAX_BYTES) return { ok: false, error: 'Photos must be 4 MB or smaller.' };
     const fileId = upload ? await saveImage(db, ctx.tenant.id, ctx.user.id, upload, 'product_image') : undefined;
     const image = fileId ? { fileId } : formData.get('imageRemove') === '1' ? { fileId: null } : null;
     const product = id

@@ -29,7 +29,8 @@ type Row = typeof coachChecklists.$inferSelect;
 const STATUS_LABEL: Record<string, string> = { draft: 'Draft', quote_sent: 'Quote', cancelled: 'Cancelled', completed: 'Done', booked: 'Booked' };
 const PHOTO_PHASE: Record<CoachPhotoKind, CoachPhaseKey> = { load: 'load', setup: 'setup', closeout: 'closeout', damage: 'closeout' };
 const PHOTO_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+/** 4 MB: the host refuses request bodies over 4.5 MB (the coach's phone shrinks photos before sending). */
+const PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 
 const orderEntity = (orderId: string) => ({ type: 'order', id: orderId });
 
@@ -417,7 +418,7 @@ export function saveCoachPhase(db: Db, tenantId: string, actor: Actor, orderId: 
 /** Add a required photo (or a damage photo). Its phase must be open and not locked. */
 export function addCoachPhoto(db: Db, tenantId: string, actor: Actor, orderId: string, kind: CoachPhotoKind, file: UploadedFile, takenAt?: Date | null) {
   if (!PHOTO_MIME.includes(file.mime)) throw new OrgError('Upload a photo (JPG, PNG, WebP or HEIC).', 'invalid');
-  if (file.bytes.length > PHOTO_MAX_BYTES) throw new OrgError('Photos must be 10 MB or smaller.', 'invalid');
+  if (file.bytes.length > PHOTO_MAX_BYTES) throw new OrgError('Photos must be 4 MB or smaller.', 'invalid');
   const userId = actor.userId!;
   return withTenant(db, tenantId, async (tx) => {
     await access(tx, tenantId, userId, orderId, 'coach', true);

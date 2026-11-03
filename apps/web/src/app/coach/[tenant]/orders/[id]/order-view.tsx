@@ -16,6 +16,7 @@ import {
 import { getFix } from '../../gps';
 import { useTracking } from '../../portal-chrome';
 import { fmtTime, fmtWindow, StatusPill } from '../../ui';
+import { shrinkImage, UPLOAD_MAX_BYTES, UPLOAD_TOO_BIG } from '@/lib/shrink-image';
 
 type Jsonify<T> = T extends Date ? string : T extends (infer U)[] ? Jsonify<U>[] : T extends object ? { [K in keyof T]: Jsonify<T[K]> } : T;
 type Detail = Jsonify<Awaited<ReturnType<typeof coachOrderDetail>>>;
@@ -421,8 +422,10 @@ function PhotoBlock({ kind, label, required, slug, orderId, photos, canEdit, pho
   const input = useRef<HTMLInputElement>(null);
   const mine = photos.filter((p) => p.kind === kind);
 
-  async function upload(file: File) {
+  async function upload(picked: File) {
     setUploading(kind);
+    const file = await shrinkImage(picked);
+    if (file.size > UPLOAD_MAX_BYTES) { setUploading(null); return toast(UPLOAD_TOO_BIG, 'error'); }
     const form = new FormData();
     form.set('kind', kind);
     form.set('file', file);

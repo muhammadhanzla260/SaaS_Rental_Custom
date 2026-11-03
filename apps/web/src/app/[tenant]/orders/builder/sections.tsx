@@ -16,6 +16,7 @@ import { AffixInput, Button, Card, Checkbox, cx, Field, FilterChips, Input, Noti
 import { uploadSetupMapAction } from '@/server/actions/commerce';
 import { addMinutes, durationLabel, locationOf, lockedFor, num, timeLabel } from './draft';
 import type { BuilderData, BuilderProduct, Draft, DraftLine } from './types';
+import { shrinkImage, UPLOAD_MAX_BYTES, UPLOAD_TOO_BIG } from '@/lib/shrink-image';
 
 type SetDraft = (patch: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void;
 
@@ -569,8 +570,10 @@ export function NotesSection({ d, set, slug }: { d: Draft; set: SetDraft; slug: 
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  async function upload(f: File) {
+  async function upload(picked: File) {
     setUploading(true);
+    const f = await shrinkImage(picked);
+    if (f.size > UPLOAD_MAX_BYTES) { setUploading(false); return toast(UPLOAD_TOO_BIG, 'error'); }
     const fd = new FormData();
     fd.set('file', f);
     const r = await uploadSetupMapAction(slug, fd);
