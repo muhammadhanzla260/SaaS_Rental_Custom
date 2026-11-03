@@ -117,7 +117,9 @@ export async function skipStepAction(slug: string, step: OnboardingStepKey): Pro
 
 export async function launchAction(slug: string, plan: unknown): Promise<ActionResult> {
   return run(async () => {
-    const ctx = await requirePermission(slug, 'settings.manage');
+    // Choosing the plan is billing (owner only), and only once, at the end of onboarding.
+    const ctx = await requirePermission(slug, 'billing.manage');
+    if (ctx.tenant.onboardedAt) return { ok: false, error: 'This workspace is already live, so its plan is not changed here.' };
     const p = z.enum(['starter', 'growth', 'scale']).safeParse(plan);
     if (!p.success) return { ok: false, error: 'Pick a plan.' };
     await launchWorkspace(db, ctx.tenant.id, ctx.actor, p.data);

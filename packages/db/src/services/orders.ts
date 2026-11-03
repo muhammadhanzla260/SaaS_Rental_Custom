@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
-  basePackageCents, cancelSchema, extraRateOf, lockedPricing, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
+  addDays, basePackageCents, cancelSchema, extraRateOf, lockedPricing, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
   type BookingInput, type CancelInput, type CancelOutcome, type DocumentKind, type RescheduleInput, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
@@ -11,6 +11,7 @@ import {
 import { audit, type Actor } from './audit';
 import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
+import { localToday } from './clock';
 import { OrgError } from './errors';
 import { enqueueOfficeAlert, enqueueOrderMessage, enqueuePaymentConfirmation, ensureOrderToken, planOrderMessages } from './messaging';
 import { billingOrder, rainCheckUntil, syncInvoices } from './money';
@@ -28,7 +29,7 @@ type CouponCheck = { ok: true; id: string; code: string; kind: 'percent' | 'amou
 async function checkCoupon(tx: Tx, tenantId: string, code: string, orderId?: string | null): Promise<CouponCheck> {
   const [c] = await tx.select().from(coupons).where(and(eq(coupons.tenantId, tenantId), eq(coupons.code, code.trim()))).limit(1);
   if (!c || !c.active) return { ok: false, message: 'Not a valid code' };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await localToday(tx, tenantId);
   if (c.validFrom && today < c.validFrom) return { ok: false, message: `Valid from ${c.validFrom}` };
   if (c.validUntil && today > c.validUntil) return { ok: false, message: 'This code has expired' };
   if (c.maxUses) {
@@ -595,7 +596,7 @@ export function transitionOrder(
     if (action === 'send_quote') {
       await ensureOrderToken(tx, tenantId, id);
       const days = prefs.booking.quoteValidDays;
-      set = { status: 'quote_sent', quoteSentAt: now, quoteExpiresOn: days ? new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10) : null };
+      set = { status: 'quote_sent', quoteSentAt: now, quoteExpiresOn: days ? addDays(await localToday(tx, tenantId, order.locationId, now), days) : null };
     }
     if (action === 'book') {
       const lines = await linesOf(tx, tenantId, id);

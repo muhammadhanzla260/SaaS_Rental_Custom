@@ -98,11 +98,20 @@ export async function ensureOrderToken(tx: Tx, tenantId: string, orderId: string
 }
 
 /** Which workspace and order a quote link belongs to (null if unknown). */
+/** Days after the event that a fully paid order's link keeps working (tips, receipts, the survey). */
+const LINK_DAYS_AFTER_EVENT = 60;
+
 export async function resolveOrderToken(db: Db, token: string): Promise<{ tenantId: string; orderId: string } | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const rows = await db.execute<{ tenant_id: string; order_id: string }>(sql`select * from app_order_by_token(${sha256Hex(token)})`);
   const r = [...rows][0];
-  return r ? { tenantId: r.tenant_id, orderId: r.order_id } : null;
+  if (!r) return null;
+  // Long after the event, with nothing left to pay, the link no longer shows the address and phone numbers.
+  const [o] = await withTenant(db, r.tenant_id, (tx) =>
+    tx.select({ ends: orders.eventEndsAt, total: orders.totalCents, paid: orders.paidCents }).from(orders)
+      .where(and(eq(orders.tenantId, r.tenant_id), eq(orders.id, r.order_id))).limit(1));
+  if (o && o.paid >= o.total && o.ends.getTime() < Date.now() - LINK_DAYS_AFTER_EVENT * 86_400_000) return null;
+  return { tenantId: r.tenant_id, orderId: r.order_id };
 }
 
 export const quoteUrl = (token: string) => `${(process.env.APP_URL || process.env.BETTER_AUTH_URL || 'http://localhost:3000').replace(/\/$/, '')}/q/${token}`;

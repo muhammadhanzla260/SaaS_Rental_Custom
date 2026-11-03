@@ -3,6 +3,7 @@ import { addDays, depositStep, parsePreferences, resolveAgreement, utcToWallTime
 import { withTenant, type Db, type Tx } from '../client';
 import { customers, invoices, locations, orders, paymentMethods, payments, refunds, signatures, tenants } from '../schema';
 import { audit, type Actor } from './audit';
+import { localToday as todayAt } from './clock';
 import { OrgError } from './errors';
 import { enqueueOrderMessage, enqueuePaymentConfirmation } from './messaging';
 
@@ -397,7 +398,8 @@ export function recordChargeFailure(db: Db, tenantId: string, orderId: string, i
     }
     const [inv] = invoiceId ? await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1) : [];
     const meta = { reason, invoiceNumber: inv?.number, invoiceAmountCents: inv ? inv.amountCents - inv.paidCents : undefined };
-    const day = new Date().toISOString().slice(0, 10);
+    const [o] = await tx.select({ locationId: orders.locationId }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    const day = await todayAt(tx, tenantId, o?.locationId);
     await enqueueOrderMessage(tx, tenantId, orderId, 'card_declined', `${orderId}:card_declined:email:${day}`, { automatic: true, meta });
     await enqueueOrderMessage(tx, tenantId, orderId, 'card_declined', `${orderId}:card_declined:sms:${day}`, { automatic: true, meta, channel: 'sms' });
     const { enqueueOfficeAlert } = await import('./messaging');

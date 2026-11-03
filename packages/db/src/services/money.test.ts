@@ -16,7 +16,7 @@ import {
   chargeInProgress, claimChargeLock, latestSignature, listInvoices, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, signAgreement, syncOrderInvoices,
 } from './money';
 import { cancelOrder, createOrder, getOrder, orderInputFrom, recordPayment, recordTip, transitionOrder, updateOrder } from './orders';
-import { ensureOrderToken } from './messaging';
+import { ensureOrderToken, resolveOrderToken } from './messaging';
 import { setupOrganization } from './organizations';
 import { withTenant } from '../client';
 
@@ -172,6 +172,20 @@ describe('gateway payments and cards', () => {
     await Promise.all([1, 2, 3].map(() => owner.client`select pg_sleep(0.05)`.then(() => app.client`select 1`)));
     const tokens = await Promise.all([1, 2, 3].map(() => withTenant(db, tenantId, (tx) => ensureOrderToken(tx, tenantId, o.id))));
     expect(new Set(tokens).size).toBe(1);
+    expect(await resolveOrderToken(db, tokens[0]!)).toEqual({ tenantId, orderId: o.id });
+  });
+
+  it('a paid order’s link stops working 60 days after the event, an unpaid one does not (QA B-28)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(42)), prefs);
+    const token = await withTenant(db, tenantId, (tx) => ensureOrderToken(tx, tenantId, o.id));
+    const back = (d: number) => owner.db.execute(sql`update orders set event_starts_at = now() - ${`${d} days`}::interval - interval '5 hours', event_ends_at = now() - ${`${d} days`}::interval
+      where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    await back(61);
+    expect(await resolveOrderToken(db, token)).not.toBeNull(); // still owes money: the pay link must work
+    await owner.db.execute(sql`update orders set paid_cents = total_cents where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    expect(await resolveOrderToken(db, token)).toBeNull();
+    await back(10);
+    expect(await resolveOrderToken(db, token)).not.toBeNull();
   });
 
   it('a paid order cannot be cancelled without settling the money (QA B-08)', async () => {
