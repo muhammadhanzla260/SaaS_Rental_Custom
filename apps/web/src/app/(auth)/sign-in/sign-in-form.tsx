@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Mail } from 'lucide-react';
 import { useState, useTransition, type FormEvent } from 'react';
+import { safeNextPath } from '@rental/core';
 import { Button, cx, Field, Input, Notice } from '@/components/kit';
 import { authClient } from '@/lib/auth-client';
 import { landingAction } from '@/server/actions/auth';
@@ -46,7 +47,7 @@ export function SignInForm({ next, email: initialEmail, linkError }: { next: str
   const sendLink = () =>
     start(async () => {
       setError(null);
-      const callbackURL = next && next.startsWith('/') ? next : '/';
+      const callbackURL = safeNextPath(next) ?? '/';
       const r = await authClient.signIn.magicLink({ email: email.trim(), callbackURL, errorCallbackURL: '/sign-in?error=link' });
       // Never reveal whether an account exists.
       if (r.error && r.error.status === 429) { setError('Too many requests. Wait a minute and try again.'); return; }

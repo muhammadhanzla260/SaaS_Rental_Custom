@@ -5,6 +5,7 @@
  * (booked or completed), order total after tax and credits, as in the Odoo
  * month-to-date report (rental.mtd.report, state sale/done).
  */
+import { csvCell } from './safety';
 import { addDays } from './time';
 
 export const REPORT_GROUPS = ['Sales', 'General', 'Payment gateway', 'Customers', 'Products', 'Employees'] as const;
@@ -114,10 +115,8 @@ export function formatCell(v: ReportCell, kind: ReportValueKind | undefined, mon
 
 /** CSV with a header row and the totals row; money as plain decimals for spreadsheets. */
 export function reportCsv(r: ReportResult) {
-  const cell = (v: ReportCell, kind?: ReportValueKind) => {
-    const s = v == null ? '' : kind === 'money' ? (Number(v) / 100).toFixed(2) : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
+  // csvCell also keeps text like =HYPERLINK(...) from running as a spreadsheet formula.
+  const cell = (v: ReportCell, kind?: ReportValueKind) => csvCell(v == null ? '' : kind === 'money' ? (Number(v) / 100).toFixed(2) : String(v));
   const lines = [r.columns.map((c) => cell(c.label)).join(',')];
   for (const row of r.rows) lines.push(r.columns.map((c) => cell(row[c.key] ?? null, c.kind)).join(','));
   if (r.totals) lines.push(r.columns.map((c, i) => cell(i === 0 ? 'Total' : r.totals![c.key] ?? null, c.kind)).join(','));

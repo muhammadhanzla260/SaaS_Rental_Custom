@@ -17,3 +17,4 @@ export * from './agreement';
 export * from './reports';
 export * from './invoicing';
 export * from './coach';
+export * from './safety';
