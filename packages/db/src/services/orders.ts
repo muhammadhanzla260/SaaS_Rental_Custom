@@ -622,6 +622,8 @@ export function transitionOrder(
     }
     if (action === 'complete') set = { status: 'completed' };
     if (action === 'cancel') {
+      // Money paid needs an outcome (credit, refund, rain check): that is cancelOrder.
+      if (order.paidCents > 0) throw new OrgError(`Choose what happens to the ${money(order.paidCents)} paid before cancelling.`, 'invalid');
       await tx.delete(reservations).where(and(eq(reservations.tenantId, tenantId), eq(reservations.orderId, id)));
       set = { status: 'cancelled', cancelledAt: now, cancelReason: opts.reason ?? null };
     }

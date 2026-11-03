@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { billableHours, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
+import { orderSchema } from './commerce';
 
 const product = (o: Partial<ProductPricing> = {}): ProductPricing => ({
   priceStaffedCents: 29900, pricePickupCents: 19900, priceDropoffCents: 24900,
@@ -94,5 +95,21 @@ describe('order summary (Odoo _compute_amounts)', () => {
     expect(roundCents(5539.5)).toBe(5540);
     expect(roundCents(5539.4999)).toBe(5539);
     expect(roundCents(-12.5)).toBe(-13);
+  });
+});
+
+describe('deposit and event times (QA B-19, B-26)', () => {
+  it('a deposit is never more than the order', () => {
+    expect(depositDue(10000, { kind: 'percent', value: 300 })).toEqual({ depositCents: 10000, depositPercent: 100 });
+    expect(depositDue(10000, { kind: 'amount', value: 250 }).depositCents).toBe(10000);
+  });
+
+  it('the order form refuses more than 100% and an end before the start, with a clear message', () => {
+    const base = { customerId: crypto.randomUUID(), locationId: crypto.randomUUID(), eventAddress: { country: 'US' }, lines: [{ name: 'Item', quantity: 1 }] };
+
+    const r1 = orderSchema.safeParse({ ...base, startsAt: at(18), endsAt: at(13) });
+    expect(r1.success ? '' : r1.error.issues.map((i) => i.message).join()).toMatch(/end after it starts/);
+    const r2 = orderSchema.safeParse({ ...base, startsAt: at(13), endsAt: at(18), deposit: { kind: 'percent', value: 300 } });
+    expect(r2.success ? '' : r2.error.issues.map((i) => i.message).join()).toMatch(/more than 100%/);
   });
 });

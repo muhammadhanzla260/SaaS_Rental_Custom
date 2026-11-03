@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, ilike, inArray, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   addDays, defaultTemplate, MESSAGE_TYPES, outsideQuietHours, parsePreferences, resolveMessaging, SCHEDULED_TYPES, scheduledAt, templateSchema,
   utcToWallTime, type Channel, type MessageType, type TemplateInput, type TenantPreferences,
@@ -85,11 +85,16 @@ export async function ensureOrderToken(tx: Tx, tenantId: string, orderId: string
   if (!o) throw new OrgError('Order not found.', 'not_found');
   if (o.enc) return decryptSecret(o.enc);
   const token = randomBytes(24).toString('base64url');
-  await tx
+  // Only if no token was set meanwhile: two first-time callers at once would otherwise each write one,
+  // and the link the first one handed out would stop working.
+  const [won] = await tx
     .update(orders)
     .set({ accessTokenEnc: encryptSecret(token), accessTokenHash: sha256Hex(token) })
-    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
-  return token;
+    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId), isNull(orders.accessTokenEnc)))
+    .returning({ id: orders.id });
+  if (won) return token;
+  const [again] = await tx.select({ enc: orders.accessTokenEnc }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+  return decryptSecret(again!.enc!);
 }
 
 /** Which workspace and order a quote link belongs to (null if unknown). */

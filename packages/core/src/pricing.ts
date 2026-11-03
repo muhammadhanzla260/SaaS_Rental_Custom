@@ -288,7 +288,8 @@ export function depositDue(totalCents: number, deposit: SummaryInput['deposit'],
       const cents = Math.min(roundCents(deposit.value * 100), totalCents);
       return { depositCents: cents, depositPercent: Math.round((cents / totalCents) * 1000) / 10 };
     }
-    return { depositCents: roundCents((totalCents * deposit.value) / 100), depositPercent: deposit.value };
+    const percent = Math.min(deposit.value, 100);
+    return { depositCents: Math.min(roundCents((totalCents * percent) / 100), totalCents), depositPercent: percent };
   }
   return { depositCents: roundCents((totalCents * defaultPercent) / 100), depositPercent: defaultPercent };
 }

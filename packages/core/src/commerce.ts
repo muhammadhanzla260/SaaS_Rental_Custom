@@ -279,8 +279,8 @@ export const orderSchema = z
     /** Setup map (image or PDF) for the crew. */
     setupMapFileId: z.string().uuid().nullable().optional(),
   })
-  .refine((o) => o.endsAt.getTime() !== o.startsAt.getTime(), { message: 'The event must end after it starts.', path: ['endsAt'] })
-  .refine((o) => !o.multiDay || o.endsAt > o.startsAt, { message: 'The end date must be after the start.', path: ['endsAt'] })
+  .refine((o) => o.endsAt > o.startsAt, { message: 'The event must end after it starts. For an event past midnight, set the end on the next day.', path: ['endsAt'] })
+  .refine((o) => o.deposit.kind !== 'percent' || o.deposit.value <= 100, { message: 'A deposit cannot be more than 100% of the order.', path: ['deposit'] })
   .refine((o) => !o.discount || o.discount.kind !== 'percent' || o.discount.value < 100, { message: 'A discount cannot cover the whole order.', path: ['discount'] });
 export type OrderInput = z.infer<typeof orderSchema>;
 export type OrderFormValues = z.input<typeof orderSchema>;

@@ -310,7 +310,8 @@ export async function duplicateOrderAction(slug: string, id: string): Promise<Ac
   });
 }
 
-const actionSchema = z.enum(['send_quote', 'book', 'complete', 'cancel', 'reopen']);
+// Cancelling goes through cancelOrderAction, which settles what was paid and needs the refund permission.
+const actionSchema = z.enum(['send_quote', 'book', 'complete', 'reopen']);
 const ACTION_DONE: Record<OrderAction, string> = {
   send_quote: 'Marked as quote sent. Quotes still hold nothing; emailing them arrives in Phase 2.',
   book: 'Booked. The equipment is held, including the cleanup time.',
