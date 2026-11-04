@@ -134,6 +134,8 @@ function Body(props: Props & { setLocked: (x: boolean) => void }) {
   const [cardReady, setCardReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
+  // One per opened dialog: a double click or a retry after a lost connection records the payment once.
+  const [requestKey] = useState(() => crypto.randomUUID());
 
   const card = method === 'card';
   const newCard = card && source === 'new';
@@ -279,7 +281,7 @@ function Body(props: Props & { setLocked: (x: boolean) => void }) {
     }
     const r = tipping
       ? await collectTipAction(slug, id, { method, tip: tipCents / 100, reference: reference || undefined })
-      : await recordPaymentAction(slug, id, { method, amount: amountCents / 100, tip: tipCents / 100, reference: reference || undefined, receipt });
+      : await recordPaymentAction(slug, id, { method, amount: amountCents / 100, tip: tipCents / 100, reference: reference || undefined, receipt, requestKey });
     setBusy(false);
     if (!r.ok) return setPhase({ kind: 'error', message: r.error });
     finished(tipping ? 'Tip collected' : 'Payment recorded', r.message ?? 'Recorded.', false);

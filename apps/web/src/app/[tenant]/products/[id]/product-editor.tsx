@@ -14,6 +14,7 @@ import {
 } from '@/components/kit';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { useForm } from '@/lib/form';
+import { shrinkImage, UPLOAD_MAX_BYTES, UPLOAD_TOO_BIG } from '@/lib/shrink-image';
 import {
   addUnitAction, duplicateProductAction, removeUnitAction, saveProductAction, setProductStatusAction, setUnitStatusAction,
 } from '@/server/actions/commerce';
@@ -190,14 +191,15 @@ export function ProductEditor({
         <input
           ref={fileRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            if (f.size > 5 * 1024 * 1024) return toast('Photos must be under 5 MB.', 'error');
-            setImage({ file: f, url: URL.createObjectURL(f), removed: false });
+          onChange={async (e) => {
+            const picked = e.target.files?.[0];
             e.target.value = '';
+            if (!picked) return;
+            const f = await shrinkImage(picked);
+            if (f.size > UPLOAD_MAX_BYTES) return toast(UPLOAD_TOO_BIG, 'error');
+            setImage({ file: f, url: URL.createObjectURL(f), removed: false });
           }}
         />
         {canEdit && product && (

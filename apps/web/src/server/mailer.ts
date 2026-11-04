@@ -1,6 +1,7 @@
 import 'server-only';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { withTimeouts } from '@rental/messaging';
 
 /**
  * Platform email (verification, invitations, owner invites). Org email to
@@ -18,7 +19,8 @@ async function getTransport() {
   if (!url) return null;
   if (!transport) {
     const nodemailer = await import('nodemailer');
-    transport = nodemailer.createTransport(url);
+    // Sign-up, password reset and invites must fail fast rather than hang the request.
+    transport = nodemailer.createTransport(withTimeouts(url));
   }
   return transport;
 }

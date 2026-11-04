@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Check, Eye, Pencil, RotateCw, Search, Send, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
-  describeRule, INSTANT_TYPES, MESSAGE_TYPES, SCHEDULED_TYPES, type MessageType, type ResolvedMessaging, type ScheduleRule,
+  CC_TYPES, describeRule, INSTANT_TYPES, MESSAGE_TYPES, SCHEDULED_TYPES, type MessageType, type ResolvedMessaging, type ScheduleRule,
 } from '@rental/core';
 import { scope } from '@/components/fields/scope';
 import {
@@ -24,7 +24,7 @@ export type LogRow = {
   id: string; status: string; channel: string; type: MessageType; toAddress: string | null; subject: string | null; orderNumber: string | null;
   orderId: string | null; when: string; key: string; lastError: string | null; attempts: number;
 };
-type ServerDraft = { mail: ConnectDraft['mail'] & { lastError?: string | null }; replyTo: string; cc: string; bcc: string; alertsTo: string; sms: ConnectDraft['sms'] };
+type ServerDraft = { mail: ConnectDraft['mail'] & { lastError?: string | null }; replyTo: string; cc: string; ccOn: Record<string, boolean>; bcc: string; alertsTo: string; sms: ConnectDraft['sms'] };
 
 const STATUS_TONE: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
   sent: 'success', delivered: 'success', queued: 'info', sending: 'info', failed: 'danger', bounced: 'danger', skipped: 'neutral', cancelled: 'neutral',
@@ -140,6 +140,16 @@ function ServerTab({ slug, orgName, initial, locations, readOnly }: { slug: stri
               <Input id="ms-bcc" value={v.bcc} onChange={(e) => form.set('bcc', e.target.value)} placeholder="archive@…" />
             </Field>
           </div>
+          {v.cc.trim() && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] font-semibold text-fg">Copy the CC addresses on</p>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                {CC_TYPES.map((t) => (
+                  <Toggle key={t} checked={!!v.ccOn[t]} onChange={(on) => form.set('ccOn', { ...v.ccOn, [t]: on })} label={MESSAGE_TYPES[t].label} />
+                ))}
+              </div>
+            </div>
+          )}
           <Field label="Internal alerts go to" htmlFor="ms-alerts" hint="Declined cards, last-minute bookings, change requests and tomorrow’s events. Separate several with commas." error={form.error('alertsTo')}>
             <Input id="ms-alerts" value={v.alertsTo} onChange={(e) => form.set('alertsTo', e.target.value)} placeholder="office@yourbusiness.com" />
           </Field>

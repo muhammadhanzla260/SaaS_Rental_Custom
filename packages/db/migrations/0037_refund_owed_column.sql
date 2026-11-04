@@ -1,0 +1,2 @@
+ALTER TABLE "ops_snoozes" DROP CONSTRAINT "ops_snoozes_rule";--> statement-breakpoint
+ALTER TABLE "ops_snoozes" ADD CONSTRAINT "ops_snoozes_rule" CHECK ("ops_snoozes"."rule" in ('deposit','final_payment','call','contact','quote','refund'));

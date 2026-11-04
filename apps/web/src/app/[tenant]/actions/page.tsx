@@ -26,6 +26,7 @@ export default async function ActionNeededPage({
       show={sp.show === 'today' ? 'today' : 'all'}
       canAct={ctx.can('orders.create') && !ctx.readOnly}
       canCharge={ctx.can('payments.record') && !ctx.readOnly}
+      canRefund={ctx.can('payments.refund') && !ctx.readOnly}
     />
   );
 }

@@ -198,6 +198,8 @@ export const EVENT_TYPES = ['Birthday', 'School or church', 'HOA or community', 
 
 export const orderLineSchema = z
   .object({
+    /** The saved line this is (an edit), so it keeps what it was priced with. Null for a new line. */
+    lineId: z.string().uuid().nullable().optional(),
     /** Null for a custom line (then `name` and `overridePrice` are required). */
     productId: z.string().uuid().nullable().default(null),
     name: optional(160),
@@ -279,8 +281,8 @@ export const orderSchema = z
     /** Setup map (image or PDF) for the crew. */
     setupMapFileId: z.string().uuid().nullable().optional(),
   })
-  .refine((o) => o.endsAt.getTime() !== o.startsAt.getTime(), { message: 'The event must end after it starts.', path: ['endsAt'] })
-  .refine((o) => !o.multiDay || o.endsAt > o.startsAt, { message: 'The end date must be after the start.', path: ['endsAt'] })
+  .refine((o) => o.endsAt > o.startsAt, { message: 'The event must end after it starts. For an event past midnight, set the end on the next day.', path: ['endsAt'] })
+  .refine((o) => o.deposit.kind !== 'percent' || o.deposit.value <= 100, { message: 'A deposit cannot be more than 100% of the order.', path: ['deposit'] })
   .refine((o) => !o.discount || o.discount.kind !== 'percent' || o.discount.value < 100, { message: 'A discount cannot cover the whole order.', path: ['discount'] });
 export type OrderInput = z.infer<typeof orderSchema>;
 export type OrderFormValues = z.input<typeof orderSchema>;
@@ -379,6 +381,8 @@ export const cancelSchema = z.object({
   amount: money.default(0),
   goodwill: money.default(0),
   validUntil: z.union([z.literal(''), z.null(), z.iso.date()]).optional().transform((v) => v || null),
+  /** Off for a duplicate or test order: cancel without telling the customer. */
+  notifyCustomer: z.boolean().default(true),
 });
 export type CancelInput = z.input<typeof cancelSchema>;
 

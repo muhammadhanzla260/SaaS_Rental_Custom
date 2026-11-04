@@ -3,7 +3,7 @@
 import { Check, CloudRain, CreditCard, Gift, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, CANCEL_REASONS, wallTimeToUtc } from '@rental/core';
-import { Button, cx, Field, Input, Modal, Notice, Select, Spinner, Textarea } from '@/components/kit';
+import { Button, cx, Field, Input, Modal, Notice, Select, Spinner, Textarea, Toggle } from '@/components/kit';
 import { availabilityAction, cancelOrderAction, rescheduleOrderAction } from '@/server/actions/commerce';
 
 type Outcome = 'wallet' | 'refund' | 'rain_check';
@@ -67,6 +67,7 @@ export function CancelOrderModal({
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [outcome, setOutcome] = useState<Outcome>('wallet');
+  const [notify, setNotify] = useState(true);
   const [amount, setAmount] = useState('');
   const [goodwill, setGoodwill] = useState('');
   const [validUntil, setValidUntil] = useState('');
@@ -89,7 +90,7 @@ export function CancelOrderModal({
     if (paid && amt > paidCents) return setErr(`That is more than the ${money(paidCents)} paid.`);
     await go(async () => {
       const r = await cancelOrderAction(slug, orderId, {
-        reason, note: note || undefined, outcome: paid ? outcome : 'none', amount: paid ? amt / 100 : 0, goodwill: gw / 100, validUntil: outcome === 'rain_check' ? validUntil : null,
+        reason, note: note || undefined, outcome: paid ? outcome : 'none', amount: paid ? amt / 100 : 0, goodwill: gw / 100, validUntil: outcome === 'rain_check' ? validUntil : null, notifyCustomer: notify,
       });
       return r.ok ? { ok: true, text: r.message ?? 'Cancelled.' } : { ok: false, text: r.error };
     });
@@ -158,6 +159,7 @@ export function CancelOrderModal({
               </p>
             </>
           )}
+          <Toggle checked={notify} onChange={setNotify} label={`Email ${firstName} that the order is cancelled`} sub="Turn off for a duplicate or test order, so the customer is not alarmed." />
           {err && <p role="alert" className="text-sm font-medium text-danger">{err}</p>}
         </div>
       )}
@@ -171,7 +173,7 @@ export function CancelOrderModal({
         <div className="flex flex-col items-center gap-3 py-4 text-center">
           <span className="anim-pop grid size-16 place-items-center rounded-full bg-success text-white"><Check className="size-8" strokeWidth={3} /></span>
           <p className="max-w-sm text-[15px] text-fg">{phase.text}</p>
-          <p className="text-[13px] text-fg-2">The items are free again and the customer was emailed.</p>
+          <p className="text-[13px] text-fg-2">{notify ? 'The items are free again and the customer was emailed.' : 'The items are free again. The customer was not emailed.'}</p>
         </div>
       )}
     </Modal>

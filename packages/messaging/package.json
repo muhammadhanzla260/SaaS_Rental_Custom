@@ -14,11 +14,10 @@
     "@rental/core": "workspace:*",
     "@rental/db": "workspace:*",
     "drizzle-orm": "0.45.4",
-    "nodemailer": "7.0.9"
+    "nodemailer": "10.1.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
-    "@types/nodemailer": "7.0.2",
     "dotenv": "18.0.6",
     "tsx": "4.23.15",
     "typescript": "5.9.3",

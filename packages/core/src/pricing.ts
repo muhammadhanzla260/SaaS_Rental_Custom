@@ -165,6 +165,34 @@ export type SummaryLine = {
 /** A coupon's rule; the amount is worked out from merchandise and capped there. */
 export type CouponRule = { kind: 'percent' | 'amount'; value: number };
 
+/** Parts of an order besides the rental items that a discount, a coupon or the tax can cover. */
+export type PricePart = 'custom' | 'waiver' | 'setup' | 'travel' | 'other';
+export const PRICE_PARTS: { key: PricePart; label: string }[] = [
+  { key: 'custom', label: 'Custom items' },
+  { key: 'waiver', label: 'Damage waiver' },
+  { key: 'setup', label: 'Setup surface fees' },
+  { key: 'travel', label: 'Travel fee' },
+  { key: 'other', label: 'Other fees (misc. and event location)' },
+];
+
+/**
+ * How an order's total is worked out (Settings → Rental rules → Price formula). Each order keeps
+ * the formula it was created with, so changing it applies to new quotes only.
+ */
+export type PricingFormula = {
+  /** Damage waiver on the rental items before the discount and coupon (default), or after them. */
+  waiverAfterDiscount: boolean;
+  /** A percentage discount takes its share of the rental items plus these parts. */
+  discountOn: PricePart[];
+  /** A coupon applies to the rental items plus these parts. */
+  couponOn: PricePart[];
+  /** Sales tax applies to the taxable items plus these parts. */
+  taxOn: Exclude<PricePart, 'custom'>[];
+};
+
+/** The Odoo / Freedom Fun formula, and what every order made before the setting existed used. */
+export const DEFAULT_PRICING_FORMULA: PricingFormula = { waiverAfterDiscount: false, discountOn: [], couponOn: [], taxOn: ['waiver', 'setup', 'travel', 'other'] };
+
 export type SummaryInput = {
   lines: SummaryLine[];
   damageWaiver: { enabled: boolean; percent: number };
@@ -183,6 +211,8 @@ export type SummaryInput = {
   /** 'none' = no deposit to book (everything is due on event day). */
   deposit?: { kind: 'percent' | 'amount' | 'none'; value: number } | null;
   defaultDepositPercent?: number;
+  /** The order's own formula; the default when left out. */
+  formula?: PricingFormula;
 };
 
 export type OrderSummary = {
@@ -217,27 +247,40 @@ export function orderSummary(input: SummaryInput): OrderSummary {
   const nonTaxableMerch = items.filter((l) => l.taxable === false).reduce((sum, l) => sum + sub(l), 0);
   const customTaxable = customs.filter((l) => l.taxable !== false).reduce((sum, l) => sum + sub(l), 0);
   const setup = items.reduce((sum, l) => sum + (l.setupSurfaceFeeCents ?? 0), 0);
-  // Damage waiver: % of merchandise BEFORE any discount or coupon.
-  const waiver = input.damageWaiver.enabled ? roundCents((merch * input.damageWaiver.percent) / 100) : 0;
+  const f = input.formula ?? DEFAULT_PRICING_FORMULA;
+  // A waiver worked out after the discount cannot itself be discounted (it would depend on itself).
+  const discountOn = f.waiverAfterDiscount ? f.discountOn.filter((k) => k !== 'waiver') : f.discountOn;
+  const couponOn = f.waiverAfterDiscount ? f.couponOn.filter((k) => k !== 'waiver') : f.couponOn;
   const eventLocation = input.eventLocationFeeCents ?? 0;
+  const partOf = (k: PricePart, waiverCents: number) =>
+    k === 'custom' ? custom : k === 'waiver' ? waiverCents : k === 'setup' ? setup : k === 'travel' ? input.travelFeeCents : input.miscFeesCents + eventLocation;
+  const baseOf = (parts: PricePart[], waiverCents: number) => merch + parts.reduce((sum, k) => sum + partOf(k, waiverCents), 0);
+  const d = input.discount;
+
+  // Damage waiver: % of merchandise BEFORE any discount or coupon (default), or of what is left after them.
+  const waiverPct = input.damageWaiver.enabled ? input.damageWaiver.percent : 0;
+  const waiverBefore = waiverPct ? roundCents((merch * waiverPct) / 100) : 0;
+  const couponFrom = (base: number) =>
+    input.coupon
+      ? Math.min(base, input.coupon.kind === 'percent' ? roundCents((base * Math.max(0, input.coupon.value)) / 100) : roundCents(Math.max(0, input.coupon.value) * 100))
+      // A manual coupon amount takes off merchandise only by default, like a code coupon (never tax).
+      : Math.min(base, Math.max(0, input.couponCents ?? 0));
+  let waiver = waiverBefore;
+  if (f.waiverAfterDiscount && waiverPct) {
+    const onItems = (d && d.value > 0 && !d.afterTax ? (d.kind === 'percent' ? roundCents((merch * d.value) / 100) : Math.min(merch, roundCents(d.value * 100))) : 0)
+      + couponFrom(merch);
+    waiver = roundCents((Math.max(0, merch - onItems) * waiverPct) / 100);
+  }
   const extras = input.travelFeeCents + input.miscFeesCents + waiver + eventLocation + setup;
-  const coupon = input.coupon
-    ? Math.min(
-        merch,
-        input.coupon.kind === 'percent'
-          ? roundCents((merch * Math.max(0, input.coupon.value)) / 100)
-          : roundCents(Math.max(0, input.coupon.value) * 100),
-      )
-    : Math.max(0, input.couponCents ?? 0);
+  const coupon = couponFrom(baseOf(couponOn, waiver));
   const pct = input.taxPercent || 0;
   const taxOn = (base: number) => (pct ? roundCents((Math.max(0, base) * pct) / 100) : 0);
 
-  // General discount (Odoo _get_discount_amount): % of merchandise, or $ capped.
+  // General discount (Odoo _get_discount_amount): % of merchandise (plus the parts the formula adds), or $ capped.
   let discount = 0;
-  const d = input.discount;
   if (d && d.value > 0) {
     if (d.kind === 'percent') {
-      discount = roundCents((merch * d.value) / 100);
+      discount = roundCents((baseOf(discountOn, waiver) * d.value) / 100);
     } else {
       const valueCents = roundCents(d.value * 100);
       const cap = d.afterTax
@@ -249,9 +292,10 @@ export function orderSummary(input: SummaryInput): OrderSummary {
   const preTax = d?.afterTax ? 0 : discount;
   const postTax = d?.afterTax ? discount : 0;
 
-  // One-pass tax on (merchandise + extras - pre-tax reductions), like the POS.
+  // One-pass tax on (merchandise + taxed extras - pre-tax reductions), like the POS.
   // Non-taxable lines stay out of the base; custom taxable lines join it.
-  const taxableBase = Math.max(0, merch - nonTaxableMerch + customTaxable + extras - preTax - coupon);
+  const taxedExtras = f.taxOn.reduce((sum, k) => sum + partOf(k, waiver), 0);
+  const taxableBase = Math.max(0, merch - nonTaxableMerch + customTaxable + taxedExtras - preTax - coupon);
   const tax = taxOn(taxableBase);
   const beforeCredit = Math.max(0, merch + custom + tax + extras - preTax - coupon - postTax);
   const credit = Math.min(Math.max(0, input.creditCents ?? 0), Math.max(0, beforeCredit));
@@ -288,7 +332,8 @@ export function depositDue(totalCents: number, deposit: SummaryInput['deposit'],
       const cents = Math.min(roundCents(deposit.value * 100), totalCents);
       return { depositCents: cents, depositPercent: Math.round((cents / totalCents) * 1000) / 10 };
     }
-    return { depositCents: roundCents((totalCents * deposit.value) / 100), depositPercent: deposit.value };
+    const percent = Math.min(deposit.value, 100);
+    return { depositCents: Math.min(roundCents((totalCents * percent) / 100), totalCents), depositPercent: percent };
   }
   return { depositCents: roundCents((totalCents * defaultPercent) / 100), depositPercent: defaultPercent };
 }

@@ -9,6 +9,8 @@ import { AwsClient } from 'aws4fetch';
 export type ObjectStore = {
   put(key: string, bytes: Buffer, mime: string): Promise<void>;
   get(key: string): Promise<Buffer | null>;
+  /** Removes a file (purging a closed workspace); a file already gone is fine. */
+  remove?(key: string): Promise<void>;
 };
 
 let override: ObjectStore | null | undefined;
@@ -43,6 +45,10 @@ function s3Store(endpoint: string, bucket: string, accessKeyId: string, secretAc
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`File storage could not read ${key} (${res.status})`);
       return Buffer.from(await res.arrayBuffer());
+    },
+    async remove(key) {
+      const res = await client.fetch(url(key), { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) throw new Error(`File storage could not delete ${key} (${res.status})`);
     },
   };
 }

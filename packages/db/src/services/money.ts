@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, gte, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import { addDays, depositStep, parsePreferences, resolveAgreement, utcToWallTime, type SignInput, type TenantPreferences } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
-import { customers, invoices, locations, orders, paymentMethods, payments, signatures, tenants } from '../schema';
+import { customers, invoices, locations, orders, paymentMethods, payments, refunds, signatures, tenants } from '../schema';
 import { audit, type Actor } from './audit';
+import { localToday as todayAt } from './clock';
 import { OrgError } from './errors';
 import { enqueueOrderMessage, enqueuePaymentConfirmation } from './messaging';
 
@@ -268,10 +269,12 @@ export type GatewayPayment = {
  */
 export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, orderId: string, p: GatewayPayment) {
   return withTenant(db, tenantId, async (tx) => {
-    const [dupe] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, p.ref))).limit(1);
-    if (dupe) return { payment: dupe, duplicate: true };
+    // Lock the order first, so two calls with the same ref wait for each other instead of
+    // both inserting (the loser used to get a raw unique-constraint error).
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).for('update').limit(1);
     if (!order) throw new OrgError('Order not found.', 'not_found');
+    const [dupe] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, p.ref))).limit(1);
+    if (dupe) return { payment: dupe, duplicate: true };
     // The receipt carries the order's number and belongs to the order's one invoice.
     const [inv] = await tx
       .select({ id: invoices.id })
@@ -302,6 +305,88 @@ export function recordGatewayPayment(db: Db, tenantId: string, actor: Actor, ord
   });
 }
 
+/** The payment already recorded for a gateway id (a PaymentIntent), if any. */
+export function findGatewayPayment(db: Db, tenantId: string, ref: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [pay] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, ref))).limit(1);
+    return pay ?? null;
+  });
+}
+
+/** An order's status as it is right now (after a step that may have raced with another). */
+export function currentOrderStatus(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [o] = await tx.select({ status: orders.status }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    return o?.status ?? null;
+  });
+}
+
+/**
+ * Take the order's card-charge lease for two minutes; false while another charge holds it.
+ * Every path that charges a card (event-day auto-charge, staff charge, Retry charge) takes it,
+ * so the same balance is never charged twice at the same moment.
+ */
+export function claimChargeLock(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const got = await tx
+      .update(orders)
+      .set({ chargeLockUntil: sql`now() + interval '2 minutes'` })
+      .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId), or(isNull(orders.chargeLockUntil), lt(orders.chargeLockUntil, sql`now()`))))
+      .returning({ id: orders.id });
+    return got.length > 0;
+  });
+}
+
+export function releaseChargeLock(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, (tx) => tx.update(orders).set({ chargeLockUntil: null }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))));
+}
+
+/** Is a card charge running on this order right now (the quote page then waits)? */
+export function chargeInProgress(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [o] = await tx.select({ until: orders.chargeLockUntil }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    return !!o?.until && o.until > new Date();
+  });
+}
+
+/**
+ * A refund made outside the app (in the Stripe dashboard): record it once against its payment,
+ * lower what the order has paid and tell the office. Idempotent on the gateway's refund id.
+ */
+export function recordGatewayRefund(
+  db: Db, tenantId: string, p: { paymentRef: string; ref: string; amountCents: number; reason: string },
+) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [pay] = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.gatewayRef, p.paymentRef))).limit(1);
+    if (!pay) return null;
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, pay.orderId))).for('update').limit(1);
+    if (!order) return null;
+    const [dupe] = await tx.select({ id: refunds.id }).from(refunds).where(and(eq(refunds.tenantId, tenantId), eq(refunds.gatewayRef, p.ref))).limit(1);
+    if (dupe) return null;
+    const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+    const [row] = await tx.insert(refunds).values({
+      tenantId, number: num.number, orderId: order.id, paymentId: pay.id, amountCents: p.amountCents, method: pay.method, gateway: pay.gateway, gatewayRef: p.ref, reason: p.reason,
+    }).returning();
+    await tx.update(orders).set({ paidCents: order.paidCents - p.amountCents, version: order.version + 1 }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, order.id)));
+    await syncInvoices(tx, tenantId, order.id);
+    await audit(tx, tenantId, { type: 'system' }, { type: 'order', id: order.id }, 'order.refund', { number: order.number, refund: row!.number, cents: p.amountCents, gateway: pay.gateway, source: 'gateway' });
+    const { enqueueOfficeAlert } = await import('./messaging');
+    await enqueueOfficeAlert(tx, tenantId, 'payment_alert', `${order.id}:payment_alert:${p.ref}`, order.id, {
+      reason: `A refund of $${(p.amountCents / 100).toFixed(2)} on ${order.number} was made in Stripe (${p.reason}). It is now recorded as ${row!.number}, and the order's balance has been updated.`,
+    });
+    return row!;
+  });
+}
+
+/** Tell the office about something on a card payment that needs a person (a dispute, money on a cancelled order). */
+export function alertPayment(db: Db, tenantId: string, orderId: string, key: string, reason: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const { enqueueOfficeAlert } = await import('./messaging');
+    await enqueueOfficeAlert(tx, tenantId, 'payment_alert', `${orderId}:payment_alert:${key}`, orderId, { reason });
+    await audit(tx, tenantId, { type: 'system' }, { type: 'order', id: orderId }, 'order.payment_alert', { reason });
+  });
+}
+
 /** A failed charge: the invoice goes overdue, the customer gets a pay link, the office an alert. */
 export function recordChargeFailure(db: Db, tenantId: string, orderId: string, invoiceId: string | null, reason: string) {
   return withTenant(db, tenantId, async (tx) => {
@@ -313,7 +398,8 @@ export function recordChargeFailure(db: Db, tenantId: string, orderId: string, i
     }
     const [inv] = invoiceId ? await tx.select().from(invoices).where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId))).limit(1) : [];
     const meta = { reason, invoiceNumber: inv?.number, invoiceAmountCents: inv ? inv.amountCents - inv.paidCents : undefined };
-    const day = new Date().toISOString().slice(0, 10);
+    const [o] = await tx.select({ locationId: orders.locationId }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+    const day = await todayAt(tx, tenantId, o?.locationId);
     await enqueueOrderMessage(tx, tenantId, orderId, 'card_declined', `${orderId}:card_declined:email:${day}`, { automatic: true, meta });
     await enqueueOrderMessage(tx, tenantId, orderId, 'card_declined', `${orderId}:card_declined:sms:${day}`, { automatic: true, meta, channel: 'sms' });
     const { enqueueOfficeAlert } = await import('./messaging');

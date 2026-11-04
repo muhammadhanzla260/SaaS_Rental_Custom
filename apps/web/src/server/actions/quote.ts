@@ -9,7 +9,7 @@
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 import { z } from 'zod';
-import { parsePreferences, signSchema } from '@rental/core';
+import { parsePreferences, signSchema, utcToWallTime } from '@rental/core';
 import {
   enqueueOfficeAlert, getOrder, orderInputFrom, quoteContext, resolveOrderToken, signAgreement, transitionOrder, updateOrder, withTenant,
 } from '@rental/db';
@@ -28,7 +28,8 @@ async function load(token: string) {
   return q;
 }
 const open = (q: Awaited<ReturnType<typeof load>>) => q.order.status === 'draft' || q.order.status === 'quote_sent';
-const expired = (q: Awaited<ReturnType<typeof load>>) => open(q) && !!q.order.quoteExpiresOn && q.order.quoteExpiresOn < new Date().toISOString().slice(0, 10);
+// The location's date, as the page shows it (in UTC the quote would expire hours early every US evening).
+const expired = (q: Awaited<ReturnType<typeof load>>) => open(q) && !!q.order.quoteExpiresOn && q.order.quoteExpiresOn < utcToWallTime(new Date(), q.location.timezone).date;
 
 /** Expected problems become a friendly message; anything else is logged and hidden. */
 async function safe<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
@@ -46,7 +47,8 @@ export async function quoteRequestChangesAction(token: string, message: string):
     const text = z.string().trim().min(3, 'Tell us what you would like to change.').max(2000).safeParse(message);
     if (!text.success) return { ok: false, error: text.error.issues[0]!.message };
     const row = await withTenant(db, q.tenant.id, (tx) =>
-      enqueueOfficeAlert(tx, q.tenant.id, 'change_request', `${q.order.id}:change_request:${Date.now()}`, q.order.id, { reason: text.data }),
+      // One request per order every 10 minutes: the link needs no sign-in, so it must not become an email cannon.
+      enqueueOfficeAlert(tx, q.tenant.id, 'change_request', `${q.order.id}:change_request:${Math.floor(Date.now() / 600_000)}`, q.order.id, { reason: text.data }),
     );
     if (row) after(() => dispatchMessage(db, q.tenant.id, row.id).then(() => undefined).catch((e) => console.error('[dispatch]', e)));
     return { ok: true, message: `Thanks! ${q.tenant.name} will get back to you.` };

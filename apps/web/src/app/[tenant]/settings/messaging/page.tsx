@@ -52,6 +52,7 @@ export default async function MessagingPage({
         },
         replyTo: m.replyTo || mail?.replyTo || '',
         cc: m.cc.join(', '),
+        ccOn: m.ccOn,
         bcc: m.bcc.join(', '),
         alertsTo: m.alertsTo.join(', ') || (ctx.tenant.email ?? ''),
         sms: { provider: (sms?.provider as 'none') ?? 'none', sendingNumber: sms?.sendingNumber ?? '', accountId: sms?.accountId ?? '', apiKey: '', hasSecret: !!sms?.hasSecret },

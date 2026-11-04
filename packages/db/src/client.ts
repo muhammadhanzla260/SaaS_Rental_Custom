@@ -22,8 +22,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export async function withTenant<T>(db: Db, tenantId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
   if (!UUID_RE.test(tenantId)) throw new Error('Invalid tenant id');
+  const locations = scopeOf()?.filter((id) => UUID_RE.test(id)) ?? null;
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.tenant_id', ${tenantId}, true)`);
+    await tx.execute(sql`select set_config('app.tenant_id', ${tenantId}, true), set_config('app.location_ids', ${locations ? locations.join(',') || 'none' : ''}, true)`);
     return fn(tx);
   });
+}
+
+let scopeOf: () => string[] | null = () => null;
+
+/**
+ * The web app tells withTenant which locations the signed-in member may see (null: all of them).
+ * Row-level security then limits orders, invoices, payments and messages to those locations.
+ * The worker never sets one, so it always sees everything.
+ */
+export function setLocationScope(resolve: () => string[] | null) {
+  scopeOf = resolve;
 }

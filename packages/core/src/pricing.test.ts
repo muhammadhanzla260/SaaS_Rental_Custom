@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { billableHours, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
+import { billableHours, DEFAULT_PRICING_FORMULA, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
+import { orderSchema } from './commerce';
 
 const product = (o: Partial<ProductPricing> = {}): ProductPricing => ({
   priceStaffedCents: 29900, pricePickupCents: 19900, priceDropoffCents: 24900,
@@ -63,6 +64,12 @@ describe('order summary (Odoo _compute_amounts)', () => {
     miscFeesCents: 0,
     taxPercent: 8.25,
   };
+  it('a manual coupon amount never takes off more than the merchandise, so fees and tax stay (QA B-13)', () => {
+    const s = orderSummary({ ...base, couponCents: 500000 });
+    expect(s.couponCents).toBe(59900);
+    expect(s.taxCents).toBeGreaterThan(0);
+    expect(s.totalCents).toBeGreaterThan(0);
+  });
   it('waiver on merchandise before discount, one-pass tax, 30% deposit', () => {
     const s = orderSummary({ ...base, discount: { kind: 'percent', value: 10 } });
     expect(s).toMatchObject({
@@ -94,5 +101,48 @@ describe('order summary (Odoo _compute_amounts)', () => {
     expect(roundCents(5539.5)).toBe(5540);
     expect(roundCents(5539.4999)).toBe(5539);
     expect(roundCents(-12.5)).toBe(-13);
+  });
+});
+
+describe('deposit and event times (QA B-19, B-26)', () => {
+  it('a deposit is never more than the order', () => {
+    expect(depositDue(10000, { kind: 'percent', value: 300 })).toEqual({ depositCents: 10000, depositPercent: 100 });
+    expect(depositDue(10000, { kind: 'amount', value: 250 }).depositCents).toBe(10000);
+  });
+
+  it('the order form refuses more than 100% and an end before the start, with a clear message', () => {
+    const base = { customerId: crypto.randomUUID(), locationId: crypto.randomUUID(), eventAddress: { country: 'US' }, lines: [{ name: 'Item', quantity: 1 }] };
+
+    const r1 = orderSchema.safeParse({ ...base, startsAt: at(18), endsAt: at(13) });
+    expect(r1.success ? '' : r1.error.issues.map((i) => i.message).join()).toMatch(/end after it starts/);
+    const r2 = orderSchema.safeParse({ ...base, startsAt: at(13), endsAt: at(18), deposit: { kind: 'percent', value: 300 } });
+    expect(r2.success ? '' : r2.error.issues.map((i) => i.message).join()).toMatch(/more than 100%/);
+  });
+});
+
+describe('price formula (Settings → Rental rules → Price formula)', () => {
+  const order = {
+    lines: [{ unitCents: 100000, quantity: 1, setupSurfaceFeeCents: 3500 }],
+    damageWaiver: { enabled: true, percent: 10 }, travelFeeCents: 5000, miscFeesCents: 2000, taxPercent: 10,
+    discount: { kind: 'percent' as const, value: 10 },
+  };
+
+  it('the default is the Odoo formula: waiver before the discount, discount on rental items, everything taxed', () => {
+    expect(orderSummary(order)).toEqual(orderSummary({ ...order, formula: DEFAULT_PRICING_FORMULA }));
+    expect(orderSummary(order)).toMatchObject({ damageWaiverCents: 10000, preTaxDiscountCents: 10000, taxableBaseCents: 110500 });
+  });
+
+  it('a discount can also take off the travel fee and setup fees', () => {
+    const s = orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, discountOn: ['travel', 'setup'] } });
+    expect(s.preTaxDiscountCents).toBe(10850); // 10% of 1,000 + 50 + 35
+  });
+
+  it('the waiver can be worked out after the discount', () => {
+    expect(orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, waiverAfterDiscount: true } }).damageWaiverCents).toBe(9000);
+  });
+
+  it('tax can leave out the waiver and travel', () => {
+    const s = orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, taxOn: ['setup', 'other'] } });
+    expect(s.taxableBaseCents).toBe(100000 + 3500 + 2000 - 10000);
   });
 });

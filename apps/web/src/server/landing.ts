@@ -1,4 +1,5 @@
 import 'server-only';
+import { safeNextPath } from '@rental/core';
 import { isPlatformAdmin, listUserTenants } from '@rental/db';
 import { db } from './db';
 
@@ -8,7 +9,9 @@ import { db } from './db';
  * who has not finished onboarding); several → the org picker; none → register.
  */
 export async function landingFor(userId: string, next?: string | null): Promise<string> {
-  if (next && next.startsWith('/') && !next.startsWith('//')) return next;
+  // Only a path on this site: `/\evil.example` or `//evil.example` would send people elsewhere.
+  const safe = safeNextPath(next);
+  if (safe) return safe;
   const [admin, orgs] = await Promise.all([isPlatformAdmin(db, userId), listUserTenants(db, userId)]);
   if (admin) return '/console';
   if (orgs.length === 1) {

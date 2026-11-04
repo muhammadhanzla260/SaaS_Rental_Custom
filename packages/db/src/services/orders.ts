@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
-  basePackageCents, cancelSchema, extraRateOf, lockedPricing, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
+  addDays, basePackageCents, cancelSchema, extraRateOf, legacyPricingRules, lockedLine, lockedPricing, lockedTaxPercent, lockedTravel, travelRulesFor,
+  type LinePricingSnapshot, type OrderPricingRules, type PricingLocks, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
   type BookingInput, type CancelInput, type CancelOutcome, type DocumentKind, type RescheduleInput, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
@@ -11,6 +12,7 @@ import {
 import { audit, type Actor } from './audit';
 import { pricingOf, type LocationPrice } from './catalog';
 import { usableCreditsTx } from './customers';
+import { localToday } from './clock';
 import { OrgError } from './errors';
 import { enqueueOfficeAlert, enqueueOrderMessage, enqueuePaymentConfirmation, ensureOrderToken, planOrderMessages } from './messaging';
 import { billingOrder, rainCheckUntil, syncInvoices } from './money';
@@ -28,7 +30,7 @@ type CouponCheck = { ok: true; id: string; code: string; kind: 'percent' | 'amou
 async function checkCoupon(tx: Tx, tenantId: string, code: string, orderId?: string | null): Promise<CouponCheck> {
   const [c] = await tx.select().from(coupons).where(and(eq(coupons.tenantId, tenantId), eq(coupons.code, code.trim()))).limit(1);
   if (!c || !c.active) return { ok: false, message: 'Not a valid code' };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await localToday(tx, tenantId);
   if (c.validFrom && today < c.validFrom) return { ok: false, message: `Valid from ${c.validFrom}` };
   if (c.validUntil && today > c.validUntil) return { ok: false, message: 'This code has expired' };
   if (c.maxUses) {
@@ -63,7 +65,9 @@ export function travelRules(prefs: TenantPreferences, settings: unknown) {
  * prices (with branch overrides), tax, surface fees, travel from the miles,
  * coupon and credits are all worked out here, whatever the browser showed.
  */
-async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null) {
+async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null, locks: PricingLocks | null = null) {
+  // A new order takes today's rules from Settings; a saved one keeps its own (see price-lock.ts).
+  const rules: OrderPricingRules = locks?.rules ?? { formula: prefs.booking.pricingFormula, depositPercent: prefs.booking.depositPercent, travel: null };
   const ids = [...new Set(input.lines.map((l) => l.productId).filter((id): id is string => !!id))];
   const rows = ids.length ? await tx.select().from(products).where(and(eq(products.tenantId, tenantId), inArray(products.id, ids))) : [];
   const byId = new Map(rows.map((p) => [p.id, p]));
@@ -84,7 +88,9 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
 
   // Tax: the order's own % when overridden, 0 for tax-exempt customers, else the location's default rate.
   let taxPercent = input.taxPercent ?? 0;
-  if (!input.taxOverridden) {
+  const keptTax = input.taxOverridden ? null : lockedTaxPercent(locks, input.locationId, input.customerId);
+  if (keptTax != null) taxPercent = keptTax;
+  else if (!input.taxOverridden) {
     if (customer.taxExempt) taxPercent = 0;
     else {
       const [rate] = await tx
@@ -107,12 +113,21 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     if (input.eventMiles == null || !modes.length) travelCents = 0;
     else {
       const depotId = typeof travelInfo?.depotId === 'string' ? travelInfo.depotId : null;
-      const [depot] = depotId
-        ? await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, depotId))).limit(1)
-        : [loc];
-      const fee = travelFee(input.eventMiles, modes, travelRules(prefs, (depot ?? loc).settings));
-      travelCents = Math.round(fee.fee * 100);
-      travelInfo = { ...(travelInfo ?? {}), miles: input.eventMiles, billable: fee.billable, rate: fee.rate, reason: fee.reason, depotId: (depot ?? loc).id };
+      const kept = lockedTravel(locks, input.eventMiles, modes, depotId ?? input.locationId);
+      if (kept) {
+        travelCents = kept.cents;
+        travelInfo = kept.info ?? travelInfo;
+      } else {
+        const [depot] = depotId
+          ? await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, depotId))).limit(1)
+          : [loc];
+        const used = depot ?? loc;
+        const travelRule = travelRulesFor(locks, used.id, travelRules(prefs, used.settings));
+        if (!rules.travel || rules.travel.depotId !== used.id) rules.travel = { ...travelRule, depotId: used.id };
+        const fee = travelFee(input.eventMiles, modes, travelRule);
+        travelCents = Math.round(fee.fee * 100);
+        travelInfo = { ...(travelInfo ?? {}), miles: input.eventMiles, billable: fee.billable, rate: fee.rate, reason: fee.reason, depotId: used.id };
+      }
     }
   }
 
@@ -124,6 +139,9 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
   }
 
   // Credits: each amount must fit what is left on it; the engine then caps the total at what is owed.
+  // Lock them first: two orders saved at the same moment would otherwise both see the full balance.
+  const creditIds = [...new Set(input.credits.filter((c) => c.amount > 0).map((c) => c.creditId))].sort();
+  if (creditIds.length) await tx.select({ id: credits.id }).from(credits).where(and(eq(credits.tenantId, tenantId), inArray(credits.id, creditIds))).orderBy(credits.id).for('update');
   const usable = input.credits.length ? await usableCreditsTx(tx, tenantId, input.customerId, orderId) : [];
   const wanted = input.credits
     .filter((c) => c.amount > 0)
@@ -135,29 +153,36 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
       return { creditId: credit.id, code: credit.code, cents };
     });
 
+  const snapshots: (LinePricingSnapshot | null)[] = [];
   const quote = quoteOrder({
     startsAt: input.startsAt,
     endsAt: input.endsAt,
     multiDay: input.multiDay,
     lines: input.lines.map((l) => {
       if (!l.productId) {
+        snapshots.push(null);
         return {
           productId: null, name: l.name ?? 'Custom item', pricing: null, minHours: null, serviceMode: l.serviceMode, quantity: l.quantity,
           flatRate: true, overrideUnitCents: toCents(l.overridePrice ?? 0), setupSurfaceFeeCents: 0, taxable: l.taxable,
         };
       }
       const p = byId.get(l.productId)!;
+      const surface = l.setupSurface ?? input.setupSurface ?? null;
+      // A saved line keeps the product pricing and surface fee it was priced with; a new line takes today's.
+      const kept = lockedLine(locks, l.lineId, l.productId, l.serviceMode, surface);
+      const snapshot: LinePricingSnapshot = kept.pricing ?? { ...pricingOf(p, branchPrices, input.locationId), minHours: p.minHours };
+      snapshots.push(snapshot);
       return {
         productId: p.id,
         name: l.name || p.name,
         // The line's locked base and rate win over the product's current price (Odoo: locked on the order).
-        pricing: lockedPricing(pricingOf(p, branchPrices, input.locationId), l.serviceMode, l.basePrice == null ? null : toCents(l.basePrice), l.extraRate == null ? null : toCents(l.extraRate)),
-        minHours: p.minHours,
+        pricing: lockedPricing(snapshot, l.serviceMode, l.basePrice == null ? null : toCents(l.basePrice), l.extraRate == null ? null : toCents(l.extraRate)),
+        minHours: snapshot.minHours,
         serviceMode: l.serviceMode,
         quantity: l.quantity,
         flatRate: l.flatRate,
         overrideUnitCents: l.overridePrice == null ? null : toCents(l.overridePrice),
-        setupSurfaceFeeCents: surfaceFee(l.setupSurface ?? input.setupSurface),
+        setupSurfaceFeeCents: kept.surfaceFeeCents ?? surfaceFee(surface),
         taxable: l.taxable,
       };
     }),
@@ -171,7 +196,8 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     taxPercent,
     creditCents: wanted.reduce((sum, c) => sum + c.cents, 0),
     deposit: input.deposit,
-    defaultDepositPercent: prefs.booking.depositPercent,
+    defaultDepositPercent: rules.depositPercent,
+    formula: rules.formula,
   });
 
   // Spread what the engine actually applied over the chosen credits, in order.
@@ -184,14 +210,35 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     })
     .filter((c) => c.cents > 0);
 
-  return { quote, taxPercent, byId, travelCents, travelInfo, coupon, applications, location: loc, customer };
+  return { quote, taxPercent, byId, travelCents, travelInfo, coupon, applications, location: loc, customer, rules, snapshots };
+}
+
+/** What a saved order was priced with: its rules, tax rate, travel fee and each line's pricing (price-lock.ts). */
+export function pricingLocksOf(o: Order, lines: OrderLine[], prefs: TenantPreferences): PricingLocks {
+  const info = (o.travelInfo ?? null) as Record<string, unknown> | null;
+  return {
+    rules: (o.pricingRules as OrderPricingRules | null) ?? legacyPricingRules(prefs.booking.depositPercent),
+    tax: o.taxOverridden ? null : { locationId: o.locationId, customerId: o.customerId, percent: Number(o.taxPercent) },
+    travel: o.travelFeeOverridden
+      ? null
+      : {
+          miles: o.eventMiles, dropoff: lines.some((l) => l.productId && l.serviceMode === 'dropoff'),
+          depotId: typeof info?.depotId === 'string' ? info.depotId : o.locationId, cents: o.travelFeeCents, info,
+        },
+    lines: Object.fromEntries(lines.map((l) => [l.id, {
+      productId: l.productId, serviceMode: l.serviceMode as ServiceMode, setupSurface: l.setupSurface, setupSurfaceFeeCents: l.setupSurfaceFeeCents,
+      pricing: (l.pricing ?? null) as LinePricingSnapshot | null,
+    }])),
+  };
 }
 export type PricedOrder = Awaited<ReturnType<typeof priceOrder>>;
 
 /** Price an order without saving it (the builder's live total, server-checked). */
 export function previewOrder(db: Db, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null) {
   return withTenant(db, tenantId, async (tx) => {
-    const p = await priceOrder(tx, tenantId, input, prefs, orderId);
+    const saved = orderId ? (await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1))[0] : undefined;
+    const locks = saved ? pricingLocksOf(saved, await linesOf(tx, tenantId, saved.id), prefs) : null;
+    const p = await priceOrder(tx, tenantId, input, prefs, orderId, locks);
     return { summary: p.quote.summary, lines: p.quote.lines, hours: p.quote.hours, travelCents: p.travelCents, taxPercent: p.taxPercent, warnings: p.quote.warnings };
   });
 }
@@ -245,6 +292,7 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
     creditCents: s.creditCents,
     taxPercent: priced.taxPercent,
     taxOverridden: input.taxOverridden,
+    pricingRules: priced.rules,
     depositKind: input.deposit.kind,
     depositValue: input.deposit.value,
     merchandiseCents: s.merchandiseCents,
@@ -262,13 +310,18 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
 }
 
 async function writeLines(tx: Tx, tenantId: string, orderId: string, input: OrderInput, priced: PricedOrder) {
+  const before = new Set((await tx.select({ id: orderLines.id }).from(orderLines).where(and(eq(orderLines.tenantId, tenantId), eq(orderLines.orderId, orderId)))).map((r) => r.id));
   await tx.delete(orderLines).where(and(eq(orderLines.tenantId, tenantId), eq(orderLines.orderId, orderId)));
   if (!priced.quote.lines.length) return [];
+  // A saved line keeps its id (so the next save still finds what it was priced with); each id once.
+  const used = new Set<string>();
+  const keepId = (id: string | null | undefined) => (id && before.has(id) && !used.has(id) ? (used.add(id), id) : undefined);
   return tx
     .insert(orderLines)
     .values(
       priced.quote.lines.map((l, i) => ({
         tenantId,
+        id: keepId(input.lines[i]?.lineId),
         orderId,
         productId: l.productId,
         name: l.name,
@@ -284,6 +337,7 @@ async function writeLines(tx: Tx, tenantId: string, orderId: string, input: Orde
         extraRateCents: l.pricing ? extraRateOf(l.pricing).cents : null,
         setupSurface: l.productId ? (input.lines[i]?.setupSurface ?? input.setupSurface ?? null) : null,
         setupSurfaceFeeCents: l.setupSurfaceFeeCents,
+        pricing: priced.snapshots[i] ?? null,
         lineTotalCents: l.lineTotalCents,
         pricingTrace: l.trace,
         sort: i,
@@ -468,7 +522,8 @@ export function updateOrder(
     }
     if (before.status === 'cancelled') throw new OrgError('A cancelled order cannot be changed. Reopen it first.', 'invalid');
     const beforeLines = await linesOf(tx, tenantId, id);
-    const priced = await priceOrder(tx, tenantId, input, prefs, id);
+    // Settings changed since? Not for this order: it keeps what it was priced with (price-lock.ts).
+    const priced = await priceOrder(tx, tenantId, input, prefs, id, pricingLocksOf(before, beforeLines, prefs));
     const [order] = await tx
       .update(orders)
       .set({ ...orderValues(input, priced, prefs), version: before.version + 1 })
@@ -493,8 +548,9 @@ export function updateOrder(
 }
 
 /**
- * After a save leaves the customer overpaid: refund it (recorded as owed back),
- * move it to wallet credit, or keep it as an overpayment.
+ * After a save leaves the customer overpaid: refund it (a refunds row marked owed,
+ * on the Ops board until it is given back), move it to wallet credit, or keep it
+ * as an overpayment.
  */
 export function resolveOverpayment(db: Db, tenantId: string, actor: Actor, id: string, choice: 'refund' | 'wallet' | 'keep') {
   return withTenant(db, tenantId, async (tx) => {
@@ -511,6 +567,16 @@ export function resolveOverpayment(db: Db, tenantId: string, actor: Actor, id: s
       await tx.insert(credits).values({
         tenantId, customerId: o.customerId, kind: 'wallet', code: num.number, amountCents: over,
         reason: `Overpayment on ${o.number}`, sourceOrderId: o.id, createdByUserId: actor.userId ?? null,
+      });
+    }
+    if (choice === 'refund') {
+      // Back to the card it came from when one can take it all, else handed back by staff.
+      const pays = await refundableTx(tx, tenantId, id);
+      const from = pays.find((p) => p.gateway !== 'manual' && p.gatewayRef && p.refundableCents >= over) ?? pays[0] ?? null;
+      const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+      await tx.insert(refunds).values({
+        tenantId, number: num.number, orderId: id, paymentId: from?.id ?? null, amountCents: over, method: from?.method ?? 'other', gateway: from?.gateway ?? 'manual',
+        reason: `Overpaid on ${o.number}`, status: 'owed', createdByUserId: actor.userId ?? null,
       });
     }
     const [after] = await tx
@@ -539,7 +605,7 @@ const ALLOWED: Record<OrderAction, OrderStatus[]> = {
 
 async function recordPaymentTx(
   tx: Tx, tenantId: string, actor: Actor, order: Order, prefs: TenantPreferences,
-  p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null },
+  p: { method: string; amountCents: number; tipCents?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; requestKey?: string | null },
 ) {
   // Receipts carry the order's number (Q-AUS-00098), like its quote and invoice.
   const number = order.number;
@@ -558,7 +624,7 @@ async function recordPaymentTx(
     .insert(payments)
     .values({
       tenantId, number, orderId: order.id, method: p.method, amountCents: p.amountCents, tipCents: p.tipCents ?? 0, invoiceId, reference: p.reference ?? null,
-      note: p.note ?? null, createdByUserId: actor.userId ?? null,
+      note: p.note ?? null, createdByUserId: actor.userId ?? null, steps: p.requestKey ? { requestKey: p.requestKey } : {},
     })
     .returning();
   return pay!;
@@ -581,7 +647,7 @@ export function transitionOrder(
     if (action === 'send_quote') {
       await ensureOrderToken(tx, tenantId, id);
       const days = prefs.booking.quoteValidDays;
-      set = { status: 'quote_sent', quoteSentAt: now, quoteExpiresOn: days ? new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10) : null };
+      set = { status: 'quote_sent', quoteSentAt: now, quoteExpiresOn: days ? addDays(await localToday(tx, tenantId, order.locationId, now), days) : null };
     }
     if (action === 'book') {
       const lines = await linesOf(tx, tenantId, id);
@@ -608,6 +674,8 @@ export function transitionOrder(
     }
     if (action === 'complete') set = { status: 'completed' };
     if (action === 'cancel') {
+      // Money paid needs an outcome (credit, refund, rain check): that is cancelOrder.
+      if (order.paidCents > 0) throw new OrgError(`Choose what happens to the ${money(order.paidCents)} paid before cancelling.`, 'invalid');
       await tx.delete(reservations).where(and(eq(reservations.tenantId, tenantId), eq(reservations.orderId, id)));
       set = { status: 'cancelled', cancelledAt: now, cancelReason: opts.reason ?? null };
     }
@@ -660,12 +728,115 @@ export function transitionOrder(
 
 /** Received payments of an order, newest first (what a refund comes back from). */
 export function refundablePayments(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, (tx) => refundableTx(tx, tenantId, orderId));
+}
+
+/** Every refund row but a void one counts, pending and owed too, so the same money is never planned twice. */
+async function refundableTx(tx: Tx, tenantId: string, orderId: string) {
+  const pays = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt));
+  const done = await tx.select({ paymentId: refunds.paymentId, cents: sql<number>`sum(${refunds.amountCents})::bigint` }).from(refunds)
+    .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), ne(refunds.status, 'void'))).groupBy(refunds.paymentId);
+  const back = new Map(done.map((d) => [d.paymentId, Number(d.cents)]));
+  return pays.map((p) => ({ ...p, refundableCents: Math.max(0, p.amountCents - (back.get(p.id) ?? 0)) })).filter((p) => p.refundableCents > 0);
+}
+
+export type PendingRefund = { id: string; number: string; paymentId: string | null; cents: number; intentRef: string; gatewayRef: string | null };
+
+/**
+ * Before a cancel refunds cards: write the card refunds as pending rows (order locked), so the
+ * gateway is asked with our row id as its idempotency key and a cancel that fails afterwards
+ * cannot lose a refund the gateway made. A retry gets the same rows back, never new ones.
+ */
+export function prepareCardRefunds(db: Db, tenantId: string, actor: Actor, orderId: string, amountCents: number, reason: string) {
+  return withTenant(db, tenantId, async (tx): Promise<PendingRefund[]> => {
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).for('update').limit(1);
+    if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (!ALLOWED.cancel.includes(order.status as OrderStatus)) throw new OrgError(`This order is ${order.status.replace('_', ' ')}; it cannot be cancelled now.`, 'invalid');
+    if (amountCents > order.paidCents) throw new OrgError('That is more than was paid.', 'invalid');
+    const intentOf = async (paymentId: string | null) =>
+      paymentId ? (await tx.select({ ref: payments.gatewayRef }).from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.id, paymentId))).limit(1))[0]?.ref ?? null : null;
+    const open = await tx.select().from(refunds).where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), eq(refunds.status, 'pending')));
+    if (open.length) {
+      const rows: PendingRefund[] = [];
+      for (const r of open) rows.push({ id: r.id, number: r.number, paymentId: r.paymentId, cents: r.amountCents, intentRef: (await intentOf(r.paymentId))!, gatewayRef: r.gatewayRef });
+      return rows.filter((r) => r.intentRef);
+    }
+    const plan = planRefund(await refundableTx(tx, tenantId, orderId), amountCents);
+    if (plan.unallocatedCents > 0) throw new OrgError('That is more than was paid.', 'invalid');
+    const rows: PendingRefund[] = [];
+    for (const p of plan.parts.filter((x) => x.gateway === 'stripe' && x.intentRef)) {
+      const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
+      const [row] = await tx.insert(refunds).values({
+        tenantId, number: num.number, orderId, paymentId: p.paymentId, amountCents: p.cents, method: p.method, gateway: p.gateway, reason, status: 'pending',
+        createdByUserId: actor.userId ?? null,
+      }).returning();
+      rows.push({ id: row!.id, number: row!.number, paymentId: p.paymentId, cents: p.cents, intentRef: p.intentRef!, gatewayRef: null });
+    }
+    return rows;
+  });
+}
+
+/** The gateway made a pending refund: keep its id at once (the cancel confirms the row). */
+export function markRefundSent(db: Db, tenantId: string, refundId: string, ref: string) {
+  return withTenant(db, tenantId, (tx) => tx.update(refunds).set({ gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId))));
+}
+
+/**
+ * A pending card refund whose cancel never completed (an hour later). If the gateway made it, it
+ * is recorded as done against the order's paid amount and the office is told; if not, it is void.
+ */
+export function settleStalePendingRefund(db: Db, tenantId: string, refundId: string, ref: string | null) {
   return withTenant(db, tenantId, async (tx) => {
-    const pays = await tx.select().from(payments).where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId), eq(payments.status, 'received'))).orderBy(desc(payments.receivedAt));
-    const done = await tx.select({ paymentId: refunds.paymentId, cents: sql<number>`sum(${refunds.amountCents})::bigint` }).from(refunds)
-      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId))).groupBy(refunds.paymentId);
-    const back = new Map(done.map((d) => [d.paymentId, Number(d.cents)]));
-    return pays.map((p) => ({ ...p, refundableCents: Math.max(0, p.amountCents - (back.get(p.id) ?? 0)) })).filter((p) => p.refundableCents > 0);
+    const [r] = await tx.select().from(refunds).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId), eq(refunds.status, 'pending'))).limit(1);
+    if (!r) return null;
+    if (!ref) {
+      await tx.update(refunds).set({ status: 'void' }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId)));
+      return 'void' as const;
+    }
+    const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, r.orderId))).for('update').limit(1);
+    if (!order) return null;
+    await tx.update(refunds).set({ status: 'done', gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId)));
+    // A cancel that completed meanwhile already took it off the paid amount.
+    if (order.status !== 'cancelled') {
+      await tx.update(orders).set({ paidCents: order.paidCents - r.amountCents, version: order.version + 1 }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, order.id)));
+      await syncInvoices(tx, tenantId, order.id);
+      await enqueueOfficeAlert(tx, tenantId, 'payment_alert', `${order.id}:payment_alert:${r.id}`, order.id, {
+        reason: `${money(r.amountCents)} was refunded to the card for ${order.number} (${r.number}), but the cancellation did not go through. The order is still ${order.status.replace('_', ' ')}: cancel it or take the payment again.`,
+      });
+    }
+    await audit(tx, tenantId, { type: 'system' }, { type: 'order', id: order.id }, 'order.refund', { number: order.number, refund: r.number, cents: r.amountCents, source: 'pending' });
+    return 'done' as const;
+  });
+}
+
+/** Pending refunds older than an hour (for the reconciler), with the payment they come back from. */
+export function stalePendingRefunds(db: Db, tenantId: string) {
+  return withTenant(db, tenantId, (tx) =>
+    tx.select({ id: refunds.id, gatewayRef: refunds.gatewayRef, intentRef: payments.gatewayRef }).from(refunds)
+      .leftJoin(payments, and(eq(payments.tenantId, refunds.tenantId), eq(payments.id, refunds.paymentId)))
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.status, 'pending'), lt(refunds.createdAt, new Date(Date.now() - 3_600_000)))),
+  );
+}
+
+/** The refund owed on an order (from "refund the overpayment"), with the payment it comes back from. */
+export function owedRefund(db: Db, tenantId: string, orderId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx.select({ refund: refunds, intentRef: payments.gatewayRef, last4: payments.cardLast4 }).from(refunds)
+      .leftJoin(payments, and(eq(payments.tenantId, refunds.tenantId), eq(payments.id, refunds.paymentId)))
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.orderId, orderId), eq(refunds.status, 'owed'))).orderBy(asc(refunds.createdAt)).limit(1);
+    return row ?? null;
+  });
+}
+
+/** The refund owed was given back (to the card, or by staff): it is done. The paid amount already left it out. */
+export function settleOwedRefund(db: Db, tenantId: string, actor: Actor, refundId: string, ref: string | null) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [r] = await tx.update(refunds).set({ status: 'done', gatewayRef: ref }).where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, refundId), eq(refunds.status, 'owed'))).returning();
+    if (!r) throw new OrgError('That refund was already given back.', 'invalid');
+    const [order] = await tx.update(orders).set({ version: sql`${orders.version} + 1` }).where(and(eq(orders.tenantId, tenantId), eq(orders.id, r.orderId))).returning();
+    await recordVersion(tx, tenantId, actor, order!, 'refund', { [`Refund ${r.number}`]: { from: 'owed', to: `${money(r.amountCents)} · ${ref ? 'to the card' : `${r.method}, handed back`}` } });
+    await audit(tx, tenantId, actor, { type: 'order', id: r.orderId }, 'order.refund', { number: order!.number, refund: r.number, cents: r.amountCents, gateway: r.gateway });
+    return r;
   });
 }
 
@@ -686,7 +857,8 @@ export function planRefund(pays: { id: string; gateway: string; method: string; 
   return { parts, unallocatedCents: left };
 }
 
-export type DoneRefund = { paymentId: string | null; cents: number; gateway: string; method: string; ref: string | null };
+/** refundId: the pending row prepareCardRefunds wrote for a card refund the gateway made. */
+export type DoneRefund = { paymentId: string | null; cents: number; gateway: string; method: string; ref: string | null; refundId?: string };
 
 async function insertCreditTx(tx: Tx, tenantId: string, actor: Actor, o: Order, kind: 'wallet' | 'rain_check' | 'goodwill', cents: number, reason: string, validUntil: string | null) {
   const prefix = kind === 'rain_check' ? 'RC-' : kind === 'goodwill' ? 'GW-' : 'WC-';
@@ -749,6 +921,13 @@ export function cancelOrder(
         if (left > 0) throw new OrgError(`${money(left)} was paid by card and could not be refunded at the gateway.`, 'invalid');
       }
       for (const r of rows) {
+        if (r.refundId) {
+          const [row] = await tx.update(refunds).set({ status: 'done', gatewayRef: r.ref, reason: why })
+            .where(and(eq(refunds.tenantId, tenantId), eq(refunds.id, r.refundId), eq(refunds.orderId, id), eq(refunds.status, 'pending'))).returning();
+          if (!row) throw new OrgError('A card refund for this order was already recorded. Reload the order.', 'conflict');
+          made.push(row);
+          continue;
+        }
         const [num] = (await tx.execute<{ number: string }>(sql`select app_next_number('refund:RF-', 'RF-', 4) as number`)) as unknown as [{ number: string }];
         const [row] = await tx.insert(refunds).values({
           tenantId, number: num.number, orderId: id, paymentId: r.paymentId, amountCents: r.cents, method: r.method, gateway: r.gateway, gatewayRef: r.ref,
@@ -769,12 +948,13 @@ export function cancelOrder(
 
     const outcome = cancelOutcomeText(c.outcome, { credit, extra, refunded, money });
     const diff: Record<string, { from: string; to: string }> = { Status: { from: order.status, to: c.outcome === 'rain_check' ? 'rained out' : 'cancelled' }, Outcome: { from: '', to: outcome } };
+    if (!c.notifyCustomer) diff['Customer emailed'] = { from: '', to: 'No (staff chose not to notify)' };
     for (const r of made) diff[`Refund ${r.number}`] = { from: '', to: `${money(r.amountCents)} · ${r.gateway === 'manual' ? `${r.method}, handed back` : 'to the card'}` };
     await recordVersion(tx, tenantId, actor, after!, 'cancel', diff, why);
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.cancel', {
-      number: order.number, from: order.status, outcome: c.outcome, credit: credit?.code ?? null, refundedCents: refunded, reason: c.reason,
+      number: order.number, from: order.status, outcome: c.outcome, credit: credit?.code ?? null, refundedCents: refunded, reason: c.reason, notified: c.notifyCustomer,
     });
-    await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: why, outcome } });
+    if (c.notifyCustomer) await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: why, outcome } });
     await planOrderMessages(tx, tenantId, id);
     await syncInvoices(tx, tenantId, id);
     return { order: after!, credit, goodwillCredit: extra, refunds: made, outcome };
@@ -810,16 +990,26 @@ export async function rescheduleOrder(db: Db, tenantId: string, actor: Actor, id
 /** Record money received outside a gateway (cash, check, Zelle...). */
 export function recordPayment(
   db: Db, tenantId: string, actor: Actor, id: string, prefs: TenantPreferences,
-  p: { method: string; amount: number; tip?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; receipt?: boolean },
+  p: {
+    method: string; amount: number; tip?: number; invoiceId?: string | null; reference?: string | null; note?: string | null; receipt?: boolean;
+    /** One per payment form: a second submit of the same form returns the first payment instead of recording it again. */
+    requestKey?: string | null;
+  },
 ) {
   return withTenant(db, tenantId, async (tx) => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, id))).for('update').limit(1);
     if (!order) throw new OrgError('Order not found.', 'not_found');
+    if (p.requestKey) {
+      // The order row is locked, so a double submit waits here and then finds the first one.
+      const [seen] = await tx.select().from(payments)
+        .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, id), sql`${payments.steps}->>'requestKey' = ${p.requestKey}`)).limit(1);
+      if (seen) return { order, payment: seen };
+    }
     if (order.status === 'cancelled') throw new OrgError('This order is cancelled.', 'invalid');
     const cents = toCents(p.amount);
     if (cents <= 0) throw new OrgError('Enter the amount received.', 'invalid');
     const pay = await recordPaymentTx(tx, tenantId, actor, order, prefs, {
-      method: p.method, amountCents: cents, tipCents: p.tip ? toCents(p.tip) : 0, invoiceId: p.invoiceId, reference: p.reference, note: p.note,
+      method: p.method, amountCents: cents, tipCents: p.tip ? toCents(p.tip) : 0, invoiceId: p.invoiceId, reference: p.reference, note: p.note, requestKey: p.requestKey,
     });
     const [after] = await tx
       .update(orders)
@@ -905,7 +1095,7 @@ export function orderInputFrom(
     salespersonUserId: o.salespersonUserId,
     referredByCustomerId: o.referredByCustomerId,
     lines: lines.map((l) => ({
-      productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
+      lineId: l.id, productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
       flatRate: l.flatRate, overridePrice: !l.productId || l.priceOverridden ? dollars(l.unitCents) : null, taxable: l.taxable, setupSurface: l.setupSurface,
       basePrice: l.productId && l.baseCents != null ? dollars(l.baseCents) : null, extraRate: l.productId && l.extraRateCents != null ? dollars(l.extraRateCents) : null,
     })),

@@ -6,7 +6,7 @@ import {
   emailInvoice, getOrder, markPreEventCalled, orderInvoices, snoozeCard, textOnsiteContact, transitionOrder, type OpsRule,
 } from '@rental/db';
 import { dispatchOrder } from '@rental/messaging';
-import { balanceCharger, chargeCardOnFile } from '@rental/payments';
+import { balanceCharger, chargeCardOnFile, refundOwed } from '@rental/payments';
 import type { ActionResult } from '@/lib/result';
 import { requirePermission } from '../context';
 import { db } from '../db';
@@ -14,8 +14,8 @@ import { run } from './run';
 
 const input = z.object({
   orderId: z.string().uuid(),
-  rule: z.enum(['deposit', 'final_payment', 'call', 'contact', 'quote']),
-  action: z.enum(['pay_link', 'retry_charge', 'mark_called', 'text_contact', 'follow_up', 'snooze']),
+  rule: z.enum(['deposit', 'final_payment', 'call', 'contact', 'quote', 'refund']),
+  action: z.enum(['pay_link', 'retry_charge', 'mark_called', 'text_contact', 'follow_up', 'refund_now', 'snooze']),
 });
 
 /**
@@ -27,7 +27,7 @@ export async function opsCardAction(slug: string, raw: unknown): Promise<ActionR
     const p = input.safeParse(raw);
     if (!p.success) return { ok: false, error: 'Unknown action.' };
     const { orderId, rule, action } = p.data;
-    const ctx = await requirePermission(slug, action === 'retry_charge' ? 'payments.record' : 'orders.create');
+    const ctx = await requirePermission(slug, action === 'retry_charge' ? 'payments.record' : action === 'refund_now' ? 'payments.refund' : 'orders.create');
     const t = ctx.tenant.id;
     const send = () => after(() => dispatchOrder(db, t, orderId, { chargeBalance: balanceCharger(db) }).catch((e) => console.error('[dispatch]', e)));
     const hide = (hours: number, reason: string) => snoozeCard(db, t, ctx.actor, orderId, rule as OpsRule, hours, reason);
@@ -51,6 +51,11 @@ export async function opsCardAction(slug: string, raw: unknown): Promise<ActionR
         const r = await chargeCardOnFile(db, t, orderId, ctx.actor, { amountCents: due, tipCents: 0, receipt: true });
         send();
         return { ok: true, message: `Charged ${r.brand ? r.brand.toUpperCase() : 'card'} •${r.last4} · ${r.number}. Receipt on its way.` };
+      }
+      case 'refund_now': {
+        const r = await refundOwed(db, t, ctx.actor, orderId);
+        const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: ctx.tenant.currency }).format(r.cents / 100);
+        return { ok: true, message: r.to ? `${amount} refunded to ${r.to} (${r.number}).` : `${amount} marked as handed back (${r.number}).` };
       }
       case 'mark_called':
         await markPreEventCalled(db, t, ctx.actor, orderId);

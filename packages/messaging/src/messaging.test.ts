@@ -11,8 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { customerSchema, orderSchema, parsePreferences, productSchema, wallTimeToUtc } from '@rental/core';
 import {
-  createCustomer, createDb, createOrder, createProduct, listLocations, listMessages, replanAll, resolveOrderToken, saveMailAccount, schema,
-  recordGatewayPayment, recordPayment, setupOrganization, transitionOrder, updateOrder, updatePreferences,
+  cancelOrder, claimMessage, createCustomer, createDb, createOrder, createProduct, enqueueMessage, finishMessage, listLocations, listMessages, replanAll, resolveOrderToken,
+  saveMailAccount, schema, recordGatewayPayment, recordPayment, setupOrganization, transitionOrder, updateOrder, updatePreferences, withTenant,
 } from '@rental/db';
 import { dispatchMessage, dispatchOrder } from './dispatch';
 
@@ -109,6 +109,54 @@ describe('payment confirmations (Odoo triggers)', () => {
     await transitionOrder(db, tenantId, actor, b.id, 'book', prefs, { paymentFollows: true });
     await recordGatewayPayment(db, tenantId, { type: 'customer' }, b.id, { gateway: 'stripe', ref: `pi_test_${run}`, amountCents: b.totalCents, brand: 'visa', last4: '4242' });
     expect((await msgs(b.id)).filter((m) => ['booking_confirmation', 'payment_partial', 'payment_paid'].includes(m.type)).map((m) => m.type)).toEqual(['payment_paid']);
+  });
+});
+
+describe('delivery bookkeeping', () => {
+  it('a sent message stays sent when its copy holds text the database cannot store (QA B-03)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(sat, '14:00', '15:00'), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'send_quote', prefs);
+    const q = (await msgs(o.id)).find((m) => m.type === 'quote')!;
+    expect(await claimMessage(db, tenantId, q.id)).toBeTruthy();
+    // Emoji and arrows are fine in production (UTF-8) but not in the local WIN1252 database.
+    await finishMessage(db, tenantId, q.id, { ok: true, subject: 'Party time \u{1F389}', html: '<p>→</p>', text: '\u{1F389}', providerRef: `outbox:b03-${run}`, to: null });
+    expect((await msgs(o.id)).find((m) => m.id === q.id)).toMatchObject({ status: 'sent', providerRef: `outbox:b03-${run}` });
+  });
+
+  it('a staff action leaves a due balance charge queued for the worker (QA B-10)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(sat, '16:00', '17:00'), prefs);
+    await withTenant(db, tenantId, (tx) => enqueueMessage(tx, tenantId, { key: `b10-${run}`, type: 'charge_balance', channel: 'email', orderId: o.id, toAddress: `maria-${run}@example.test` }));
+    expect(await dispatchOrder(db, tenantId, o.id)).toEqual([]);
+    expect((await msgs(o.id)).find((m) => m.type === 'charge_balance')).toMatchObject({ status: 'queued' });
+  });
+});
+
+describe('who hears about it', () => {
+  it('a cancel with "email the customer" off sends no cancellation, and the history says so', async () => {
+    const o = await createOrder(db, tenantId, actor, input(sat, '07:00', '09:00'), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Customer changed plans', outcome: 'none', notifyCustomer: false });
+    await dispatchOrder(db, tenantId, o.id);
+    expect((await msgs(o.id)).filter((m) => m.type === 'cancellation')).toHaveLength(0);
+  });
+
+  it('the office copy goes only on the customer emails chosen in Settings', async () => {
+    await updatePreferences(db, tenantId, actor, 'messaging', { ...prefs.messaging, cc: [`office-${run}@example.test`], ccTypes: { quote: true, invoice: false } });
+    prefs = parsePreferences((await owner.db.execute(sql`select settings from tenants where id = ${tenantId}::uuid`))[0]!.settings);
+    const head = async (orderId: string, type: string) => {
+      const m = (await msgs(orderId)).find((x) => x.type === type)!;
+      return (await readFile(m.providerRef!.replace(/^outbox:/, ''), 'utf8')).split('\n')[0]!;
+    };
+    const o = await createOrder(db, tenantId, actor, input(sat, '10:00', '11:00'), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'send_quote', prefs);
+    await dispatchOrder(db, tenantId, o.id);
+    expect(await head(o.id, 'quote')).toContain(`Cc: office-${run}@example.test`);
+    // A reminder is not copied by default (would bury the bookings and payments).
+    await withTenant(db, tenantId, (tx) => enqueueMessage(tx, tenantId, { key: `cc-pre-${run}`, type: 'pre_event', channel: 'email', orderId: o.id, toAddress: `maria-${run}@example.test` }));
+    await dispatchOrder(db, tenantId, o.id);
+    expect(await head(o.id, 'pre_event')).not.toContain('Cc:');
+    await updatePreferences(db, tenantId, actor, 'messaging', { ...prefs.messaging, cc: [], ccTypes: {} });
+    prefs = parsePreferences((await owner.db.execute(sql`select settings from tenants where id = ${tenantId}::uuid`))[0]!.settings);
   });
 });
 

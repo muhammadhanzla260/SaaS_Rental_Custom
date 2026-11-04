@@ -51,10 +51,18 @@ async function smtpTransport(a: SmtpAccount, timeoutMs = 15000): Promise<Transpo
 }
 
 let platform: Transporter | null = null;
+/** nodemailer reads connection options from the URL's query; ones already in the URL win. */
+export function withTimeouts(url: string) {
+  const u = new URL(url);
+  for (const [k, v] of [['connectionTimeout', '15000'], ['greetingTimeout', '15000'], ['socketTimeout', '30000']]) if (!u.searchParams.has(k!)) u.searchParams.set(k!, v!);
+  return u.toString();
+}
+
 async function platformTransport() {
   const url = process.env.PLATFORM_SMTP_URL?.trim();
   if (!url) return null;
-  if (!platform) platform = (await import('nodemailer')).createTransport(url);
+  // Timeouts like a workspace's own SMTP, so a stuck platform server cannot hold a send forever.
+  if (!platform) platform = (await import('nodemailer')).createTransport(withTimeouts(url));
   return platform;
 }
 
@@ -76,7 +84,7 @@ export async function sendMail(account: { mode: string; smtp: SmtpAccount } | nu
     return { ref: `outbox:${await writeOutbox('email', mail.to, head + mail.html)}` };
   }
   const t = account?.mode === 'smtp' ? await smtpTransport(account.smtp) : await platformTransport();
-  if (!t) throw Object.assign(new Error('No mail server is set up. Connect one in Settings → Email & SMS.'), { permanent: true });
+  if (!t) throw Object.assign(new Error('No mail server is set up. Connect one in Settings > Email & SMS.'), { permanent: true });
   const info = await t.sendMail({
     from: mail.from, to: mail.to, replyTo: mail.replyTo || undefined, cc: mail.cc, bcc: mail.bcc, subject: mail.subject, html: mail.html, text: mail.text,
     headers: { 'X-Entity-Ref-ID': mail.ref },
@@ -119,7 +127,7 @@ export async function testSmtp(a: SmtpAccount, to: string, mail: Omit<Mail, 'to'
 export async function sendSms(account: SmsAccount | null, to: string, body: string): Promise<{ ref: string }> {
   if (!liveDelivery()) return { ref: `outbox:${await writeOutbox('sms', to, `To: ${to}\n\n${body}`)}` };
   if (!account || account.provider === 'none' || !account.secret || !account.sendingNumber) {
-    throw Object.assign(new Error('Texts are not set up. Connect Twilio or Quo in Settings → Email & SMS.'), { permanent: true });
+    throw Object.assign(new Error('Texts are not set up. Connect Twilio or Quo in Settings > Email & SMS.'), { permanent: true });
   }
   if (account.provider === 'twilio') {
     const sid = account.accountId ?? '';

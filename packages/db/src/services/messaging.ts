@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, ilike, inArray, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   addDays, defaultTemplate, MESSAGE_TYPES, outsideQuietHours, parsePreferences, resolveMessaging, SCHEDULED_TYPES, scheduledAt, templateSchema,
   utcToWallTime, type Channel, type MessageType, type TemplateInput, type TenantPreferences,
@@ -85,19 +85,33 @@ export async function ensureOrderToken(tx: Tx, tenantId: string, orderId: string
   if (!o) throw new OrgError('Order not found.', 'not_found');
   if (o.enc) return decryptSecret(o.enc);
   const token = randomBytes(24).toString('base64url');
-  await tx
+  // Only if no token was set meanwhile: two first-time callers at once would otherwise each write one,
+  // and the link the first one handed out would stop working.
+  const [won] = await tx
     .update(orders)
     .set({ accessTokenEnc: encryptSecret(token), accessTokenHash: sha256Hex(token) })
-    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
-  return token;
+    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId), isNull(orders.accessTokenEnc)))
+    .returning({ id: orders.id });
+  if (won) return token;
+  const [again] = await tx.select({ enc: orders.accessTokenEnc }).from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1);
+  return decryptSecret(again!.enc!);
 }
 
 /** Which workspace and order a quote link belongs to (null if unknown). */
+/** Days after the event that a fully paid order's link keeps working (tips, receipts, the survey). */
+const LINK_DAYS_AFTER_EVENT = 60;
+
 export async function resolveOrderToken(db: Db, token: string): Promise<{ tenantId: string; orderId: string } | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const rows = await db.execute<{ tenant_id: string; order_id: string }>(sql`select * from app_order_by_token(${sha256Hex(token)})`);
   const r = [...rows][0];
-  return r ? { tenantId: r.tenant_id, orderId: r.order_id } : null;
+  if (!r) return null;
+  // Long after the event, with nothing left to pay, the link no longer shows the address and phone numbers.
+  const [o] = await withTenant(db, r.tenant_id, (tx) =>
+    tx.select({ ends: orders.eventEndsAt, total: orders.totalCents, paid: orders.paidCents }).from(orders)
+      .where(and(eq(orders.tenantId, r.tenant_id), eq(orders.id, r.order_id))).limit(1));
+  if (o && o.paid >= o.total && o.ends.getTime() < Date.now() - LINK_DAYS_AFTER_EVENT * 86_400_000) return null;
+  return { tenantId: r.tenant_id, orderId: r.order_id };
 }
 
 export const quoteUrl = (token: string) => `${(process.env.APP_URL || process.env.BETTER_AUTH_URL || 'http://localhost:3000').replace(/\/$/, '')}/q/${token}`;
@@ -170,7 +184,11 @@ function recipient(r: NonNullable<Awaited<ReturnType<typeof orderForMessages>>>,
  */
 export async function enqueueOrderMessage(
   tx: Tx, tenantId: string, orderId: string, type: MessageType, key: string,
-  opts: { automatic: boolean; meta?: Record<string, unknown>; channel?: Channel; audience?: 'customer' | 'contact' } = { automatic: true },
+  opts: {
+    automatic: boolean; meta?: Record<string, unknown>; channel?: Channel; audience?: 'customer' | 'contact';
+    /** A staff-pressed send that still honours its own on/off switch (coach texts). */
+    honourSwitch?: boolean;
+  } = { automatic: true },
 ) {
   const r = await orderForMessages(tx, tenantId, orderId);
   if (!r) return null;
@@ -180,7 +198,7 @@ export async function enqueueOrderMessage(
   const on = m.instant[type] ?? true;
   let skip: string | null = null;
   if (opts.automatic && !m.live) skip = 'Automations are off';
-  else if (opts.automatic && !on) skip = `${MESSAGE_TYPES[type].label} is switched off`;
+  else if ((opts.automatic || opts.honourSwitch) && !on) skip = `${MESSAGE_TYPES[type].label} is switched off`;
   const to = recipient(r, channel, opts.audience ?? 'customer');
   skip = skip ?? to.skip;
   return enqueueMessage(tx, tenantId, {
@@ -345,33 +363,49 @@ export function claimMessage(db: Db, tenantId: string, id: string) {
   });
 }
 
-/** Queued messages of one order that are due now (sent right after a staff action). */
-export function dueForOrder(db: Db, tenantId: string, orderId: string) {
+/**
+ * Queued messages of one order that are due now (sent right after a staff action). `withCharge`
+ * false leaves the event-day balance charge to the worker, which is the one that can charge cards.
+ */
+export function dueForOrder(db: Db, tenantId: string, orderId: string, withCharge = true) {
   return withTenant(db, tenantId, (tx) =>
     tx
       .select({ id: messages.id })
       .from(messages)
-      .where(and(eq(messages.tenantId, tenantId), eq(messages.orderId, orderId), eq(messages.status, 'queued'), lte(messages.scheduledFor, new Date()))),
+      .where(and(
+        eq(messages.tenantId, tenantId), eq(messages.orderId, orderId), eq(messages.status, 'queued'), lte(messages.scheduledFor, new Date()),
+        withCharge ? undefined : ne(messages.type, 'charge_balance'),
+      )),
   );
 }
 
 /**
  * Worker only (owner connection, all workspaces): claim up to `limit` due
  * messages with SKIP LOCKED so parallel workers never take the same one.
+ * Suspended and closed workspaces are left alone: nothing is sent or charged
+ * for them until they are live again.
  */
 export async function claimDueMessages(ownerDb: Db, limit = 20) {
   const rows = await ownerDb.execute<{ tenant_id: string; id: string }>(sql`
     update messages set status = 'sending', attempts = attempts + 1, updated_at = now()
     where (tenant_id, id) in (
-      select tenant_id, id from messages where status = 'queued' and scheduled_for <= now()
-      order by scheduled_for limit ${limit} for update skip locked)
+      select m.tenant_id, m.id from messages m join tenants t on t.id = m.tenant_id
+      where m.status = 'queued' and m.scheduled_for <= now() and t.status in ('active','trial','past_due')
+      order by m.scheduled_for limit ${limit} for update of m skip locked)
     returning tenant_id, id`);
   return [...rows].map((r) => ({ tenantId: r.tenant_id, id: r.id }));
 }
 
-/** Messages stuck in 'sending' (a crash mid-send) go back to the queue after 10 minutes. */
+/**
+ * Messages stuck in 'sending' (the process stopped mid-send) go back to the queue after
+ * 30 minutes, until their third attempt. After that they are marked failed for staff to
+ * look at, since the last attempt may already have reached the customer.
+ */
 export async function releaseStuckMessages(ownerDb: Db) {
-  await ownerDb.execute(sql`update messages set status = 'queued' where status = 'sending' and updated_at < now() - interval '10 minutes'`);
+  await ownerDb.execute(sql`
+    update messages set status = case when attempts >= 3 then 'failed' else 'queued' end,
+      last_error = case when attempts >= 3 then 'Sending was interrupted several times; check it reached the customer before resending.' else last_error end
+    where status = 'sending' and updated_at < now() - interval '30 minutes'`);
 }
 
 export type SendOutcome =
@@ -379,20 +413,32 @@ export type SendOutcome =
   | { ok: false; error: string; permanent?: boolean; subject?: string | null; html?: string | null; text?: string | null }
   | { skipped: string };
 
-/** Record how a send went. Failures retry with backoff (5, 15, 45 min…) up to the workspace's retry limit. */
+/**
+ * Record how a send went. Failures retry with backoff (5, 15, 45 min…) up to the workspace's retry limit.
+ * The status is written on its own first; the copy of what was sent (subject, body, error text) follows
+ * in a savepoint, so text the database cannot store never leaves a sent message looking unsent
+ * (which would send it again).
+ */
 export function finishMessage(db: Db, tenantId: string, id: string, outcome: SendOutcome, retries = 3) {
   return withTenant(db, tenantId, async (tx) => {
     const [m] = await tx.select().from(messages).where(and(eq(messages.tenantId, tenantId), eq(messages.id, id))).limit(1);
     if (!m) return null;
+    const where = and(eq(messages.tenantId, tenantId), eq(messages.id, id));
+    const copy = async (values: Partial<typeof messages.$inferInsert>) => {
+      try {
+        await tx.transaction((sp) => sp.update(messages).set(values).where(where));
+      } catch {
+        // The status written above stands.
+      }
+    };
     if ('skipped' in outcome) {
-      await tx.update(messages).set({ status: 'skipped', lastError: outcome.skipped }).where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      await tx.update(messages).set({ status: 'skipped', lastError: null }).where(where);
+      await copy({ lastError: outcome.skipped });
       return 'skipped';
     }
     if (outcome.ok) {
-      await tx
-        .update(messages)
-        .set({ status: 'sent', sentAt: new Date(), subject: outcome.subject, html: outcome.html, text: outcome.text, providerRef: outcome.providerRef, lastError: null, toAddress: outcome.to ?? m.toAddress })
-        .where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      await tx.update(messages).set({ status: 'sent', sentAt: new Date(), providerRef: outcome.providerRef, lastError: null }).where(where);
+      await copy({ subject: outcome.subject, html: outcome.html, text: outcome.text, toAddress: outcome.to ?? m.toAddress });
       return 'sent';
     }
     const again = !outcome.permanent && m.attempts <= retries;
@@ -400,11 +446,11 @@ export function finishMessage(db: Db, tenantId: string, id: string, outcome: Sen
       .update(messages)
       .set({
         status: again ? 'queued' : 'failed',
-        lastError: outcome.error.slice(0, 1000),
+        lastError: 'Sending failed.',
         scheduledFor: again ? new Date(Date.now() + 5 * 60_000 * 3 ** Math.max(0, m.attempts - 1)) : m.scheduledFor,
-        ...(outcome.subject !== undefined ? { subject: outcome.subject, html: outcome.html ?? null, text: outcome.text ?? null } : {}),
       })
-      .where(and(eq(messages.tenantId, tenantId), eq(messages.id, id)));
+      .where(where);
+    await copy({ lastError: outcome.error.slice(0, 1000), ...(outcome.subject !== undefined ? { subject: outcome.subject, html: outcome.html ?? null, text: outcome.text ?? null } : {}) });
     return again ? 'retrying' : 'failed';
   });
 }

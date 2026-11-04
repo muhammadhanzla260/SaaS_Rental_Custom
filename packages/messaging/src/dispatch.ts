@@ -9,7 +9,8 @@ import { sendMail, sendSms } from './transport';
 
 /** Optional work done before a message (Phase 2b: charge the saved card for charge_balance). */
 export type Hooks = {
-  chargeBalance?: (ctx: MessageContext) => Promise<{ ok: true; payment: NonNullable<Extra['payment']> } | { ok: false; skip?: string; error?: string }>;
+  /** `retry`: not now (another charge is running, the bank is still processing); try again later. */
+  chargeBalance?: (ctx: MessageContext) => Promise<{ ok: true; payment: NonNullable<Extra['payment']> } | { ok: false; skip?: string; error?: string; retry?: boolean }>;
 };
 
 async function paymentOf(db: Db, tenantId: string, id: unknown): Promise<Extra['payment']> {
@@ -62,9 +63,10 @@ async function deliver(db: Db, tenantId: string, id: string, hooks: Hooks): Prom
   if (m.type === 'charge_balance') {
     if (!ctx.order || ctx.order.paidCents >= ctx.order.totalCents) return { skipped: 'Nothing left to pay' };
     if (meta.charge === false) return { skipped: 'Charging is switched off for this message' };
-    if (!hooks.chargeBalance) return { skipped: 'No card charging set up yet' };
+    // Only the worker charges cards; anywhere else the charge goes back to the queue for it.
+    if (!hooks.chargeBalance) return { ok: false, error: 'Waiting for the worker to charge the card', retries: 99 };
     const r = await hooks.chargeBalance(ctx);
-    if (!r.ok) return r.skip ? { skipped: r.skip } : { ok: false, error: r.error ?? 'Charge failed', permanent: true };
+    if (!r.ok) return r.skip ? { skipped: r.skip } : { ok: false, error: r.error ?? 'Charge failed', permanent: !r.retry };
     extra = { ...extra, payment: r.payment };
   }
   if (!m.toAddress) return { skipped: m.channel === 'sms' ? 'No mobile number' : 'No email address' };
@@ -83,7 +85,8 @@ async function deliver(db: Db, tenantId: string, id: string, hooks: Hooks): Prom
       from: `"${fromName.replace(/"/g, '')}" <${fromEmail}>`,
       to: m.toName ? `"${m.toName.replace(/"/g, '')}" <${m.toAddress}>` : m.toAddress,
       replyTo: ctx.messaging.replyTo || acc?.replyTo || undefined,
-      cc: customer ? ctx.messaging.cc : ((meta.cc as string[] | undefined) ?? []),
+      // The office copy only on the customer emails chosen in Settings (not every reminder and follow-up).
+      cc: customer ? (ctx.messaging.ccOn[m.type] ? ctx.messaging.cc : []) : ((meta.cc as string[] | undefined) ?? []),
       bcc: customer ? ctx.messaging.bcc : [],
       subject: out.subject,
       html: out.html ?? '',
@@ -104,7 +107,13 @@ async function run(db: Db, tenantId: string, id: string, hooks: Hooks) {
   } catch (e) {
     outcome = { ok: false, error: (e as Error).message };
   }
-  return finishMessage(db, tenantId, id, outcome, outcome && 'retries' in outcome ? outcome.retries : 3);
+  try {
+    return await finishMessage(db, tenantId, id, outcome, outcome && 'retries' in outcome ? outcome.retries : 3);
+  } catch (e) {
+    // The message stays 'sending' and releaseStuckMessages deals with it; the rest of the queue goes on.
+    console.error(`[dispatch] could not record message ${id}:`, (e as Error).message);
+    return 'unrecorded' as const;
+  }
 }
 
 /** Send one queued message now (claims it first, so it can never go out twice). */
@@ -116,17 +125,24 @@ export async function dispatchMessage(db: Db, tenantId: string, id: string, hook
 
 /** Send whatever an order has due right now (called right after a staff action). */
 export async function dispatchOrder(db: Db, tenantId: string, orderId: string, hooks: Hooks = {}) {
-  const due = await dueForOrder(db, tenantId, orderId);
+  const due = await dueForOrder(db, tenantId, orderId, !!hooks.chargeBalance);
   const results = [];
   for (const d of due) results.push(await dispatchMessage(db, tenantId, d.id, hooks));
   return results;
 }
 
-/** Worker: claim due messages across workspaces (owner connection) and send them with the app connection. */
+/**
+ * Worker: claim due messages across workspaces (owner connection) and send them with the app connection.
+ * One claim per message, so a slow mail server never holds a batch long enough for its lease to run out
+ * (a released message would go out twice).
+ */
 export async function dispatchDue(ownerDb: Db, appDb: Db, hooks: Hooks = {}, limit = 20) {
   await releaseStuckMessages(ownerDb);
-  const claimed = await claimDueMessages(ownerDb, limit);
   const results = [];
-  for (const c of claimed) results.push({ ...c, result: await run(appDb, c.tenantId, c.id, hooks) });
+  for (let i = 0; i < limit; i++) {
+    const [c] = await claimDueMessages(ownerDb, 1);
+    if (!c) break;
+    results.push({ ...c, result: await run(appDb, c.tenantId, c.id, hooks) });
+  }
   return results;
 }

@@ -206,6 +206,15 @@ describe('orders (acceptance tests)', () => {
     expect((await usableCredits(db, tenantId, customerId)).map((c) => c.balanceCents).sort((a, b) => a - b)).toEqual([2000, 18543]);
   });
 
+  it('one credit cannot be spent by three orders saved at the same moment (QA B-05)', async () => {
+    const wc = await createCredit(db, tenantId, actor, customerId, creditSchema.parse({ kind: 'wallet', amount: 100 }));
+    const input = (day: number) => orderInput(t(day, 13), t(day, 17), [{ productId: castleId }], { credits: [{ creditId: wc.id, amount: 100 }] });
+    // Three open connections first, so the saves really run side by side.
+    await Promise.all([1, 2, 3].map(() => app.client`select pg_sleep(0.05)`));
+    const results = await Promise.allSettled([createOrder(db, tenantId, actor, input(10), prefs), createOrder(db, tenantId, actor, input(11), prefs), createOrder(db, tenantId, actor, input(12), prefs)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  });
+
   it('6 · two people booking the last unit at once: exactly one succeeds', async () => {
     const x = await createOrder(db, tenantId, actor, orderInput(t(28, 10), t(28, 12), [{ productId: screenId }]), prefs);
     const y = await createOrder(db, tenantId, actor, orderInput(t(28, 11), t(28, 13), [{ productId: screenId }]), prefs);
@@ -225,6 +234,19 @@ describe('orders (rules)', () => {
     await expect(transitionOrder(db, tenantId, actor, tooSoon.id, 'book', prefs)).rejects.toThrow(/Refused/);
     await transitionOrder(db, tenantId, actor, first.id, 'cancel', prefs);
     await transitionOrder(db, tenantId, actor, tooSoon.id, 'book', prefs);
+  });
+
+  it('the cleanup is kept whichever booking comes first (QA B-07)', async () => {
+    const later = await createOrder(db, tenantId, actor, orderInput(t(23, 14, 30), t(23, 18), [{ productId: screenId }]), prefs);
+    await transitionOrder(db, tenantId, actor, later.id, 'book', prefs);
+    // Ends at 13:00, so its 3 h cleanup runs into the 14:30 booking of the only screen.
+    const earlier = await createOrder(db, tenantId, actor, orderInput(t(23, 10), t(23, 13), [{ productId: screenId }]), prefs);
+    await expect(transitionOrder(db, tenantId, actor, earlier.id, 'book', prefs)).rejects.toThrow(/Refused/);
+  });
+
+  it('one order cannot take more units than exist by listing the product twice (QA B-06)', async () => {
+    const o = await createOrder(db, tenantId, actor, orderInput(t(24, 10), t(24, 13), [{ productId: screenId }, { productId: screenId, serviceMode: 'dropoff' }]), prefs);
+    await expect(transitionOrder(db, tenantId, actor, o.id, 'book', prefs)).rejects.toThrow(/Refused/);
   });
 
   it('serialized stock: a unit in maintenance cannot be booked; services never run out', async () => {
@@ -280,5 +302,59 @@ describe('orders (rules)', () => {
     expect(profile!.orders.length).toBeGreaterThanOrEqual(8);
     expect(profile!.repeat).toBe(true);
     expect(profile!.lifetimeCents).toBeGreaterThan(0);
+  });
+});
+
+describe('price locks: Settings changes never reach a saved order', () => {
+  it('a paid order re-saved after every kind of price change keeps its total; new items and new orders take today’s prices', async () => {
+    const tent = await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Lock Tent', priceStaffed: 300, baseHours: 4, hourlyRate: 50, inventory: { [locationId]: { owned: 3 } } }));
+    const base = orderInput(t(25, 13), t(25, 19), [{ productId: tent.id }], { eventMiles: 30, setupSurface: 'concrete', discount: { kind: 'percent', value: 10 } });
+    const o = await createOrder(db, tenantId, actor, base, prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: o.totalCents / 100 });
+    const paid = (await getOrder(db, tenantId, o.id))!;
+
+    // Everything that can change in Settings or on the product, all at once.
+    const changed = parsePreferences({
+      booking: {
+        ...prefs.booking, travelRateStaffed: 9, freeTravelDistance: 0, depositPercent: 80,
+        setupSurfaces: prefs.booking.setupSurfaces.map((s) => ({ ...s, feeCents: s.feeCents + 5000 })),
+        pricingFormula: { waiverAfterDiscount: true, discountOn: ['travel', 'setup'], couponOn: [], taxOn: [] },
+      },
+    });
+    await updateProduct(db, tenantId, actor, tent.id, productSchema.parse({ name: 'Lock Tent', priceStaffed: 900, baseHours: 1, hourlyRate: 200 }));
+    await owner.db.execute(sql`update tax_rates set rate = 12 where tenant_id = ${tenantId}::uuid and location_id = ${locationId}::uuid`);
+
+    // 1. Re-saved with no edits (what Payment Options does before it opens): nothing moves.
+    const again = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(paid, paid.lines, paid.creditApplications), changed, paid.version);
+    expect(again.order).toMatchObject({ totalCents: paid.totalCents, travelFeeCents: paid.travelFeeCents, taxCents: paid.taxCents, paidCents: paid.totalCents });
+    expect(again.changed).toBe(0);
+    const reloaded = (await getOrder(db, tenantId, o.id))!;
+    expect(reloaded.lines.map((l) => l.id)).toEqual(paid.lines.map((l) => l.id)); // lines keep their ids across saves
+
+    // 2. The customer adds a popcorn machine: only the new item is priced today; the tent stays as agreed.
+    const added = orderInputFrom(reloaded, reloaded.lines, []);
+    added.lines.push({ productId: popcornId, quantity: 1, serviceMode: 'staffed', flatRate: false, taxable: true, overridePrice: null, basePrice: null, extraRate: null });
+    const more = await updateOrder(db, tenantId, actor, o.id, added, changed, reloaded.version);
+    const lines = (await getOrder(db, tenantId, o.id))!.lines;
+    expect(lines.find((l) => l.productId === tent.id)!.lineTotalCents).toBe(paid.lines[0]!.lineTotalCents);
+    expect(more.order.travelFeeCents).toBe(paid.travelFeeCents);
+    expect(Number(more.order.taxPercent)).toBe(Number(paid.taxPercent));
+
+    // 3. A new order today gets today's product price, rates, tax and formula.
+    const fresh = await createOrder(db, tenantId, actor, orderInput(t(26, 13), t(26, 19), [{ productId: tent.id }], { eventMiles: 30, setupSurface: 'concrete' }), changed);
+    expect(fresh.travelFeeCents).toBe(27000); // 30 mi × $9, no free miles
+    expect(Number(fresh.taxPercent)).toBe(12);
+    expect(fresh.pricingRules).toMatchObject({ formula: { waiverAfterDiscount: true }, depositPercent: 80 });
+    await owner.db.execute(sql`update tax_rates set rate = 8.25 where tenant_id = ${tenantId}::uuid and location_id = ${locationId}::uuid`);
+  });
+
+  it('a deliberate change is priced with the order’s own rules: new miles keep the order’s travel rate', async () => {
+    const o = await createOrder(db, tenantId, actor, orderInput(t(27, 13), t(27, 17), [{ productId: popcornId }], { eventMiles: 20 }), prefs);
+    const full = (await getOrder(db, tenantId, o.id))!;
+    const dearer = parsePreferences({ booking: { ...prefs.booking, travelRateStaffed: 9 } });
+    const moved = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(full, full.lines, [], { eventMiles: 40 }), dearer, full.version);
+    // The order's own rate (default $2.50/mi after 10 free) for the extra miles, not today's $9.
+    expect(moved.order.travelFeeCents).toBe(Math.round((40 - prefs.booking.freeTravelDistance) * prefs.booking.travelRateStaffed * 100));
   });
 });

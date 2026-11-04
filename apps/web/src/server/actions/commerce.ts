@@ -21,7 +21,7 @@ import { quoteTravelFee } from '../travel';
 import { readUpload, run } from './run';
 import { dispatchOrder } from '@rental/messaging';
 import { chargeSavedCardForOrder, finishStaffCardPayment, refundToCards, startStaffCardPayment, type StaffCardResult } from '@rental/payments';
-import { listMessages } from '@rental/db';
+import { IMAGE_MAX_BYTES, IMAGE_MIME, listMessages } from '@rental/db';
 
 const refresh = (slug: string) => revalidatePath(`/${slug}`, 'layout');
 const uuid = z.string().uuid();
@@ -34,8 +34,9 @@ export async function saveProductAction(slug: string, id: string | null, formDat
     const parsed = productSchema.safeParse(JSON.parse(String(formData.get('payload') ?? '{}')));
     if (!parsed.success) return invalid(parsed.error);
     const upload = await readUpload(formData.get('image'));
-    if (upload && !/^image\/(png|jpe?g|webp|gif)$/.test(upload.mime)) return { ok: false, error: 'Use a PNG, JPG, WebP or GIF image.' };
-    if (upload && upload.bytes.length > 5 * 1024 * 1024) return { ok: false, error: 'Photos must be under 5 MB.' };
+    // The same rules saveImage applies, said up front.
+    if (upload && !(IMAGE_MIME as readonly string[]).includes(upload.mime)) return { ok: false, error: 'Use a PNG, JPG or WebP image.' };
+    if (upload && upload.bytes.length > IMAGE_MAX_BYTES) return { ok: false, error: 'Photos must be 4 MB or smaller.' };
     const fileId = upload ? await saveImage(db, ctx.tenant.id, ctx.user.id, upload, 'product_image') : undefined;
     const image = fileId ? { fileId } : formData.get('imageRemove') === '1' ? { fileId: null } : null;
     const product = id
@@ -147,6 +148,13 @@ export async function getCustomerAction(slug: string, id: string): Promise<Actio
   });
 }
 
+/** Tax exempt takes the tax off every order of the customer: only a role that may override tax can switch it. */
+async function checkTaxExempt(ctx: Awaited<ReturnType<typeof requirePermission>>, id: string | null, wanted: boolean) {
+  if (ctx.can('orders.override_tax')) return;
+  const was = id ? (await getCustomer(db, ctx.tenant.id, uuid.parse(id)))?.taxExempt ?? false : false;
+  if (wanted !== was) throw new ActionError('Your role cannot mark customers tax exempt. Ask a manager.');
+}
+
 export async function saveCustomerAction(
   slug: string,
   id: string | null,
@@ -157,6 +165,7 @@ export async function saveCustomerAction(
     const ctx = await requirePermission(slug, 'customers.manage');
     const parsed = customerSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    await checkTaxExempt(ctx, id, parsed.data.taxExempt);
     if (!opts.allowDuplicate) {
       const dupes = await findDuplicateCustomers(db, ctx.tenant.id, parsed.data.email, parsed.data.phone, id ?? undefined);
       if (dupes.length) {
@@ -254,6 +263,18 @@ async function checkOverrides(ctx: Awaited<ReturnType<typeof requirePermission>>
       if (!l.productId || l.overridePrice == null) continue;
       if (had.get(l.productId) !== Math.round(l.overridePrice * 100)) throw new ActionError('Your role cannot change unit prices. Ask a manager.');
     }
+    // Custom items, the order discount and a manual coupon amount set prices too: they may stay as they
+    // were on the order, but only a role (or person) with price override may set or change them.
+    const customs = new Set((before?.lines ?? []).filter((l) => !l.productId).map((l) => `${l.name}:${l.unitCents}`));
+    for (const l of input.lines) {
+      if (l.productId || !l.overridePrice) continue;
+      if (!customs.has(`${l.name ?? 'Custom item'}:${Math.round(l.overridePrice * 100)}`)) throw new ActionError('Your role cannot price custom items. Ask a manager.');
+    }
+    const discountWas = before?.discountKind ? `${before.discountKind}:${Number(before.discountValue)}` : '';
+    const discountNow = input.discount && input.discount.value > 0 ? `${input.discount.kind}:${input.discount.value}` : '';
+    if (discountNow && discountNow !== discountWas) throw new ActionError('Your role cannot give discounts. Ask a manager.');
+    const manualWas = before && !before.couponCode ? before.couponCents : 0;
+    if (!input.couponCode && input.coupon > 0 && Math.round(input.coupon * 100) !== manualWas) throw new ActionError('Your role cannot enter a coupon amount. Use a coupon code, or ask a manager.');
     // The locked base package and additional-time rate: kept from the order as it was, else the product's price today.
     const locked = new Map((before?.lines ?? []).filter((l) => l.productId).map((l) => [`${l.productId}:${l.serviceMode}`, l]));
     for (const l of input.lines) {
@@ -310,7 +331,8 @@ export async function duplicateOrderAction(slug: string, id: string): Promise<Ac
   });
 }
 
-const actionSchema = z.enum(['send_quote', 'book', 'complete', 'cancel', 'reopen']);
+// Cancelling goes through cancelOrderAction, which settles what was paid and needs the refund permission.
+const actionSchema = z.enum(['send_quote', 'book', 'complete', 'reopen']);
 const ACTION_DONE: Record<OrderAction, string> = {
   send_quote: 'Marked as quote sent. Quotes still hold nothing; emailing them arrives in Phase 2.',
   book: 'Booked. The equipment is held, including the cleanup time.',
@@ -391,6 +413,7 @@ const paymentSchema = z.object({
   reference: z.string().trim().max(80).optional(),
   note: z.string().trim().max(500).optional(),
   receipt: z.boolean().default(true),
+  requestKey: z.string().uuid().optional(),
 });
 
 export async function recordPaymentAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ number: string }>> {
@@ -553,6 +576,7 @@ export async function quickCustomerAction(slug: string, input: unknown): Promise
     const ctx = await requirePermission(slug, 'customers.manage');
     const parsed = customerSchema.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
+    await checkTaxExempt(ctx, null, parsed.data.taxExempt);
     const dupes = await findDuplicateCustomers(db, ctx.tenant.id, parsed.data.email, parsed.data.phone);
     if (dupes.length) return { ok: false, error: `${dupes[0]!.displayName} already uses this email or phone. Search for them instead.` };
     const c = await createCustomer(db, ctx.tenant.id, ctx.actor, parsed.data);
@@ -578,8 +602,8 @@ export async function uploadSetupMapAction(slug: string, formData: FormData): Pr
 
 /**
  * Cancel an order and settle what was paid (wallet credit, refund or rain check).
- * Card refunds are made at the gateway first, so money only moves when the
- * gateway says yes; then the cancel is recorded in one transaction.
+ * Card refunds are written as pending, made at the gateway, then confirmed with
+ * the cancel in one transaction (a failed cancel keeps them; a retry reuses them).
  */
 export async function cancelOrderAction(slug: string, id: string, input: unknown): Promise<ActionResult<{ outcome: string; code: string | null }>> {
   return run<{ outcome: string; code: string | null }>(async () => {
@@ -591,7 +615,7 @@ export async function cancelOrderAction(slug: string, id: string, input: unknown
     const o = await getOrder(db, ctx.tenant.id, orderId);
     if (!o) return { ok: false, error: 'Order not found.' };
     if (c.outcome !== 'none' && Math.round(c.amount * 100) > o.paidCents) return { ok: false, error: 'That is more than was paid.' };
-    const done = c.outcome === 'refund' ? await refundToCards(db, ctx.tenant.id, orderId, Math.round(c.amount * 100), `Cancelled ${o.number}: ${c.reason}`) : [];
+    const done = c.outcome === 'refund' ? await refundToCards(db, ctx.tenant.id, ctx.actor, orderId, Math.round(c.amount * 100), `Cancelled ${o.number}: ${c.reason}`) : [];
     const r = await cancelOrder(db, ctx.tenant.id, ctx.actor, orderId, ctx.prefs, c, done);
     // No revalidatePath: it would refresh this page mid-result (the new version remounts the editor).
     // Every page is rendered per request, so others are fresh anyway; Done reloads the order.

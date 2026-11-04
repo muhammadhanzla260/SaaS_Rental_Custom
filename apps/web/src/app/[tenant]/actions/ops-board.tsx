@@ -9,9 +9,9 @@ import { Button, Card, cx, EmptyState, Pill, Segmented, Select, useToast } from 
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { opsCardAction } from '@/server/actions/ops';
 
-const DOT: Record<OpsRule, string> = { deposit: 'bg-[#f59e0b]', final_payment: 'bg-danger', call: 'bg-[#1d5fc4]', contact: 'bg-[#0e7490]', quote: 'bg-[#7c3aed]' };
+const DOT: Record<OpsRule, string> = { deposit: 'bg-[#f59e0b]', final_payment: 'bg-danger', call: 'bg-[#1d5fc4]', contact: 'bg-[#0e7490]', quote: 'bg-[#7c3aed]', refund: 'bg-[#15803d]' };
 const ACTION_LABEL: Record<OpsAction, string> = {
-  pay_link: 'Send pay link', retry_charge: 'Retry charge', mark_called: 'Mark called', text_contact: 'Text contact', follow_up: 'Follow up', open: 'Open order',
+  pay_link: 'Send pay link', retry_charge: 'Retry charge', mark_called: 'Mark called', text_contact: 'Text contact', follow_up: 'Follow up', refund_now: 'Refund now', open: 'Open order',
 };
 const TONE = { overdue: 'bg-danger-bg text-danger', today: 'bg-warning-bg text-warning-fg', soon: 'bg-sunken text-fg', later: 'bg-sunken text-fg-2' } as const;
 
@@ -41,10 +41,10 @@ function Tile({ label, value, sub, subTone, bars, color }: { label: string; valu
 }
 
 export function OpsBoard({
-  slug, columns, cards, kpis, tomorrow, locations, locationId, show, canAct, canCharge,
+  slug, columns, cards, kpis, tomorrow, locations, locationId, show, canAct, canCharge, canRefund,
 }: {
   slug: string; columns: { rule: OpsRule; label: string }[]; cards: OpsCard[]; kpis: ActionNeeded['kpis']; tomorrow: ActionNeeded['tomorrow'];
-  locations: { id: string; name: string }[]; locationId: string; show: 'all' | 'today'; canAct: boolean; canCharge: boolean;
+  locations: { id: string; name: string }[]; locationId: string; show: 'all' | 'today'; canAct: boolean; canCharge: boolean; canRefund: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -107,7 +107,7 @@ export function OpsBoard({
                     </header>
                     {list.length === 0 && <p className="px-1 pb-2 text-[13px] text-fg-3">Nothing here.</p>}
                     {list.map((c) => {
-                      const can = c.action === 'retry_charge' ? canCharge : canAct;
+                      const can = c.action === 'retry_charge' ? canCharge : c.action === 'refund_now' ? canRefund : canAct;
                       return (
                         <article key={`${c.orderId}:${c.rule}`} className={cx('anim-rise flex flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3.5', c.tone === 'overdue' ? 'border-danger/40 shadow-[0_0_0_3px_rgb(220_38_38/0.08)]' : 'border-subtle')}>
                           <div className="flex items-center justify-between gap-2">

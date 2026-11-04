@@ -38,9 +38,11 @@ export async function isSlugAvailable(db: Db, slug: string): Promise<boolean> {
   return !row?.taken;
 }
 
+/** The app role may read only the current workspace's row, so the slug is resolved to an id first. */
 export async function getTenantBySlug(db: Db, slug: string): Promise<Tenant | null> {
-  const rows = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
-  return rows[0] ?? null;
+  const [hit] = await db.execute<{ id: string | null }>(sql`select app_tenant_id_by_slug(${slug}) as id`);
+  if (!hit?.id) return null;
+  return withTenant(db, hit.id, async (tx) => (await tx.select().from(tenants).where(eq(tenants.id, hit.id!)).limit(1))[0] ?? null);
 }
 
 export type UserTenant = {
@@ -74,12 +76,16 @@ export type WorkspaceInput = {
 export async function createWorkspace(db: Db, owner: { userId: string; ip?: string | null } | null, input: WorkspaceInput, actor?: Actor): Promise<Tenant> {
   if (!(await isSlugAvailable(db, input.slug))) throw new OrgError('That workspace URL is already taken.', 'slug_taken');
   return db.transaction(async (tx) => {
+    // The new row is only readable as the current workspace, so become it before inserting.
+    const id = randomUUID();
+    await tx.execute(sql`select set_config('app.tenant_id', ${id}, true)`);
     const region = detectRegion(input.country, null, input.deviceTimezone);
     const currency = input.currency ?? (CURRENCIES.some((c) => c.code === region.currency) ? region.currency : 'USD');
     const prefs: TenantPreferences = tenantPreferencesSchema.parse({ formats: region.formats });
     const [tenant] = await tx
       .insert(tenants)
       .values({
+        id,
         slug: input.slug,
         name: input.name,
         status: input.status ?? 'trial',
@@ -391,12 +397,13 @@ export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Product photos and other public images (PNG, JPG, WebP up to 4 MB). */
 export const DOCUMENT_MIME = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'] as const;
-export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+/** 4 MB: the host refuses request bodies over 4.5 MB (the browser shrinks photos before sending). */
+export const DOCUMENT_MAX_BYTES = 4 * 1024 * 1024;
 
 /** A private document for the team (setup map): image or PDF, members only. Returns the file id. */
 export async function saveDocument(db: Db, tenantId: string, userId: string, file: UploadedFile, purpose: string) {
   if (!(DOCUMENT_MIME as readonly string[]).includes(file.mime)) throw new OrgError('Upload an image (PNG, JPG, WebP) or a PDF.', 'invalid');
-  if (file.bytes.length > DOCUMENT_MAX_BYTES) throw new OrgError('The file must be 10 MB or smaller.', 'invalid');
+  if (file.bytes.length > DOCUMENT_MAX_BYTES) throw new OrgError('The file must be 4 MB or smaller.', 'invalid');
   return withTenant(db, tenantId, (tx) => storeFile(tx, tenantId, userId, file, purpose, false));
 }
 

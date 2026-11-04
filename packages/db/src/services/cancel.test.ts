@@ -13,7 +13,12 @@ import { tenants, users } from '../schema';
 import { usableCredits } from './customers';
 import { listLocations } from './locations';
 import { createProduct, productAvailability } from './catalog';
-import { cancelOrder, createOrder, getOrder, planRefund, refundablePayments, rescheduleOrder, transitionOrder } from './orders';
+import { recordGatewayPayment } from './money';
+import { actionNeeded } from './ops';
+import {
+  cancelOrder, createOrder, getOrder, markRefundSent, owedRefund, planRefund, prepareCardRefunds, refundablePayments, rescheduleOrder, resolveOverpayment,
+  orderInputFrom, recordPayment, settleOwedRefund, settleStalePendingRefund, transitionOrder, updateOrder,
+} from './orders';
 import { setupOrganization, updatePreferences } from './organizations';
 
 const app = createDb(process.env.DATABASE_URL!, { max: 4 });
@@ -106,6 +111,51 @@ describe('cancel with a money outcome', () => {
     expect(await refundablePayments(db, tenantId, o.id)).toEqual([]);
   });
 
+  it('card refunds are written before the gateway is asked; a retry reuses them and the cancel confirms them (QA B-15)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(54)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { paymentFollows: true });
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_b15_${run}`, amountCents: 10000, brand: 'visa', last4: '4242' });
+    const first = await prepareCardRefunds(db, tenantId, actor, o.id, 6000, 'Cancelled');
+    expect(first).toMatchObject([{ cents: 6000, intentRef: `pi_b15_${run}`, gatewayRef: null }]);
+    // The gateway made it, then the cancel failed: the retry gets the same row, not a second refund.
+    await markRefundSent(db, tenantId, first[0]!.id, `re_b15_${run}`);
+    const again = await prepareCardRefunds(db, tenantId, actor, o.id, 6000, 'Cancelled');
+    expect(again).toMatchObject([{ id: first[0]!.id, gatewayRef: `re_b15_${run}` }]);
+    // While it is pending, that money cannot be planned again.
+    expect((await refundablePayments(db, tenantId, o.id))[0]!.refundableCents).toBe(4000);
+    const done = again.map((r) => ({ paymentId: r.paymentId, cents: r.cents, gateway: 'stripe', method: 'card', ref: r.gatewayRef, refundId: r.id }));
+    const r = await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Customer changed plans', outcome: 'refund', amount: 60 }, done);
+    expect(r.refunds).toMatchObject([{ id: first[0]!.id, status: 'done', gatewayRef: `re_b15_${run}`, amountCents: 6000 }]);
+    expect(r.order.paidCents).toBe(4000);
+  });
+
+  it('a card refund whose cancel never went through is recorded an hour later, and the office is told (QA B-15)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(56)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { paymentFollows: true });
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_stale_${run}`, amountCents: 9000, brand: 'visa', last4: '4242' });
+    const [p] = await prepareCardRefunds(db, tenantId, actor, o.id, 9000, 'Cancelled');
+    expect(await settleStalePendingRefund(db, tenantId, p!.id, `re_stale_${run}`)).toBe('done');
+    expect((await getOrder(db, tenantId, o.id))!).toMatchObject({ status: 'booked', paidCents: 0 });
+    expect((await messagesOf(o.id)).some((m) => m.type === 'payment_alert')).toBe(true);
+  });
+
+  it('"refund the overpayment" is owed on the Ops board until it is given back (QA B-16)', async () => {
+    const o = await bookedWithDeposit(day(57));
+    // The customer pays the whole balance by check, plus $50 too much.
+    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'check', amount: (o.totalCents - o.paidCents) / 100 + 50 });
+    const over = (await getOrder(db, tenantId, o.id))!;
+    expect(over.paidCents - over.totalCents).toBe(5000);
+    await resolveOverpayment(db, tenantId, actor, o.id, 'refund');
+    const owed = await owedRefund(db, tenantId, o.id);
+    expect(owed!.refund).toMatchObject({ status: 'owed', amountCents: 5000, method: 'check', gateway: 'manual' });
+    const board = await actionNeeded(db, tenantId, { currency: 'USD' });
+    expect(board.cards.find((c) => c.orderId === o.id && c.rule === 'refund')).toMatchObject({ action: 'refund_now' });
+    await settleOwedRefund(db, tenantId, actor, owed!.refund.id, null);
+    expect(await owedRefund(db, tenantId, o.id)).toBeNull();
+    expect((await actionNeeded(db, tenantId, { currency: 'USD' })).cards.some((c) => c.orderId === o.id && c.rule === 'refund')).toBe(false);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(over.totalCents);
+  });
+
   it('rain check: an RC credit valid for the workspace’s months, the order shows as rained out', async () => {
     const o = await bookedWithDeposit(day(43));
     const r = await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Weather', outcome: 'rain_check', amount: 185.43, goodwill: 10 });
@@ -129,5 +179,84 @@ describe('reschedule', () => {
     const full = (await getOrder(db, tenantId, o.id))!;
     expect(full.versions[0]!.reason).toContain('Rescheduled');
     expect(taken.status).toBe('booked');
+  });
+});
+
+describe('editing a booked order (Odoo: the obstacle course that came back onto an order)', () => {
+  const newLine = (productId: string) => ({ productId, quantity: 1, serviceMode: 'staffed' as const, flatRate: false, taxable: true, overridePrice: null, basePrice: null, extraRate: null });
+
+  it('swapping one item for another sticks through every later save and frees the removed item', async () => {
+    const extreme = (await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Extreme Obstacle', priceStaffed: 500, baseHours: 4, inventory: { [locationId]: { owned: 1 } } }))).id;
+    const american = (await createProduct(db, tenantId, actor, productSchema.parse({ name: 'American Obstacle', priceStaffed: 450, baseHours: 4, inventory: { [locationId]: { owned: 1 } } }))).id;
+    const date = day(60);
+    const o = await createOrder(db, tenantId, actor, input(date, { lines: [{ productId: extreme, quantity: 1 }, { productId: popcornId, quantity: 1 }] }), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs, { booking: { method: 'manual', payMethod: 'check', amount: o.depositDueCents / 100 } });
+    const booked = (await getOrder(db, tenantId, o.id))!;
+    const popcornBefore = booked.lines.find((l) => l.productId === popcornId)!;
+
+    const swap = orderInputFrom(booked, booked.lines, []);
+    swap.lines = [...swap.lines.filter((l) => l.productId !== extreme), newLine(american)];
+    await updateOrder(db, tenantId, actor, o.id, swap, prefs, booked.version);
+
+    // Saved again twice more with no edits (Payment Options, an internal note...): still swapped.
+    for (let i = 0; i < 2; i++) {
+      const now = (await getOrder(db, tenantId, o.id))!;
+      await updateOrder(db, tenantId, actor, o.id, orderInputFrom(now, now.lines, []), prefs, now.version);
+    }
+    const after = (await getOrder(db, tenantId, o.id))!;
+    expect(after.lines.map((l) => l.productId).sort()).toEqual([american, popcornId].sort());
+    expect(after.lines.find((l) => l.productId === popcornId)!.lineTotalCents).toBe(popcornBefore.lineTotalCents);
+    const held = await withTenant(db, tenantId, (tx) => tx.execute<{ product_id: string }>(sql`select product_id from reservations where tenant_id = ${tenantId}::uuid and order_id = ${o.id}::uuid`));
+    expect([...held].map((r) => r.product_id).sort()).toEqual([american, popcornId].sort());
+    // The Extreme is free again for the same time, the American is not.
+    const avail = await productAvailability(db, tenantId, locationId, at(date, '14:00'), at(date, '15:00'));
+    expect(avail[extreme]).toMatchObject({ free: 1 });
+    expect(avail[american]).toMatchObject({ free: 0 });
+    expect(after.versions.some((v) => Object.values(v.diff as Record<string, { from: string; to: string }>).some((c) => c.from.includes('Extreme') && !c.to.includes('Extreme')))).toBe(true);
+  });
+
+  it('a multi-day booking can be lengthened and shortened; the stock follows the new dates', async () => {
+    const tent = (await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Frame Tent', priceStaffed: 800, baseHours: 4, inventory: { [locationId]: { owned: 1 } } }))).id;
+    const start = day(70);
+    const o = await createOrder(db, tenantId, actor, input(start, { multiDay: true, startsAt: at(start, '10:00'), endsAt: at(day(72), '10:00'), lines: [{ productId: tent, quantity: 1 }] }), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    const full = (await getOrder(db, tenantId, o.id))!;
+    // Lengthened by two days: the tent is now busy on day 73.
+    const longer = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(full, full.lines, [], { endsAt: at(day(74), '10:00') }), prefs, full.version);
+    expect(longer.order.eventEndsAt.toISOString()).toBe(at(day(74), '10:00').toISOString());
+    expect((await productAvailability(db, tenantId, locationId, at(day(73), '12:00'), at(day(73), '13:00')))[tent]).toMatchObject({ free: 0 });
+    const other = await createOrder(db, tenantId, actor, input(day(73), { lines: [{ productId: tent, quantity: 1 }] }), prefs);
+    await expect(transitionOrder(db, tenantId, actor, other.id, 'book', prefs)).rejects.toThrow(/Refused/);
+    // Shortened back: day 73 is free again and the other booking goes through.
+    const now = (await getOrder(db, tenantId, o.id))!;
+    await updateOrder(db, tenantId, actor, o.id, orderInputFrom(now, now.lines, [], { endsAt: at(day(72), '10:00') }), prefs, now.version);
+    await transitionOrder(db, tenantId, actor, other.id, 'book', prefs);
+  });
+});
+
+describe('rain checks', () => {
+  it('a rain check is spent in full on a bigger order, and what is left of a bigger rain check stays for next time', async () => {
+    const first = await bookedWithDeposit(day(80)); // $185.43 paid
+    const rc = (await cancelOrder(db, tenantId, actor, first.id, prefs, { reason: 'Weather', outcome: 'rain_check', amount: 185.43 })).credit!;
+    // Applied in full to a $618 order.
+    const next = await createOrder(db, tenantId, actor, input(day(81), { credits: [{ creditId: rc.id, amount: 185.43 }] }), prefs);
+    expect(next.creditCents).toBe(18543);
+    expect((await usableCredits(db, tenantId, customerId)).find((c) => c.id === rc.id)).toBeUndefined();
+
+    // A $300 rain check on an $81 popcorn-only order: $81 is used, the rest stays on the customer.
+    const second = await bookedWithDeposit(day(82));
+    await recordPayment(db, tenantId, actor, second.id, prefs, { method: 'cash', amount: 300 - 185.43 });
+    const big = (await cancelOrder(db, tenantId, actor, second.id, prefs, { reason: 'Weather', outcome: 'rain_check', amount: 300 })).credit!;
+    const small = await createOrder(db, tenantId, actor, input(day(83), { lines: [{ productId: popcornId, quantity: 1 }], credits: [{ creditId: big.id, amount: 300 }] }), prefs);
+    expect(small.totalCents).toBe(0);
+    const left = (await usableCredits(db, tenantId, customerId)).find((c) => c.id === big.id)!;
+    expect(left.balanceCents).toBe(30000 - small.creditCents);
+  });
+
+  it('an expired rain check cannot be used', async () => {
+    const o = await bookedWithDeposit(day(84));
+    const rc = (await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Weather', outcome: 'rain_check', amount: 185.43 })).credit!;
+    await owner.db.execute(sql`update credits set valid_until = '2020-01-01' where tenant_id = ${tenantId}::uuid and id = ${rc.id}::uuid`);
+    await expect(createOrder(db, tenantId, actor, input(day(85), { credits: [{ creditId: rc.id, amount: 10 }] }), prefs)).rejects.toThrow(/no longer available/);
   });
 });

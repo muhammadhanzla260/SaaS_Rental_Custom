@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "coach_notes" text;

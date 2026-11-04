@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { policyText, parseLocationSettings, resolveAgreement, type ServiceMode } from '@rental/core';
 import {
   getCustomer, getFile, getOrder, getPaymentCredentials, latestSignature, listCategories, refundablePayments, listLocations, listProducts, listSalespeople, orderInvoices, pricingOf,
-  savedCard, travelRules, usableCredits,
+  pricingLocksOf, savedCard, travelRules, usableCredits,
 } from '@rental/db';
 import { fileUrl } from '@/lib/urls';
 import { pageContext } from '@/server/guards';
@@ -84,6 +84,7 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
       cleanupMinutes: prefs.booking.cleanupBufferMinutes,
       locationFeeCents: prefs.booking.eventLocationFeeCents,
       minimumBookingCents: prefs.booking.minimumBookingCents,
+      formula: prefs.booking.pricingFormula,
     },
     products: products
       .filter((p) => p.status === 'active' || usedIds.has(p.id))
@@ -145,8 +146,9 @@ export async function loadBuilder(slug: string, orderId: string | null, opts: { 
           copiedFrom: created
             ? { number: /Copied from (\S+)/.exec(created.reason ?? '')?.[1] ?? null, startsAt: createdAs.Starts ?? null, endsAt: createdAs.Ends ?? null }
             : null,
+          locks: pricingLocksOf(order, order.lines, prefs),
           lines: order.lines.map((l) => ({
-            productId: l.productId, name: l.name, serviceMode: l.serviceMode as ServiceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
+            id: l.id, productId: l.productId, name: l.name, serviceMode: l.serviceMode as ServiceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
             unitCents: l.unitCents, priceOverridden: l.priceOverridden, setupSurface: l.setupSurface, baseCents: l.baseCents, extraRateCents: l.extraRateCents,
           })),
           credits: order.creditApplications.map((a) => ({ creditId: a.creditId, amountCents: a.amountCents })),

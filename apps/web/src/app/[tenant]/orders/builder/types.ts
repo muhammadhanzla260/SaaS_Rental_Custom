@@ -1,4 +1,4 @@
-import type { ProductPricing, Role, ServiceMode } from '@rental/core';
+import type { PricingFormula, PricingLocks, ProductPricing, Role, ServiceMode } from '@rental/core';
 
 export type Addr = { line1: string; line2: string; city: string; region: string; postalCode: string; country: string; lat?: number; lng?: number };
 
@@ -41,7 +41,9 @@ export type BuilderOrder = {
   unpaidReason: string | null; expectedPaymentOn: string | null; followUpNotes: string | null; cancelReason: string | null; bookedAt: string | null;
   /** Made with Duplicate order: the original's number, and the date and time as copied (ISO), for the same-date warning. */
   copiedFrom: { number: string | null; startsAt: string | null; endsAt: string | null } | null;
-  lines: { productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null; baseCents: number | null; extraRateCents: number | null }[];
+  lines: { id: string; productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean; unitCents: number; priceOverridden: boolean; setupSurface: string | null; baseCents: number | null; extraRateCents: number | null }[];
+  /** What the order was priced with (rules, tax, travel, each line); Settings changes since do not apply. */
+  locks: PricingLocks;
   credits: { creditId: string; amountCents: number }[];
   payments: { id: string; number: string; method: string; amountCents: number; tipCents: number; reference: string | null; receivedAt: string; status: string; cardLast4: string | null }[];
   invoices: { id: string; number: string; kind: string; amountCents: number; paidCents: number; status: string; dueOn: string | null; autoCharge: boolean }[];
@@ -55,6 +57,8 @@ export type BuilderData = {
   locations: BuilderLocation[]; defaultLocationId: string | null; defaultDate: string | null;
   booking: {
     surfaces: { code: string; label: string; feeCents: number }[]; waiverPercent: number; waiverDefaultOn: boolean; depositPercent: number;
+    /** Today's price formula, for new orders (a saved order uses its own, in order.locks). */
+    formula: PricingFormula;
     cleanupMinutes: number; locationFeeCents: number; minimumBookingCents: number;
   };
   products: BuilderProduct[]; categories: { id: string; name: string }[]; salespeople: { userId: string; name: string }[];
@@ -77,6 +81,8 @@ export type BuilderData = {
 /** One editable line in the builder. `price` is the typed unit price ('' = automatic). */
 export type DraftLine = {
   key: string; productId: string | null; name: string; serviceMode: ServiceMode; quantity: number; taxable: boolean; flatRate: boolean;
+  /** The saved line this is; keeps what it was priced with. Absent for a line added in the builder. */
+  lineId?: string | null;
   price: string; setupSurface: string | null;
   /** Locked on the order (Odoo): the mode's base package and the additional-time rate, in dollars. '' = the product's price. */
   basePrice: string; extraRate: string;

@@ -3,6 +3,7 @@ import { CREDIT_KINDS, customerSchema, type CreditInput, type CustomerAddressInp
 import { withTenant, type Db, type Tx } from '../client';
 import { creditApplications, credits, customerAddresses, customers, orders } from '../schema';
 import { audit, diff, type Actor } from './audit';
+import { localToday } from './clock';
 import { OrgError } from './errors';
 
 export type Customer = typeof customers.$inferSelect;
@@ -111,7 +112,7 @@ async function openCredits(tx: Tx, tenantId: string, customerIds: string[], exce
     .from(credits)
     .where(and(eq(credits.tenantId, tenantId), inArray(credits.customerId, customerIds), isNull(credits.voidedAt)))
     .orderBy(asc(credits.createdAt));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await localToday(tx, tenantId);
   return rows.map((r) => {
     const balanceCents = Math.max(0, r.credit.amountCents - Number(r.used));
     const expired = !!r.credit.validUntil && r.credit.validUntil < today;

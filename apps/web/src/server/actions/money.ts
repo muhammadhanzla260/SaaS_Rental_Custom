@@ -52,6 +52,7 @@ const paySchema = z.object({
   tip: z.coerce.number().min(0).max(100_000).optional().default(0),
   reference: z.string().trim().max(80).optional(),
   receipt: z.boolean().default(true),
+  requestKey: z.string().uuid().optional(),
 });
 
 export async function recordInvoicePaymentAction(slug: string, input: unknown): Promise<ActionResult<{ number: string | null }>> {
@@ -77,7 +78,7 @@ export async function recordInvoicePaymentAction(slug: string, input: unknown): 
       return { ok: true, data: { number: r.number }, message: `Charged ${r.brand ? r.brand.toUpperCase() : 'card'} •${r.last4} · ${r.number}.` };
     }
     const r = await recordPayment(db, ctx.tenant.id, ctx.actor, inv.order.id, ctx.prefs, {
-      method: d.method, amount: d.amount, tip: d.tip, invoiceId: d.invoiceId, reference: d.reference, receipt: d.receipt,
+      method: d.method, amount: d.amount, tip: d.tip, invoiceId: d.invoiceId, reference: d.reference, receipt: d.receipt, requestKey: d.requestKey,
     });
     refresh(slug);
     after(() => dispatchOrder(db, ctx.tenant.id, r.order.id).catch((e) => console.error('[dispatch]', e)));

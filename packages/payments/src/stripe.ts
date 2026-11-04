@@ -93,13 +93,44 @@ export async function chargeSaved(
   }
 }
 
-/** Refund a card payment (all of it, or `amountCents`). Returns the gateway's refund id. */
-export async function refundIntent(stripe: Stripe, intentId: string, reason: string, amountCents?: number) {
+/**
+ * Refund a card payment (all of it, or `amountCents`). Returns the gateway's refund id.
+ * `rowId` is our refunds row written before the call: it is the idempotency key, so asking
+ * again can never refund twice. Our refunds are marked, so the reconciler leaves them alone.
+ */
+export async function refundIntent(stripe: Stripe, intentId: string, reason: string, amountCents?: number, rowId?: string) {
   const r = await stripe.refunds.create(
-    { payment_intent: intentId, ...(amountCents ? { amount: amountCents } : {}), reason: 'requested_by_customer', metadata: { note: reason.slice(0, 400) } },
-    { idempotencyKey: `refund:${intentId}:${amountCents ?? 'all'}` },
+    {
+      payment_intent: intentId, ...(amountCents ? { amount: amountCents } : {}), reason: 'requested_by_customer',
+      metadata: { note: reason.slice(0, 400), source: 'tentpole', ...(rowId ? { refund_row: rowId } : {}) },
+    },
+    { idempotencyKey: rowId ? `refund-row:${rowId}` : `refund:${intentId}:${amountCents ?? 'all'}` },
   );
   return r.id;
+}
+
+/** Refunds Stripe has already made for a payment that came from our refunds row (a retry after a crash). */
+export async function refundForRow(stripe: Stripe, intentId: string, rowId: string) {
+  const list = await stripe.refunds.list({ payment_intent: intentId, limit: 100 });
+  return list.data.find((r) => r.metadata?.refund_row === rowId && r.status !== 'failed' && r.status !== 'canceled')?.id ?? null;
+}
+
+/** The PaymentIntents made for an order (Stripe search, which can be a minute behind). */
+export async function orderIntents(stripe: Stripe, orderId: string) {
+  try {
+    return (await stripe.paymentIntents.search({ query: `metadata['order_id']:'${orderId}'`, limit: 50 })).data;
+  } catch {
+    return [];
+  }
+}
+
+/** Close a pay form's PaymentIntent that is no longer needed (the balance was paid another way). */
+export async function cancelIntent(stripe: Stripe, id: string) {
+  try {
+    await stripe.paymentIntents.cancel(id);
+  } catch {
+    // Already confirmed or cancelled: nothing to do.
+  }
 }
 
 /** Check a secret key before saving it (Settings → Connect). */

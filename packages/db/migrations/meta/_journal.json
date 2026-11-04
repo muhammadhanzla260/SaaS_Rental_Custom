@@ -232,6 +232,69 @@
       "when": 1793269554567,
       "tag": "0032_supabase_api_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793298685076,
+      "tag": "0033_coach_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793298760336,
+      "tag": "0034_coach_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793707105948,
+      "tag": "0036_qa_fixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793708191772,
+      "tag": "0037_refund_owed_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793708265838,
+      "tag": "0038_refund_updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793722312214,
+      "tag": "0039_audit_partitions_utc",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793722845281,
+      "tag": "0040_location_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793723117489,
+      "tag": "0041_tenants_read_own",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793725063971,
+      "tag": "0042_price_locks",
+      "breakpoints": true
     }
   ]
 }

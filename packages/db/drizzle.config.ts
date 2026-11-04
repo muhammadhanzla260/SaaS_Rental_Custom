@@ -9,6 +9,7 @@ export default defineConfig({
   schema: [
     './src/schema/auth.ts', './src/schema/org.ts', './src/schema/commerce.ts',
     './src/schema/platform.ts', './src/schema/integrations.ts', './src/schema/messaging.ts',
+    './src/schema/coach.ts',
   ],
   out: './migrations',
   dbCredentials: { url: process.env.DATABASE_URL_OWNER ?? '' },

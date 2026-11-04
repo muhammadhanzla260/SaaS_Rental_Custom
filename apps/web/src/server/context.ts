@@ -2,10 +2,11 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
-import { can, parsePreferences, SETTINGS_ROLES, type Permission, type Role } from '@rental/core';
-import { activeImpersonation, isPlatformAdmin, resolveTenantMembership, type Actor } from '@rental/db';
+import { can, FIELD_ROLES, LOCATION_SCOPED_ROLES, parsePreferences, SETTINGS_ROLES, type Permission, type Role } from '@rental/core';
+import { activeImpersonation, isPlatformAdmin, memberLocationIds, resolveTenantMembership, type Actor } from '@rental/db';
 import { auth } from './auth';
 import { db } from './db';
+import { setRequestLocations } from './scope';
 
 export const getSession = cache(async () => auth.api.getSession({ headers: await headers() }));
 
@@ -41,6 +42,11 @@ export const getTenantContext = cache(async (slug: string) => {
   }
 
   const role: Role = membership ? (membership.role as Role) : 'viewer';
+  // A Manager or Sales member limited to some locations sees only those (row-level security does it).
+  // Coach and crew are limited by their assignments instead.
+  if (membership && LOCATION_SCOPED_ROLES.includes(role) && !FIELD_ROLES.includes(role)) {
+    setRequestLocations(await memberLocationIds(db, tenant.id, membership));
+  }
   const extra = membership?.permissions ?? [];
   const suspended = tenant.status === 'suspended';
   const readOnly = suspended || !!impersonation;

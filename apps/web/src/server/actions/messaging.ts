@@ -41,6 +41,7 @@ const mailForm = z.object({
   mail: mailAccountSchema,
   replyTo: z.union([z.literal(''), z.email('Enter a valid email address.')]).default(''),
   cc: z.string().max(500).default(''),
+  ccOn: z.record(z.string(), z.boolean()).default({}),
   bcc: z.string().max(500).default(''),
   alertsTo: z.string().max(500).default(''),
   sms: smsAccountSchema,
@@ -60,7 +61,7 @@ export async function saveMailServerAction(slug: string, input: unknown): Promis
     }
     await saveMailAccount(db, ctx.tenant.id, ctx.actor, null, { ...f.mail, replyTo: f.replyTo || undefined });
     await saveSmsAccount(db, ctx.tenant.id, ctx.actor, f.sms);
-    await updatePreferences(db, ctx.tenant.id, ctx.actor, 'messaging', { ...ctx.prefs.messaging, replyTo: f.replyTo, ...lists });
+    await updatePreferences(db, ctx.tenant.id, ctx.actor, 'messaging', { ...ctx.prefs.messaging, replyTo: f.replyTo, ...lists, ccTypes: f.ccOn });
     refresh(slug);
     return { ok: true, message: 'Mail server and texts saved.' };
   });

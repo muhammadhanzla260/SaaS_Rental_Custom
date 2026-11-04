@@ -12,7 +12,7 @@ import '../../scripts/env';
 import { createDb, withTenant } from '../client';
 import { auditLog, locations, mailAccounts, memberships, tenants, users } from '../schema';
 import {
-  createWorkspace, getFile, isSlugAvailable, launchWorkspace, listUserTenants, markOnboarding, OrgError,
+  createWorkspace, getFile, getTenantBySlug, isSlugAvailable, launchWorkspace, listUserTenants, markOnboarding, OrgError,
   resolveTenantMembership, saveBrandStep, saveLogo, saveProfileStep, saveWarehouseStep, updatePreferences,
 } from './organizations';
 import { createLocation, deleteLocation, getLocation, listLocations, updateLocation } from './locations';
@@ -20,7 +20,7 @@ import { acceptInvitation, createInvitation, createInvitations, findInvitation, 
 import { getIntegrations, getMailCredentials, saveConnectStep } from './integrations';
 import {
   activeImpersonation, endImpersonation, listPlatformOrgs, platformCloseOrg, platformCreateOrg, platformRestoreOrg,
-  platformSetStatus, platformUpdateOrg, startImpersonation,
+  platformSetStatus, platformUpdateOrg, purgeClosedWorkspaces, startImpersonation,
 } from './platform';
 import { nextDocumentNumber } from './orders';
 
@@ -298,6 +298,23 @@ describe('platform console', () => {
     expect(await resolveTenantMembership(db, tenantB.slug, bob.id)).toBeNull();
     const restored = await platformRestoreOrg(db, root.id, tenantB.id);
     expect(restored).toMatchObject({ status: 'trial', purgeAfter: null });
+  });
+
+  it('a workspace reads only its own tenants row; finding one by URL still works (QA B-22)', async () => {
+    const seen = await withTenant(db, tenantA.id, (tx) => tx.select({ id: tenants.id }).from(tenants));
+    expect(seen.map((t) => t.id)).toEqual([tenantA.id]);
+    expect((await db.select({ id: tenants.id }).from(tenants)).length).toBe(0);
+    expect((await getTenantBySlug(db, tenantB.slug))?.id).toBe(tenantB.id);
+    expect(await getTenantBySlug(db, `nope-${run}`)).toBeNull();
+  });
+
+  it('a closed workspace is deleted for good after its grace, and only then (QA B-27)', async () => {
+    const c = await createWorkspace(db, { userId: bob.id }, { name: 'Fun C', slug: `fun-c-${run}`, country: 'US' });
+    await platformCloseOrg(db, root.id, c.id, c.slug);
+    expect(await purgeClosedWorkspaces(owner.db, 3, [c.id])).toEqual([]); // still inside its 30 days
+    await owner.db.update(tenants).set({ purgeAfter: new Date(Date.now() - 1000) }).where(eq(tenants.id, c.id));
+    expect(await purgeClosedWorkspaces(owner.db, 3, [c.id])).toEqual([c.slug]);
+    expect(await owner.db.select().from(tenants).where(eq(tenants.id, c.id))).toEqual([]);
   });
 
   it('opens a read-only support session bound to the login session, and audits it', async () => {

@@ -12,8 +12,11 @@ import { tenants, users } from '../schema';
 import { createProduct } from './catalog';
 import { createCustomer } from './customers';
 import { listLocations } from './locations';
-import { latestSignature, listInvoices, recordGatewayPayment, saveCardTx, signAgreement, syncOrderInvoices } from './money';
-import { createOrder, getOrder, orderInputFrom, recordPayment, recordTip, transitionOrder, updateOrder } from './orders';
+import {
+  chargeInProgress, claimChargeLock, latestSignature, listInvoices, recordGatewayPayment, recordGatewayRefund, releaseChargeLock, saveCardTx, signAgreement, syncOrderInvoices,
+} from './money';
+import { cancelOrder, createOrder, getOrder, orderInputFrom, recordPayment, recordTip, transitionOrder, updateOrder } from './orders';
+import { ensureOrderToken, resolveOrderToken } from './messaging';
 import { setupOrganization } from './organizations';
 import { withTenant } from '../client';
 
@@ -99,7 +102,7 @@ describe('invoices', () => {
     const again = (await getOrder(db, tenantId, o.id))!;
     const smaller = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(again, again.lines, [], { lines: [line] }), prefs, again.version);
     expect(await invoicesOf(o.id)).toMatchObject([{ amount: smaller.order.totalCents, paid: Math.min(18543, smaller.order.totalCents) }]);
-    await transitionOrder(db, tenantId, actor, o.id, 'cancel', prefs);
+    await cancelOrder(db, tenantId, actor, o.id, prefs, { reason: 'Customer changed plans', outcome: 'wallet', amount: 185.43 });
     expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, amount: 18543, paid: 18543, status: 'paid' }]); // only what was paid
   });
 
@@ -130,6 +133,78 @@ describe('gateway payments and cards', () => {
     expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(18543);
     expect(await invoicesOf(o.id)).toMatchObject([{ number: o.number, paid: 18543, status: 'open' }]);
     expect(first.payment.number).toBe(o.number);
+  });
+
+  it('records it once when the same payment is reported many times at the same moment (QA B-21)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(36)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    const p = { gateway: 'stripe' as const, ref: `pi_race_${run}`, amountCents: 5000, brand: 'visa', last4: '4242' };
+    const all = await Promise.all(Array.from({ length: 6 }, () => recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, p)));
+    expect(all.filter((r) => !r.duplicate)).toHaveLength(1);
+    expect(new Set(all.map((r) => r.payment.id)).size).toBe(1);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+  });
+
+  it('one card charge at a time per order; a crashed charge frees the order after its lease (QA B-17)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(38)), prefs);
+    const all = await Promise.all([1, 2, 3].map(() => claimChargeLock(db, tenantId, o.id)));
+    expect(all.filter(Boolean)).toHaveLength(1);
+    expect(await chargeInProgress(db, tenantId, o.id)).toBe(true);
+    await releaseChargeLock(db, tenantId, o.id);
+    expect(await chargeInProgress(db, tenantId, o.id)).toBe(false);
+    expect(await claimChargeLock(db, tenantId, o.id)).toBe(true);
+    await owner.db.execute(sql`update orders set charge_lock_until = now() - interval '1 second' where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    expect(await claimChargeLock(db, tenantId, o.id)).toBe(true);
+  });
+
+  it('a refund made in Stripe is recorded once and lowers what was paid (QA B-02)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(39)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await recordGatewayPayment(db, tenantId, { type: 'customer' }, o.id, { gateway: 'stripe', ref: `pi_refund_${run}`, amountCents: 8000, brand: 'visa', last4: '4242' });
+    const r = { paymentRef: `pi_refund_${run}`, ref: `re_${run}`, amountCents: 3000, reason: 'requested by customer' };
+    expect(await recordGatewayRefund(db, tenantId, r)).toMatchObject({ amountCents: 3000, gateway: 'stripe', status: 'done' });
+    expect(await recordGatewayRefund(db, tenantId, r)).toBeNull();
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+  });
+
+  it('three first visits at once get the same quote link (QA B-20)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(40)), prefs);
+    await Promise.all([1, 2, 3].map(() => owner.client`select pg_sleep(0.05)`.then(() => app.client`select 1`)));
+    const tokens = await Promise.all([1, 2, 3].map(() => withTenant(db, tenantId, (tx) => ensureOrderToken(tx, tenantId, o.id))));
+    expect(new Set(tokens).size).toBe(1);
+    expect(await resolveOrderToken(db, tokens[0]!)).toEqual({ tenantId, orderId: o.id });
+  });
+
+  it('a paid order’s link stops working 60 days after the event, an unpaid one does not (QA B-28)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(42)), prefs);
+    const token = await withTenant(db, tenantId, (tx) => ensureOrderToken(tx, tenantId, o.id));
+    const back = (d: number) => owner.db.execute(sql`update orders set event_starts_at = now() - ${`${d} days`}::interval - interval '5 hours', event_ends_at = now() - ${`${d} days`}::interval
+      where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    await back(61);
+    expect(await resolveOrderToken(db, token)).not.toBeNull(); // still owes money: the pay link must work
+    await owner.db.execute(sql`update orders set paid_cents = total_cents where tenant_id = ${tenantId}::uuid and id = ${o.id}::uuid`);
+    expect(await resolveOrderToken(db, token)).toBeNull();
+    await back(10);
+    expect(await resolveOrderToken(db, token)).not.toBeNull();
+  });
+
+  it('a paid order cannot be cancelled without settling the money (QA B-08)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(41)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: 60 });
+    await expect(transitionOrder(db, tenantId, actor, o.id, 'cancel', prefs)).rejects.toThrow(/Choose what happens to the \$60\.00/);
+  });
+
+  it('a double submit of the same cash payment form records it once (QA B-21)', async () => {
+    const o = await createOrder(db, tenantId, actor, input(day(37)), prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    const form = { method: 'cash', amount: 50, requestKey: randomUUID() };
+    const [a, b] = await Promise.all([recordPayment(db, tenantId, actor, o.id, prefs, form), recordPayment(db, tenantId, actor, o.id, prefs, form)]);
+    expect(a.payment.id).toBe(b.payment.id);
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(5000);
+    // A new form is a new payment.
+    await recordPayment(db, tenantId, actor, o.id, prefs, { ...form, requestKey: randomUUID() });
+    expect((await getOrder(db, tenantId, o.id))!.paidCents).toBe(10000);
   });
 
   it('saving a card switches on auto-charge for open balances', async () => {

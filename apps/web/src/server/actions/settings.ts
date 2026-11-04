@@ -12,7 +12,7 @@ import {
   updateMember, updatePreferences,
 } from '@rental/db';
 import { invalid, type ActionResult } from '@/lib/result';
-import { getTenantContext, requirePermission, requireSettingsAccess } from '../context';
+import { requirePermission, requireSettingsAccess } from '../context';
 import { db } from '../db';
 import { sendInviteEmail } from '../invite-mail';
 import { checkStripeKeys } from '../stripe-check';
@@ -256,7 +256,8 @@ type TravelQuote = NonNullable<Awaited<ReturnType<typeof quoteTravelFee>>>;
 
 export async function checkTravelFeeAction(slug: string, input: unknown): Promise<ActionResult<TravelQuote>> {
   return run<TravelQuote>(async () => {
-    const ctx = await getTenantContext(slug);
+    // Each check is a paid Mapbox call: office staff only, not the coach portal.
+    const ctx = await requirePermission(slug, 'orders.view');
     const parsed = travelCheck.safeParse(input);
     if (!parsed.success) return invalid(parsed.error);
     const result = await quoteTravelFee(ctx.tenant.id, ctx.prefs, parsed.data, [parsed.data.mode]);

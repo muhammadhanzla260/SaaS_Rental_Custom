@@ -111,7 +111,7 @@ const builders: Record<string, Builder> = {
     return {
       subtitle: `Booked revenue by event date · ${monthName} 1 – ${Number(cap.slice(8))}`,
       kpis: [
-        { label: 'Revenue', value: revenue, kind: 'money', sub: change == null ? 'No bookings this time last year' : `${change >= 0 ? '+' : '−'}${Math.abs(change)}% vs last ${monthName}` },
+        { label: 'Revenue', value: revenue, kind: 'money', sub: change == null ? 'No bookings this time last year' : `${change >= 0 ? '+' : '-'}${Math.abs(change)}% vs last ${monthName}` },
         { label: 'Orders', value: orders, kind: 'number', sub: orders ? `avg ${money(Math.round(revenue / orders))} per order` : undefined },
         { label: 'Collected', value: sum(locs, 'collected'), kind: 'money', tone: 'success', sub: `${pct(sum(locs, 'collected'), revenue)}% of revenue` },
         { label: 'Outstanding', value: sum(locs, 'outstanding'), kind: 'money', tone: 'warning', sub: `${sum(locs, 'unpaid')} orders` },
@@ -148,7 +148,7 @@ const builders: Record<string, Builder> = {
     const [rf] = await rowsOf(tx, sql`select count(*)::int as count, coalesce(sum(r.amount_cents),0)::float8 as amount
       from refunds r join orders o on o.tenant_id = r.tenant_id and o.id = r.order_id join customers c on c.tenant_id = o.tenant_id and c.id = o.customer_id
       join locations l on l.tenant_id = o.tenant_id and l.id = o.location_id join tenants t on t.id = o.tenant_id
-      where ${c.where} and ${c.inPeriod(sql`r.created_at`)}`);
+      where ${c.where} and r.status = 'done' and ${c.inPeriod(sql`r.created_at`)}`);
     const rows: R[] = [...pays, ...(n(rf!.count) ? [{ method: 'Refunds', count: n(rf!.count), amount: -n(rf!.amount), tips: 0 }] : [])];
     return {
       kpis: [{ label: 'Received', value: sum(pays, 'amount'), kind: 'money', tone: 'success' }, { label: 'Tips', value: sum(pays, 'tips'), kind: 'money' },
@@ -246,7 +246,7 @@ const builders: Record<string, Builder> = {
         coalesce(o.cancel_reason, '') as reason,
         case o.cancel_outcome when 'wallet' then 'Wallet credit' when 'refund' then 'Refund' when 'rain_check' then 'Rain check' else 'Nothing paid' end as outcome,
         (select coalesce(sum(cr.amount_cents), 0) from credits cr where cr.tenant_id = o.tenant_id and cr.source_order_id = o.id and cr.voided_at is null)::float8 as credited,
-        (select coalesce(sum(r.amount_cents), 0) from refunds r where r.tenant_id = o.tenant_id and r.order_id = o.id)::float8 as refunded,
+        (select coalesce(sum(r.amount_cents), 0) from refunds r where r.tenant_id = o.tenant_id and r.order_id = o.id and r.status = 'done')::float8 as refunded,
         o.total_cents::float8 as total
       ${c.from} where ${c.where} and o.status = 'cancelled' and o.cancelled_at is not null and ${c.inPeriod(sql`o.cancelled_at`)} order by o.cancelled_at desc`);
     return {
@@ -292,7 +292,7 @@ const builders: Record<string, Builder> = {
     const c = ctx(tenantId, f);
     const rows = await rowsOf(tx, sql`select p.number, ${c.local(sql`p.received_at`)}::text as date, o.number as order_number, initcap(p.gateway) as gateway, p.gateway_ref as reference,
         coalesce(initcap(p.card_brand), 'Card') || coalesce(' •' || p.card_last4, '') as card, p.amount_cents::float8 as amount,
-        coalesce((select sum(r.amount_cents) from refunds r where r.tenant_id = p.tenant_id and r.payment_id = p.id), 0)::float8 as refunded,
+        coalesce((select sum(r.amount_cents) from refunds r where r.tenant_id = p.tenant_id and r.payment_id = p.id and r.status = 'done'), 0)::float8 as refunded,
         case when p.steps ? 'fundedAt' then 'Funded' when p.steps ? 'capturedAt' then 'Captured' else 'Authorized' end as stage
       from payments p join orders o on o.tenant_id = p.tenant_id and o.id = p.order_id join customers c on c.tenant_id = o.tenant_id and c.id = o.customer_id
       join locations l on l.tenant_id = o.tenant_id and l.id = o.location_id join tenants t on t.id = o.tenant_id

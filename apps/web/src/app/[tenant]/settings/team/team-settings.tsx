@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Check, Copy, Minus, MoreHorizontal, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   GRANTABLE, INVITABLE_ROLES, LOCATION_SCOPED_ROLES, PERMISSION_MATRIX, PERMISSIONS, ROLE_LABELS, ROLE_TONE, ROLES, type Role,
 } from '@rental/core';
@@ -165,18 +166,39 @@ function PersonDrawer({ open, onClose, slug, editing, locations, me }: { open: b
   );
 }
 
+/**
+ * The "…" menu on a person. It is drawn at the top of the page (a portal), placed under its button and
+ * flipped above it near the bottom of the screen: inside the table, the next rows (each its own layer,
+ * because they animate in) painted over it, and the table's scroll box cut it off.
+ */
 function RowMenu({ person, slug, onEdit, me }: { person: Person; slug: string; onEdit: () => void; me: { userId: string } }) {
-  const [open, setOpen] = useState(false);
+  const [at, setAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const open = at !== null;
   const router = useRouter();
   const toast = useToast();
-  const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const setOpen = (on: boolean) => {
+    if (!on || !button.current) return setAt(null);
+    const r = button.current.getBoundingClientRect();
+    // Above the button when there is no room below (anchored by its bottom edge: the pop-in animation owns transform).
+    const up = window.innerHeight - r.bottom < 140;
+    setAt({ ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }), right: window.innerWidth - r.right });
+  };
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const close = (e: MouseEvent) => { if (!menu.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setAt(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAt(null); };
+    // The menu stays put on screen, so scrolling or resizing closes it rather than leaving it behind.
+    const away = () => setAt(null);
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+    window.addEventListener('scroll', away, true);
+    window.addEventListener('resize', away);
+    return () => {
+      document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc);
+      window.removeEventListener('scroll', away, true); window.removeEventListener('resize', away);
+    };
   }, [open]);
   const act = async (fn: () => Promise<{ ok: boolean; message?: string; error?: string; data?: { link: string; delivered: boolean } }>) => {
     setOpen(false);
@@ -188,12 +210,13 @@ function RowMenu({ person, slug, onEdit, me }: { person: Person; slug: string; o
   };
   const item = 'flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-sunken';
   return (
-    <div ref={ref} className="relative">
-      <button type="button" aria-label={`Actions for ${person.email}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-[var(--radius-control)] text-fg-2 hover:bg-sunken hover:text-fg">
+    <div className="relative">
+      <button ref={button} type="button" aria-label={`Actions for ${person.email}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-[var(--radius-control)] text-fg-2 hover:bg-sunken hover:text-fg">
         <MoreHorizontal className="size-5" />
       </button>
-      {open && (
-        <div role="menu" className="anim-modal absolute right-0 top-10 z-20 w-48 rounded-[14px] border border-subtle bg-surface p-1.5 shadow-[var(--shadow-float)]">
+      {at && createPortal(
+        <div ref={menu} role="menu" style={{ position: 'fixed', top: at.top, bottom: at.bottom, right: at.right }}
+          className="anim-modal z-50 w-48 rounded-[14px] border border-subtle bg-surface p-1.5 text-left shadow-[var(--shadow-float)]">
           {person.kind === 'member' ? (
             <>
               <button role="menuitem" className={item} onClick={() => { setOpen(false); onEdit(); }}>Edit role &amp; access</button>
@@ -209,7 +232,8 @@ function RowMenu({ person, slug, onEdit, me }: { person: Person; slug: string; o
               <button role="menuitem" className={cx(item, 'text-danger')} onClick={() => act(() => revokeInviteAction(slug, person.id))}>Revoke invite</button>
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -6,8 +6,8 @@ import { ArrowRight, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { z } from 'zod';
 import {
-  agreementSchema, agreementSections, bookingDefaultsSchema, brandStepSchema, checkAccent, paymentAccountSchema, CURRENCIES, profileStepSchema, themeStyle,
-  type Agreement, type BookingDefaults, type BrandSettings, type Corners,
+  agreementSchema, agreementSections, bookingDefaultsSchema, brandStepSchema, checkAccent, orderSummary, paymentAccountSchema, PRICE_PARTS, CURRENCIES, profileStepSchema, themeStyle,
+  type Agreement, type BookingDefaults, type BrandSettings, type Corners, type PricePart, type PricingFormula,
 } from '@rental/core';
 import {
   AffixInput, Button, Card, cx, Field, Input, Notice, PageTitle, Pill, SaveBar, Segmented, Select, Slider, Tabs, Textarea, Toggle, useToast,
@@ -423,9 +423,70 @@ function RulesTab({ slug, initial, currency, readOnly }: Props) {
           <Button variant="secondary" size="sm" className="mt-3" icon={<Plus className="size-4" />} onClick={() => form.set('setupSurfaces', [...surfaces, { code: `custom_${Date.now().toString(36)}`, label: 'New surface', feeCents: 0 }])}>Add surface</Button>
         </div>
       </Card>
+      <FormulaCard formula={v.pricingFormula} waiverPercent={v.damageWaiverPercent} currency={currency} onChange={(f) => form.set('pricingFormula', f)} readOnly={readOnly} />
       {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
       <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial.rules)} readOnly={readOnly} />
     </div>
+  );
+}
+
+/**
+ * How totals are worked out. Saved quotes and orders keep the formula they were priced with,
+ * so a change here applies to new quotes only (each order's copy is in orders.pricing_rules).
+ */
+function FormulaCard({ formula, waiverPercent, currency, onChange, readOnly }: {
+  formula: PricingFormula; waiverPercent: number; currency: string; onChange: (f: PricingFormula) => void; readOnly?: boolean;
+}) {
+  const money = (c: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(c / 100);
+  const flip = (key: 'discountOn' | 'couponOn' | 'taxOn', part: PricePart, on: boolean) => {
+    const list = formula[key] as PricePart[];
+    onChange({ ...formula, [key]: on ? [...list, part] : list.filter((p) => p !== part) } as PricingFormula);
+  };
+  // A worked example with round numbers, recomputed as the switches change.
+  const ex = orderSummary({
+    lines: [{ unitCents: 100000, quantity: 1, setupSurfaceFeeCents: 3500 }, { unitCents: 5000, quantity: 1, custom: true }],
+    damageWaiver: { enabled: true, percent: waiverPercent }, travelFeeCents: 5000, miscFeesCents: 2000,
+    discount: { kind: 'percent', value: 10 }, taxPercent: 8.25, formula,
+  });
+  const checks = (key: 'discountOn' | 'couponOn' | 'taxOn', title: string, sub: string) => (
+    <div className="flex flex-col gap-2">
+      <p className="text-[13px] font-semibold text-fg">{title}</p>
+      <p className="-mt-1 text-[12px] text-fg-2">{sub}</p>
+      {PRICE_PARTS.filter((p) => key !== 'taxOn' || p.key !== 'custom').map((p) => {
+        const blocked = p.key === 'waiver' && key !== 'taxOn' && formula.waiverAfterDiscount;
+        return (
+          <Toggle key={p.key} checked={!blocked && (formula[key] as string[]).includes(p.key)} disabled={readOnly || blocked}
+            onChange={(on) => flip(key, p.key, on)} label={p.label} sub={blocked ? 'Not while the waiver is worked out after discounts.' : undefined} />
+        );
+      })}
+    </div>
+  );
+  return (
+    <Card className="flex flex-col gap-6 p-5 sm:p-6">
+      <div>
+        <h2 className="text-base font-bold text-fg">Price formula</h2>
+        <p className="mt-1 text-[13px] text-fg-2">How every quote's total is worked out. A change applies to quotes created from now on: quotes and orders already made keep the formula, rates and prices they were priced with, so what a customer agreed to never changes.</p>
+      </div>
+      <Field label="Damage waiver is a share of the rental items" htmlFor="pf-waiver">
+        <Segmented label="Damage waiver" value={formula.waiverAfterDiscount ? 'after' : 'before'} onChange={(x) => onChange({ ...formula, waiverAfterDiscount: x === 'after' })}
+          options={[{ value: 'before', label: 'Before discounts' }, { value: 'after', label: 'After discounts' }]} />
+      </Field>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {checks('discountOn', 'A % discount also takes off', 'Always from the rental items.')}
+        {checks('couponOn', 'A coupon also takes off', 'Always from the rental items.')}
+        {checks('taxOn', 'Sales tax also applies to', 'Always on taxable items.')}
+      </div>
+      <div className="rounded-[var(--radius-control)] bg-sunken p-4 text-[13px]">
+        <p className="mb-2 font-semibold text-fg">Example: {money(100000)} rental, {money(5000)} custom item, {money(3500)} setup, {money(5000)} travel, {money(2000)} other fees, 10% discount, 8.25% tax</p>
+        <dl className="tnum grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-fg-2">
+          <dt>Damage waiver ({waiverPercent}%)</dt><dd className="text-right">{money(ex.damageWaiverCents)}</dd>
+          <dt>Discount</dt><dd className="text-right">−{money(ex.preTaxDiscountCents)}</dd>
+          <dt>Taxed amount</dt><dd className="text-right">{money(ex.taxableBaseCents)}</dd>
+          <dt>Tax</dt><dd className="text-right">{money(ex.taxCents)}</dd>
+          <dt className="font-semibold text-fg">Total</dt><dd className="text-right font-semibold text-fg">{money(ex.totalCents)}</dd>
+        </dl>
+      </div>
+    </Card>
   );
 }
 
