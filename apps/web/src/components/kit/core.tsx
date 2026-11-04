@@ -240,19 +240,20 @@ export function Avatar({ name, src, size = 32, round = true, color, className }:
   );
 }
 
-/** Platform mark (placeholder product name "Tentpole"). */
+/** The Rent Hatch mark (the same one as the website). Shown on sign-in screens and the platform console only, never inside a workspace. */
 export function BrandMark({ size = 30, dark = false }: { size?: number; dark?: boolean }) {
   return (
     <span className={cx('inline-flex shrink-0 items-center justify-center rounded-[9px]', dark ? 'bg-night' : 'bg-volt')} style={{ width: size, height: size }} aria-hidden="true">
-      <svg width={size * 0.57} height={size * 0.57} viewBox="0 0 24 24" fill="none" stroke={dark ? '#D4FF3A' : '#0B0D12'} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3 3 20h18L12 3Z" />
-        <path d="M12 3v17" />
+      <svg width={size * 0.8} height={size * 0.8} viewBox="0 0 100 100">
+        <rect x="22" y="50" width="56" height="30" rx="6" fill={dark ? '#D4FF3A' : '#0B0D12'} />
+        <rect x="22" y="38" width="56" height="9" rx="4" fill={dark ? '#D4FF3A' : '#0B0D12'} transform="rotate(-22 22 47)" />
+        <circle cx="50" cy="64" r="5" fill={dark ? '#0B0D12' : '#D4FF3A'} />
       </svg>
     </span>
   );
 }
 
-export const PRODUCT_NAME = 'Tentpole';
+export const PRODUCT_NAME = 'Rent Hatch';
 
 export function Wordmark({ dark = false, className }: { dark?: boolean; className?: string }) {
   return (

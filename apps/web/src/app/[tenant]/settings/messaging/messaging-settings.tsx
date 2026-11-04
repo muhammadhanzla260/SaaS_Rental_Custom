@@ -42,7 +42,7 @@ export function MessagingSettings({
   const scheduledOn = SCHEDULED_TYPES.filter((t) => settings.schedules[t]?.enabled).length;
   const instantOn = INSTANT_TYPES.filter((t) => settings.instant[t]).length;
   const steps = [
-    { title: 'Connect mail server', sub: verified ? 'Verified' : server.mail.mode === 'smtp' ? 'Send a test email' : 'Using Tentpole for now', done: verified },
+    { title: 'Connect mail server', sub: verified ? 'Verified' : server.mail.mode === 'smtp' ? 'Send a test email' : 'Using the shared mail service for now', done: verified },
     { title: 'Choose what to send', sub: `${scheduledOn} scheduled · ${instantOn} instant`, done: true },
     { title: 'Review templates', sub: customTemplates.length ? `${customTemplates.length} edited · branded with your logo` : 'Branded with your logo', done: true },
     { title: 'Go live', sub: settings.live ? 'Sending automatically' : 'Switch on under Automations', done: settings.live },

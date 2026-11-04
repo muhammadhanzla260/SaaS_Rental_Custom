@@ -1,0 +1,87 @@
+---
+/** S7 · Blog list. Tabs default to the visitor's side (events or cars). */
+import Page from '~/layouts/Page.astro';
+import NewsletterForm from '~/components/NewsletterForm.astro';
+import { posts, fmtDate, minutes, TAG_COLOR } from '~/lib/content';
+
+const list = await posts();
+const featured = list.find((p) => p.data.featured) ?? list[0];
+const rest = list.filter((p) => p !== featured);
+const TABS = [['all', 'All'], ['Event rental', 'Event rental'], ['Car rental', 'Car rental'], ['Product updates', 'Product updates']];
+const meta = (p: (typeof list)[number]) => `${fmtDate(p.data.date)} · ${p.data.minutes ?? minutes(p.body)} min read`;
+---
+<Page title="Blog" description="Practical guides for rental operators: pricing, deposits, crews, inspections and running a calmer rental business." vertical="auto">
+  <div data-blog data-scope data-tab="all">
+    <section class="wrap hero">
+      <span class="eyebrow rise">The Rent Hatch blog</span>
+      <h1 class="disp rise" style="--d:80ms;font-size:clamp(44px,5.6vw,80px)">Run a better rental business.</h1>
+      <div class="seg light rise" style="--d:160ms" role="radiogroup" aria-label="Topic" data-choice="tab">
+        {TABS.map(([v, l], i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={v} style="height:42px">{l}</button>)}
+      </div>
+    </section>
+
+    {list.length === 0 ? (
+      <section class="wrap" style="padding-bottom:60px"><div class="empty">First articles are on the way. Subscribe below and we'll send them as they're published.</div></section>
+    ) : (
+      <>
+        {featured && (
+          <section class="wrap" style="padding-bottom:28px" data-post={featured.data.tag}>
+            <a href={`/blog/${featured.id}`} class="feat">
+              <span class="eyebrow" style="color:#A3ABB9">Featured · {featured.data.tag}{featured.data.draft && ' · draft'}</span>
+              <strong class="ft">{featured.data.title}</strong>
+              <span style="color:#A3ABB9;font-size:17px;line-height:1.5;max-width:60ch">{featured.data.description}</span>
+              <span class="mono" style="font-size:13px;color:#8A93A3">{meta(featured)}</span>
+            </a>
+          </section>
+        )}
+        <section class="wrap" style="padding-bottom:40px">
+          <ul class="grid">
+            {rest.map((p) => (
+              <li data-post={p.data.tag}>
+                <a href={`/blog/${p.id}`} class="pcard">
+                  <span class="bar" style={`background:${TAG_COLOR[p.data.tag]}`}></span>
+                  <span class="eyebrow" style={`color:${TAG_COLOR[p.data.tag]}`}>{p.data.tag}{p.data.draft && ' · draft'}</span>
+                  <strong class="pt">{p.data.title}</strong>
+                  <span style="color:#535C6B;line-height:1.5;font-size:15px">{p.data.description}</span>
+                  <span class="mono" style="margin-top:auto;font-size:12.5px;color:#6B7383">{meta(p)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div class="empty" data-none hidden>No articles in this topic yet.</div>
+        </section>
+      </>
+    )}
+
+    <section class="wrap" style="padding-bottom:100px">
+      <div class="nlbox"><span class="stack" style="gap:6px"><strong style="font:800 26px var(--font-display)">The rental operator's newsletter</strong><span style="color:#535C6B">One useful email a month. No fluff.</span></span><div style="flex:1 1 360px;max-width:460px"><NewsletterForm id="news-blog" source="blog" label="Email" /></div></div>
+    </section>
+  </div>
+</Page>
+<script>
+  import { choose } from '~/scripts/ui';
+  const root = document.querySelector<HTMLElement>('[data-blog]')!;
+  const apply = () => {
+    const tab = root.dataset.tab;
+    let n = 0;
+    root.querySelectorAll<HTMLElement>('[data-post]').forEach((el) => { el.hidden = tab !== 'all' && el.dataset.post !== tab; if (!el.hidden) n++; });
+    const none = root.querySelector<HTMLElement>('[data-none]');
+    if (none) none.hidden = n > 0;
+  };
+  root.addEventListener('rh:choice', apply);
+  // Default to the visitor's side.
+  if (document.documentElement.dataset.v === 'cars') choose(root, 'tab', 'Car rental', false);
+</script>
+<style>
+  .hero { padding-top: clamp(48px, 6vw, 88px); padding-bottom: 36px; display: flex; flex-direction: column; gap: 22px; align-items: flex-start; }
+  .feat { display: flex; flex-direction: column; gap: 14px; padding: clamp(28px, 4vw, 52px); border-radius: 32px; background: #0B0D12; color: #fff; transition: transform .3s var(--ease-out); }
+  .feat:hover { transform: translateY(-4px); }
+  .ft { font: 800 clamp(30px, 3.6vw, 48px)/1.08 var(--font-display); letter-spacing: -.02em; max-width: 24ch; }
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+  .pcard { height: 100%; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 26px; border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; transition: transform .25s var(--ease-out), box-shadow .25s; }
+  .pcard:hover { transform: translateY(-4px); box-shadow: 0 26px 40px -28px rgba(11, 13, 18, .45); }
+  .bar { position: absolute; left: 0; top: 0; right: 0; height: 4px; }
+  .pt { font: 800 22px/1.2 var(--font-display); }
+  .empty { padding: 36px; text-align: center; border-radius: 22px; border: 1.5px dashed #C9CED6; color: #535C6B; }
+  .nlbox { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; padding: 28px; border-radius: 26px; background: #F1F2EA; }
+</style>

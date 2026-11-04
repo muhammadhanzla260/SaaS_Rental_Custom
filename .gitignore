@@ -13,3 +13,11 @@ next-env.d.ts
 .data/
 .screenshots/
 *.log
+
+# marketing site
+.astro/
+.vercel/
+
+# product videos ship with the site build but stay out of git (apps/site README)
+apps/site/public/video/*.mp4
+apps/site/*.zip

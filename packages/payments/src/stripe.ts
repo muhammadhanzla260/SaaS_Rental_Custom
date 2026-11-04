@@ -10,7 +10,7 @@ const clients = new Map<string, Stripe>();
 export function stripeClient(secret: string) {
   let c = clients.get(secret);
   if (!c) {
-    c = new Stripe(secret, { maxNetworkRetries: 2, timeout: 20_000, appInfo: { name: 'Tentpole Rentals' } });
+    c = new Stripe(secret, { maxNetworkRetries: 2, timeout: 20_000, appInfo: { name: 'Rent Hatch' } });
     clients.set(secret, c);
   }
   return c;

@@ -1,0 +1,471 @@
+---
+/** E1 · Event rental home. */
+import Page from '~/layouts/Page.astro';
+import Icon from '~/components/Icon.astro';
+import Faq from '~/components/Faq.astro';
+import { IC, SIGN_UP } from '~/lib/site';
+import PriceLine from '~/components/PriceLine.astro';
+import { offersJsonLd } from '~/data/plans';
+
+const GEARS = [
+  { id: 'party', label: 'Party & inflatables', icon: IC.event, glow: '#2C4FE0' },
+  { id: 'tents', label: 'Tents & furniture', icon: IC.tent, glow: '#0B7A55' },
+  { id: 'av', label: 'AV & staging', icon: IC.av, glow: '#B0306A' },
+  { id: 'tools', label: 'Tools & equipment', icon: IC.wrench, glow: '#0E7490' },
+];
+const HERO: Record<string, { no: string; cust: string; when: string; lines: [string, string][]; total: string; kpis: [string, string, string][] }> = {
+  party: { no: 'Q-AUS-01043', cust: 'Maria Gonzalez · Birthday', when: 'Sat, Nov 7 · 1:00–6:00 PM · Cedar Park', lines: [['Castle Bounce House', '$325.00'], ['Popcorn Machine', '$175.00'], ['Damage waiver 10%', '$50.00'], ['Travel · 8.4 mi', '$21.00']], total: '$618.11', kpis: [['Deposit', '$185.43', '#D4FF3A'], ['Balance', 'Nov 7', '#fff'], ['Crew', 'Alex K.', '#fff']] },
+  tents: { no: 'Q-DAL-00398', cust: 'Lee wedding · Reception', when: 'Sat, Nov 14 · Setup Fri 3 PM · Pickup Sun', lines: [['40×60 frame tent', '$2,400.00'], ['Round tables ×24', '$288.00'], ['Chiavari chairs ×190', '$760.00'], ['Dance floor 16×16', '$450.00']], total: '$4,413.28', kpis: [['Deposit 50%', '$2,206.64', '#D4FF3A'], ['Setup crew', '4 people', '#fff'], ['Pickup', 'Sun 10 AM', '#fff']] },
+  av: { no: 'Q-HOU-00221', cust: 'Bayou Tech · Product launch', when: 'Thu, Nov 12 · 6:00–10:00 PM · Downtown', lines: [['LED wall 10×6', '$1,800.00'], ['PA system 2,000 W', '$450.00'], ['Uplight kit ×12', '$240.00'], ['AV technician · 6 h', '$390.00']], total: '$3,117.60', kpis: [['Deposit 30%', '$935.28', '#D4FF3A'], ['Tech on site', '1 person', '#fff'], ['Load-in', '2:00 PM', '#fff']] },
+  tools: { no: 'Q-DAL-00412', cust: 'Greenway Church · Fall fair', when: 'Fri–Sun, Nov 13–15 · Delivery & setup', lines: [['20×40 frame tent', '$1,150.00'], ['Banquet tables ×20', '$240.00'], ['Chiavari chairs ×160', '$640.00'], ['Generator 7.5 kW', '$185.00']], total: '$2,431.63', kpis: [['Deposit 50%', '$1,215.82', '#D4FF3A'], ['Setup crew', '3 people', '#fff'], ['Pickup', 'Mon 9 AM', '#fff']] },
+};
+// [title, sub, icon, bg, fg, iconBg, iconFg]
+const FLOATS: Record<string, [string, string, string, string, string, string, string][]> = {
+  party: [['Deposit paid', '$185.43 · card •4242', 'M3 6h18v12H3zM3 10h18', '#D4FF3A', '#0B0D12', '#0B0D12', '#D4FF3A'], ['Reminder sent', '3 days before the party', IC.mail, '#fff', '#10131A', '#E6ECFF', '#233FB8'], ['Crew is 5 min away', 'Customer texted automatically', IC.crew, '#2C4FE0', '#fff', '#fff', '#2C4FE0']],
+  tools: [['Delivery booked', 'Fri 8:00 AM · Truck 1', IC.van, '#fff', '#10131A', '#E6ECFF', '#233FB8'], ['Contract e-signed', 'by Greenway Church', IC.check, '#D4FF3A', '#0B0D12', '#0B0D12', '#D4FF3A'], ['Setup photos saved', '3 photos · 100% checklist', IC.check, '#2C4FE0', '#fff', '#fff', '#2C4FE0']],
+  tents: [['Setup crew booked', 'Fri 3 PM · 4 people', IC.van, '#fff', '#10131A', '#E6ECFF', '#233FB8'], ['Deposit paid', '$2,206.64 · card', 'M3 6h18v12H3zM3 10h18', '#D4FF3A', '#0B0D12', '#0B0D12', '#D4FF3A'], ['Weather watch on', 'Rain check ready if needed', IC.check, '#2C4FE0', '#fff', '#fff', '#2C4FE0']],
+  av: [['Load-in confirmed', 'Thu 2:00 PM · dock B', IC.van, '#fff', '#10131A', '#E6ECFF', '#233FB8'], ['Contract e-signed', 'by Bayou Tech', IC.check, '#D4FF3A', '#0B0D12', '#0B0D12', '#D4FF3A'], ['Tech on site', 'EVENT START 6:02 PM', IC.crew, '#2C4FE0', '#fff', '#fff', '#2C4FE0']],
+};
+const FLOAT_POS = [['0px', '8px'], ['58%', '42%'], ['6%', '78%']];
+const MARQ = ['Bounce houses', 'Water slides', 'Tents & canopies', 'Tables & chairs', 'AV & staging', 'Concessions', 'Party equipment', 'Event furniture', 'Generators & power', 'Tools & equipment', 'Linens & decor', 'Dunk tanks & games'];
+const PAINS = [
+  ['Double-booked the same bounce house. Again.', 'Two families, one castle, one very awkward phone call.', 'Every unit is checked before you book', 'Live availability refuses a booking when all units are out, and suggests what is free instead.', 'Quotes & bookings'],
+  ['Chasing deposits by text.', '“I’ll pay Friday, promise.” They didn’t.', 'Customers sign and pay online', 'The quote link takes an e-signature and the deposit. The balance charges itself on event day.', 'Payments'],
+  ['Leads go cold while you’re on a job.', 'By the time you call back, they booked someone else.', 'Every lead gets a reply in minutes', 'An instant auto-reply, a text to your team and follow-ups on day 1, 3 and 7 until they book.', 'Leads'],
+  ['“Where are you guys?”', 'Five calls from the birthday mom before 10 AM.', 'Customers get a 5-minute heads-up', 'Crews tap Start En Route. Customers get a text when they leave and another when they are 5 minutes out.', 'Crew portal'],
+  ['Forgot the travel fee. And the overtime.', 'Small misses on every order add up to real money.', 'Priced to the cent, every time', 'Travel by distance, overtime by the minute, surfaces, waivers and tax are added automatically.', 'Pricing engine'],
+  ['Rain. Refund? Reschedule? Argue?', 'Weather wrecks a Saturday and your cash flow with it.', 'One-tap rain checks', 'Turn what they paid into credit for a new date, release the items and stop the balance charge.', 'Rain checks'],
+];
+const KINDS = [
+  ['Inflatables & party', 'Bounce houses, slides, games and concessions, delivered and set up by your crews.', IC.event, '#E6ECFF', '#2C4FE0', ['Staffed events', 'Overtime', 'Rain checks'], 'party'],
+  ['Tents & event furniture', 'Canopies, tables, chairs and dance floors booked by quantity across multi-day events.', IC.tent, '#E3F5EC', '#0B7A55', ['Quantities', 'Multi-day', 'Setup crews'], 'tents'],
+  ['AV, staging & lighting', 'Screens, sound and stages with technicians, load-in times and on-site checklists.', IC.av, '#FCE8F1', '#B0306A', ['Technicians', 'Load-in', 'Packages'], 'av'],
+  ['Tools & equipment', 'Generators, lifts and site gear rented by the day or week, picked up or delivered.', IC.wrench, '#E0F2F7', '#0E7490', ['Daily & weekly', 'Pickup', 'Damage checks'], 'tools'],
+] as const;
+const TABS = [
+  ['Quote & book', 'Build an order in a minute. Prices, travel, overtime and tax add themselves, and double bookings are refused.'],
+  ['Get paid', 'Customers e-sign and pay the deposit online. Balances charge on event day, receipts send themselves.'],
+  ['Automate', 'Quotes, confirmations, reminders and review requests go out from your own email and number.'],
+  ['Dispatch crews', 'Crews follow a 5-phase checklist with photo proof. You watch them live on a map.'],
+  ['See the numbers', '32 ready-made reports: sales, receivables, rain checks, commissions and more.'],
+  ['Your brand', 'Your logo, colours and domain on quotes, emails, invoices and the crew app.'],
+];
+const ORDER_ROWS = [['Castle Bounce House', 'Staffed · 4 h + 1 h overtime', '$325.00'], ['Popcorn Machine', 'Staffed · 5 h', '$175.00'], ['Damage waiver', '10% of rentals', '$50.00'], ['Travel fee', '8.4 mi past free zone × $2.50', '$21.00'], ['Sales tax', '8.25%', '$47.11']];
+const AUTOS = [['Quote sent', 'Sign & pay link', 'Instantly', '#fff', IC.mail], ['Booking confirmed', 'Receipt + signed agreement', 'On deposit', '#fff', IC.mail], ['Pre-event reminder', 'Arrival window & setup spot', '3 days before', '#fff', IC.mail], ['Contact check', 'Text to the on-site contact', '2 days before', '#fff', IC.chat], ['Balance charged', '$432.68 + receipt', 'Event day 8 AM', '#D4FF3A', 'M3 6h18v12H3zM3 10h18'], ['Review request', 'Links to your reviews', 'Day after', '#fff', IC.mail]];
+const PHASES = [['Pre-departure', '100%'], ['Load + photo', '100%'], ['Arrival checks', '100%'], ['Setup & start', '67%'], ['Close-out', '0%']];
+const BARS = [.42, .35, .55, .48, .62, .58, .7, .64, .78, .74, .88, 1];
+const SWATCHES = [['cobalt', '#2C4FE0'], ['emerald', '#0B7A55'], ['ember', '#C2410C'], ['berry', '#B0306A'], ['violet', '#6D3FD6'], ['teal', '#0E7490'], ['ink', '#10131A'], ['volt', '#D4FF3A']];
+const STEPS = [['1', 'Create your workspace', 'Business name, your URL and a password. That is the whole sign-up.', '2 minutes'], ['2', 'Brand it', 'Upload your logo, pick your colour and connect your email. Everything customers see looks like you.', '15 minutes'], ['3', 'Add what you rent', 'Import products, prices and units from a spreadsheet, or add them one by one.', 'An hour or so'], ['4', 'Send your first quote', 'Customers sign and pay online. Reminders, receipts and the balance take care of themselves.', 'Same day']];
+const SLIDERS = [['bk', 'Bookings per month', 5, 400, 5, 60], ['avg', 'Average order value', 100, 3000, 50, 650], ['miss', 'Orders missing a travel or overtime fee', 0, 40, 1, 15], ['unpaid', 'Balances not collected each month', 0, 30, 1, 4]] as const;
+const FACTS = [['32', 'ready-made reports, from month-to-date sales to commissions'], ['13', 'emails and texts that send themselves, on timings you set'], ['5', 'crew checklist phases with photo proof, from warehouse to close-out'], ['8', 'team roles, from owner and sales to coach and crew']];
+const SEC = [['Your data, walled off', 'Every business is isolated from every other one, enforced in the database.', IC.shield], ['Card data never touches us', 'Payments run through Stripe’s hosted fields and your own Stripe account.', 'M3 6h18v12H3zM3 10h18'], ['Passkeys & two-step sign-in', 'Modern sign-in for owners and staff. Crews only see their own jobs.', IC.lock], ['Full audit log', 'Every change to an order, payment or checklist is recorded with who and when.', 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3'], ['Encrypted secrets', 'Mail passwords and API keys are encrypted and never shown again.', 'M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7zM9 12l2 2 4-4'], ['GPS only on the job', 'Crew location is shared only between Start En Route and arrival.', IC.crew]];
+const INTEG = ['Stripe', 'Google Workspace', 'Microsoft 365', 'Zoho Mail', 'Any SMTP server', 'SMS provider', 'Mapbox maps', 'CSV import & export', 'API & webhooks · soon'];
+const FAQS: [string, string][] = [
+  ['Does it work for tents, AV and equipment, not just bounce houses?', 'Yes. Every product can be priced as staffed, drop-off or customer pickup, with its own included hours, overtime, cleaning buffer and number of units. Tents, chairs, AV and tools work the same way.'],
+  ['Can I bring my products and customers from another system?', 'Yes. Import products, prices and customers from a spreadsheet. We can help you move your data and check that prices match your old system to the cent.'],
+  ['Do I need a contract?', 'No. Pay month to month and cancel any time from your settings. Your data is yours to export.'],
+  ['Can emails come from my own address and domain?', 'Yes. Connect your own mail server once (Google Workspace, Microsoft 365, Zoho or any SMTP) and every quote, receipt and reminder comes from you. Quote and pay links can use your own domain.'],
+  ['Do my crews need to install an app?', 'No install needed. Crews open the crew portal on their phone browser and add it to the home screen. GPS is only on while they are driving to a job.'],
+  ['How do card payments work?', 'Payments run through your own Stripe account, so money goes straight to you. Card numbers never touch our servers. Stripe charges its standard processing fees.'],
+  ['Is my data safe?', 'Each business is walled off from every other one, passwords and mail credentials are encrypted, and every change is written to an audit log. Passkeys and two-step sign-in are built in.'],
+  ['What happens when the trial ends?', 'Pick a plan to keep going. If you do nothing, your workspace pauses and nothing is deleted for 30 days.'],
+];
+const app = {
+  '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Rent Hatch', applicationCategory: 'BusinessApplication', operatingSystem: 'Web',
+  description: 'Rental management software for party, event and equipment rental businesses.', offers: offersJsonLd(),
+};
+---
+<Page
+  title="Rent Hatch · Event & equipment rental software"
+  description="Quotes, bookings, e-signatures, deposits, crews and reports in one system for party, tent, AV and equipment rental companies. Start a free trial."
+  vertical="events"
+  nav="dark"
+  active="home"
+  jsonLd={[app]}
+>
+  <!-- HERO -->
+  <section class="hero" data-scope data-gear="party">
+    <div class="grid-bg"></div>
+    <div class="glow hero-glow"></div>
+    <div class="glow" style="width:420px;height:420px;background:#D4FF3A;opacity:.12;left:-120px;bottom:-160px"></div>
+    <div class="wrap hero-in">
+      <div class="hero-copy">
+        <a href="/events/features#crew" class="chip rise new-chip"><span>NEW</span>Crew portal with live GPS &amp; photo checklists →</a>
+        <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,5.6vw,80px)">Run your rental business <span class="v">without the chaos.</span></h1>
+        <p class="rise hero-lede" style="--d:160ms">Quotes, bookings, e-signatures, deposits, crews and reports in one system, built for rental companies from day one.</p>
+        <div class="rise stack" style="--d:240ms;gap:10px">
+          <span id="gear-l" class="hint">See it with your kind of gear</span>
+          <div class="seg" role="radiogroup" aria-labelledby="gear-l" data-choice="gear" data-url>
+            {GEARS.map((g, i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={g.id}><Icon d={g.icon} size={20} />{g.label}</button>)}
+          </div>
+        </div>
+        <div class="rise stack" style="--d:300ms;gap:14px">
+          <div class="btns"><a href={SIGN_UP} class="btn btn-volt" data-track="start_trial" data-where="hero">Start free trial<Icon d={IC.arrow} size={18} width={2.2} /></a><a href="/demo" class="btn btn-ghost">Book a 20-min demo</a></div>
+          <span class="hint" style="color:#8A93A3">Free trial · No card needed · Set up with a guided 6-step wizard</span>
+        </div>
+      </div>
+
+      <div class="hero-vis">
+        {GEARS.map((g, gi) => {
+          const h = HERO[g.id]!;
+          return (
+            <div class="hero-gear" data-when={`gear:${g.id}`} hidden={gi !== 0} role="img" aria-label={`A booked rental order: ${h.cust}, total ${h.total}, deposit paid`}>
+              <div class="win">
+                <div class="win-bar"><span style="background:#FF5F57"></span><span style="background:#FEBC2E"></span><span style="background:#28C840"></span><span class="mono">app.renthatch.org/orders/{h.no}</span></div>
+                <div class="win-body">
+                  <div class="between"><span class="stack" style="gap:3px"><span class="mono" style="font-size:12px;color:#8A93A3">{h.no}</span><strong style="font-size:20px">{h.cust}</strong></span><span class="chip" style="background:#1F3A2C;color:#3DD39A;font-size:12px;padding:6px 12px">Booked</span></div>
+                  <div style="font-size:13px;color:#8A93A3">{h.when}</div>
+                  <div class="order">
+                    {h.lines.map(([k, v], i) => <div class="row" style={`animation:slidein .5s var(--ease-out) both;animation-delay:${200 + i * 120}ms`}><span>{k}</span><span class="mono">{v}</span></div>)}
+                    <div class="total"><strong>Total</strong><strong class="mono" style="font-size:30px;animation:countin .8s .6s both">{h.total}</strong></div>
+                  </div>
+                  <div class="kpis">{h.kpis.map(([k, v, c]) => <div><div style="font-size:11.5px;color:#8A93A3">{k}</div><div class="mono" style={`font-size:17px;font-weight:600;color:${c}`}>{v}</div></div>)}</div>
+                </div>
+              </div>
+              {FLOATS[g.id]!.map(([t, s, icon, bg, fg, ib, ic], i) => (
+                <div class="cyc float" aria-hidden="true" style={`--d:${i * 3}s;left:${FLOAT_POS[i]![0]};top:${FLOAT_POS[i]![1]};background:${bg};color:${fg}`}>
+                  <span class="float-ic" style={`background:${ib}`}><Icon d={icon} size={18} stroke={ic} width={2.4} /></span>
+                  <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.85">{s}</span></span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+    <div class="marq-wrap">
+      <ul class="marq" aria-label="Built for these rental businesses">
+        {[...MARQ, ...MARQ].map((t, i) => <li class="chip" aria-hidden={i >= MARQ.length ? 'true' : undefined}><span style={`background:${['#D4FF3A', '#2C4FE0', '#3DD39A', '#F5B04C'][i % 4]}`}></span>{t}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- PAINS → FIXES -->
+  <section class="wrap sec" data-scope style="padding-bottom:40px">
+    <div class="rv sec-head">
+      <div class="stack" style="gap:16px;max-width:720px"><span class="eyebrow">Sound familiar?</span><h2 class="h2">The problems every rental owner knows. <span style="color:#2C4FE0">Fixed.</span></h2></div>
+      <button type="button" class="btn btn-line" data-flip-all data-on="Show the problems" data-off="Fix them all">Fix them all</button>
+    </div>
+    <div class="flips">
+      {PAINS.map(([pain, painSub, fix, fixSub, where]) => (
+        <button type="button" class="flip rv" aria-pressed="false">
+          <span class="flip-in" style="display:block">
+            <span class="face" style="background:#fff;border:1px solid #E3E5DC">
+              <span class="between"><span class="chip tag-bad">✕ PROBLEM</span><span style="font-size:13px;color:#6B7383">Tap to fix →</span></span>
+              <strong class="flip-t">{pain}</strong>
+              <span class="flip-s">{painSub}</span>
+            </span>
+            <span class="face back" style="background:#0B0D12;color:#fff">
+              <span class="between"><span class="chip tag-good">✓ FIXED</span><span style="font-size:13px;color:#8A93A3">{where}</span></span>
+              <strong class="flip-t">{fix}</strong>
+              <span class="flip-s" style="color:#A3ABB9">{fixSub}</span>
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- KINDS -->
+  <section class="wrap sec" style="padding-top:100px;padding-bottom:20px">
+    <div class="rv sec-head"><div class="stack" style="gap:16px;max-width:760px"><span class="eyebrow">Made for event rental</span><h2 class="h2">Whatever you deliver, it knows how you work</h2></div><p class="lede" style="max-width:420px">Staffed events, drop-offs or customer pickups. Units, buffers, crews and fees all work the way your kind of rental does.</p></div>
+    <div class="grid-auto" style="--min:260px">
+      {KINDS.map(([t, s, icon, bg, fg, tags, gear]) => (
+        <a href={`/events/how-it-works?gear=${gear}`} class="card rv kind">
+          <span class="kind-blob" style={`background:${bg}`}></span>
+          <span class="kind-ic" style={`background:${fg}`}><Icon d={icon} size={28} stroke="#fff" /></span>
+          <strong class="kind-t">{t}</strong>
+          <span style="font-size:15px;line-height:1.5;color:#535C6B">{s}</span>
+          <span class="tags">{tags.map((g) => <span class="chip">{g}</span>)}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <!-- PRODUCT TOUR -->
+  <section class="sec" style="padding-top:110px;padding-bottom:110px">
+    <div class="wrap stack" style="gap:44px" data-scope data-tour="5500" data-tab="0">
+      <div class="rv stack" style="gap:16px;max-width:760px"><span class="eyebrow">How Rent Hatch runs your week</span><h2 class="h2">From first enquiry to the last receipt, on autopilot</h2></div>
+      <div class="tour">
+        <div role="tablist" aria-label="Product tour" class="tour-tabs" data-choice="tab">
+          {TABS.map(([title, sub], i) => (
+            <button type="button" role="tab" class="tabb" id={`tour-t${i}`} aria-controls={`tour-p${i}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-value={String(i)}>
+              <span class="tab-h"><span class="mono">0{i + 1}</span>{title}</span>
+              <span class="tab-more"><span class="tab-s">{sub}</span><span class="tab-bar"><span class="prog"></span></span></span>
+            </button>
+          ))}
+        </div>
+        <div class="tour-stage">
+          <div class="glow" style="width:400px;height:400px;background:#2C4FE0;opacity:.35;left:-100px;bottom:-150px"></div>
+          <div role="tabpanel" id="tour-p0" aria-labelledby="tour-t0" data-when="tab:0" class="mock mock-card">
+            <div class="between" style="margin-bottom:6px"><strong style="font-size:17px">New order · Sat, Nov 7</strong><span class="chip" style="background:#E6ECFF;color:#233FB8;font-size:12px;padding:5px 10px">Auto-priced</span></div>
+            <div style="font-size:13px;color:#535C6B;margin-bottom:10px">1:00–6:00 PM · Cedar Park · 18.4 mi from warehouse</div>
+            {ORDER_ROWS.map(([k, s, v], i) => <div class="row" style={`animation:slidein .5s both;animation-delay:${200 + i * 160}ms`}><span>{k}<span style="display:block;font-size:12px;color:#596170">{s}</span></span><span class="mono">{v}</span></div>)}
+            <div class="total"><strong>Total</strong><strong class="mono" style="font-size:32px;animation:countin .8s 1.4s both">$618.11</strong></div>
+            <div class="refused">✕ Third Castle Bounce House refused: 2 of 2 already booked that afternoon</div>
+          </div>
+          <div role="tabpanel" id="tour-p1" aria-labelledby="tour-t1" data-when="tab:1" hidden class="mock pay">
+            <div class="phone">
+              <div style="font:800 22px/1.05 var(--font-display)">Your party is almost booked</div>
+              <div class="pbox"><span class="between"><span>Total</span><span class="mono">$618.11</span></span><span class="between" style="font-weight:700"><span>Deposit today</span><span class="mono">$185.43</span></span></div>
+              <div class="pbox" style="padding:10px 12px"><div style="font-size:11px;color:#535C6B">Sign the rental agreement</div><svg width="220" height="56" viewBox="0 0 330 90" aria-hidden="true"><path d="M10 60 C 30 10, 50 10, 45 60 S 70 70, 80 40 S 100 20, 105 55 C 110 70, 125 40, 140 45 S 160 70, 175 35 C 185 20, 190 70, 205 55 S 230 30, 245 50 S 280 60, 320 30" fill="none" stroke="#10131A" stroke-width="4" stroke-linecap="round" stroke-dasharray="700" style="--len:700;animation:drawl 1.6s .3s cubic-bezier(.4,0,.2,1) both" /></svg></div>
+              <div class="paid">✓ Paid · Booked</div>
+            </div>
+            <div class="stack" style="gap:12px;max-width:240px">
+              <div class="chip" style="background:#D4FF3A;color:#0B0D12;animation:slidein .5s 2.3s both;white-space:normal">Deposit $185.43 paid by card</div>
+              <div class="chip" style="background:#fff;color:#10131A;animation:slidein .5s 2.6s both;white-space:normal">Balance $432.68 auto-charges on event day</div>
+              <div class="chip" style="background:#141821;color:#fff;border:1px solid #2E3442;animation:slidein .5s 2.9s both;white-space:normal">Signed agreement emailed</div>
+            </div>
+          </div>
+          <div role="tabpanel" id="tour-p2" aria-labelledby="tour-t2" data-when="tab:2" hidden class="mock stack" style="width:min(100%,560px);gap:10px;position:relative">
+            {AUTOS.map(([t, s, w, bg, icon], i) => (
+              <div class="auto" style={`animation-delay:${i * 180}ms`}><span class="auto-ic" style={`background:${bg}`}><Icon d={icon} size={20} stroke="#0B0D12" width={2.2} /></span><span class="stack" style="flex:1"><strong style="font-size:15px">{t}</strong><span style="font-size:13px;color:#8A93A3">{s}</span></span><span class="mono" style="font-size:12px;color:#D4FF3A">{w}</span></div>
+            ))}
+          </div>
+          <div role="tabpanel" id="tour-p3" aria-labelledby="tour-t3" data-when="tab:3" hidden class="mock stack" style="width:min(100%,560px);gap:14px;position:relative">
+            <div class="map">
+              <svg width="100%" height="260" viewBox="0 0 560 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect x="340" y="30" width="120" height="80" rx="14" fill="#D6EBD9" /><path d="M0 150 C160 130 260 170 560 120" stroke="#BFD9F2" stroke-width="20" fill="none" /><path d="M90 0V260M260 0V260M430 0V260M0 70H560M0 200H560" stroke="#fff" stroke-width="10" /><path d="M90 220 V200 H260 V70 H430" stroke="#2C4FE0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-dasharray="560" style="--len:560;animation:drawl 2s .3s both" /><rect x="76" y="206" width="28" height="28" rx="7" fill="#0B0D12" stroke="#D4FF3A" stroke-width="4" /><circle cx="430" cy="70" r="12" fill="#C2272D" /></svg>
+              <span class="van">AK</span>
+              <span class="chip" style="position:absolute;right:12px;top:12px;background:#0B0D12;color:#D4FF3A;font-size:13px">ETA 5 min · text sent</span>
+            </div>
+            {PHASES.map(([t, w], i) => <div class="phase"><span style="width:160px">{t}</span><span class="pbar"><span style={`width:${w};animation-delay:${400 + i * 200}ms`}></span></span><span class="mono" style="width:44px;text-align:right;color:#A3ABB9">{w}</span></div>)}
+          </div>
+          <div role="tabpanel" id="tour-p4" aria-labelledby="tour-t4" data-when="tab:4" hidden class="mock mock-card" style="width:min(100%,560px)">
+            <div style="font-size:14px;color:#535C6B">Revenue this month</div>
+            <div style="display:flex;align-items:baseline;gap:14px"><strong class="mono" style="font-size:48px;letter-spacing:-.02em">$30,710</strong><span class="chip" style="background:#E3F5EC;color:#0B6145;font-size:13px;padding:5px 10px">▲ 12%</span></div>
+            <div class="bars">{BARS.map((v, i) => <span style={`height:${v * 100}%;background:${i === 11 ? '#D4FF3A' : '#2C4FE0'};animation-delay:${i * 60}ms`}></span>)}</div>
+            <div class="tags" style="margin-top:18px">{['Month to date', 'Receivables', 'Rain checks', 'Commissions', 'Sales by city'].map((r) => <span class="chip">★ {r}</span>)}</div>
+          </div>
+          <div role="tabpanel" id="tour-p5" aria-labelledby="tour-t5" data-when="tab:5" hidden class="mock brand" data-scope data-swatch="cobalt">
+            <div class="stack" style="gap:12px">
+              <span id="sw-l" style="color:#A3ABB9;font-size:13px;font-weight:600">Try it: pick a brand colour</span>
+              <div class="swatches" data-choice="swatch" role="group" aria-labelledby="sw-l">
+                {SWATCHES.map(([id, c], i) => <button type="button" data-value={id} aria-pressed={i === 0 ? 'true' : 'false'} aria-label={`${id} brand colour`} style={`background:${c}`}></button>)}
+              </div>
+            </div>
+            <div class="quote">
+              <div class="quote-h"><span class="lp">LP</span><strong>Lakeside Party Rentals</strong></div>
+              <div class="stack" style="padding:20px;gap:10px"><strong style="font:800 22px/1.05 var(--font-display)">Your quote is ready</strong><span style="font-size:13px;color:#535C6B">Quote Q-LAK-01001 · Saturday</span><span class="quote-btn">Sign &amp; pay deposit</span><span style="font-size:12px;color:#6B7383">quotes.lakesideparty.com · your logo, colours and domain</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GETTING STARTED -->
+  <section style="background:#F1F2EA;padding:110px 0">
+    <div class="wrap stack" style="gap:48px">
+      <div class="rv stack" style="gap:16px;align-items:center;text-align:center"><span class="eyebrow">Getting started</span><h2 class="h2">Taking bookings by the weekend</h2><p class="lede">No consultants, no install. A guided setup walks you through everything a rental business needs.</p></div>
+      <ol class="grid-auto steps" style="--min:260px;--gap:18px">
+        {STEPS.map(([n, t, s, time]) => (
+          <li class="card rv stack" style="padding:28px;gap:14px">
+            <span class="between"><span class="mono step-n">{n}</span><span class="mono" style="font-size:12.5px;color:#6B7383">{time}</span></span>
+            <strong class="kind-t">{t}</strong>
+            <span style="font-size:15px;line-height:1.55;color:#535C6B">{s}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- REVENUE LEAK CALCULATOR -->
+  <section class="dark" style="padding:110px 0;position:relative;overflow:hidden">
+    <div class="glow" style="width:520px;height:520px;background:#D4FF3A;opacity:.1;right:-120px;top:40px"></div>
+    <div class="wrap roi" data-roi>
+      <div class="stack" style="flex:1 1 440px;min-width:0;gap:28px">
+        <div class="stack" style="gap:16px"><span class="eyebrow">Revenue leak calculator</span><h2 class="h2">How much is slipping through the cracks?</h2><p class="lede">Move the sliders to match your business. We'll estimate what forgotten fees and uncollected balances cost you each month.</p></div>
+        {SLIDERS.map(([k, label, min, max, step, val]) => (
+          <div class="stack" style="gap:6px"><div class="between" style="font-size:15px"><label for={`roi-${k}`} style="color:#C9CED8">{label}</label><output class="mono" for={`roi-${k}`} data-out={k} style="color:#D4FF3A;font-weight:700"></output></div><input id={`roi-${k}`} class="range" type="range" min={min} max={max} step={step} value={val} data-k={k} /></div>
+        ))}
+      </div>
+      <div class="roi-card" aria-live="polite">
+        <span style="font-size:15px;color:#A3ABB9">Estimated money back each month</span>
+        <strong class="mono roi-total" data-out="total">$5,413</strong>
+        <div class="stack" style="gap:14px">
+          {[['fees', 'Missed travel & overtime fees', '#D4FF3A'], ['bal', 'Balances collected automatically', '#6E8BFF']].map(([k, label, c]) => (
+            <div class="stack" style="gap:6px"><div class="between" style="font-size:14.5px"><span style="color:#C9CED8">{label}</span><span class="mono" data-out={k}></span></div><div class="roi-track"><span data-bar={k} style={`background:${c}`}></span></div></div>
+          ))}
+        </div>
+        <div class="between roi-hours"><span style="font-size:14px;color:#C9CED8">Admin time saved</span><strong class="mono" style="font-size:20px" data-out="hrs"></strong></div>
+        <a href={SIGN_UP} class="btn btn-volt" style="align-self:flex-start" data-track="start_trial" data-where="calculator">Start getting it back</a>
+        <p style="margin:0;font-size:12.5px;line-height:1.5;color:#8A93A3">A rough estimate from your inputs, not a promise. Assumes missed travel or overtime fees average 8% of an order, an uncollected balance is 70% of an order, and about 12 minutes of admin per booking is automated.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROOF + SECURITY -->
+  <section class="wrap sec" style="padding-bottom:40px">
+    <div class="rv sec-head" style="gap:40px">
+      <div class="stack" style="gap:16px;max-width:680px"><span class="eyebrow">Built inside a real rental business</span><h2 class="h2" style="font-size:clamp(34px,4vw,52px)">Not built by guessing. Built from a working multi-location rental company.</h2></div>
+      <p class="lede" style="max-width:420px">Every screen started as a real problem on a real Saturday: double bookings, missing deposits, late crews and forgotten fees.</p>
+    </div>
+    <div class="grid-auto" style="--min:200px;--gap:14px">
+      {FACTS.map(([n, t]) => <div class="card rv stack" style="padding:26px;gap:6px"><strong class="mono" style="font-size:48px;letter-spacing:-.03em">{n}</strong><span style="font-size:15px;color:#535C6B;line-height:1.45">{t}</span></div>)}
+    </div>
+    <div class="grid-auto" style="--min:340px;--gap:14px;margin-top:20px">
+      {SEC.map(([t, s, icon]) => <div class="rv secu"><span class="secu-ic"><Icon d={icon} size={22} stroke="#D4FF3A" /></span><span class="stack" style="gap:4px"><strong style="font-size:16px">{t}</strong><span style="font-size:14px;line-height:1.5;color:#535C6B">{s}</span></span></div>)}
+    </div>
+    <div class="rv tags" style="align-items:center;margin-top:10px;gap:10px"><span style="font-size:14px;color:#535C6B;margin-right:6px">Works with</span>{INTEG.map((i) => <a href="/integrations" class="chip integ">{i}</a>)}</div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" class="wrap" style="padding-top:64px;padding-bottom:40px;scroll-margin-top:90px">
+    <PriceLine vertical="events" />
+  </section>
+
+  <!-- FAQ -->
+  <section class="wrap faq-sec">
+    <div class="rv stack" style="flex:1 1 320px;gap:16px"><span class="eyebrow">Questions</span><h2 class="h2" style="font-size:clamp(34px,3.6vw,48px)">Asked by rental owners, answered straight</h2><a href="/demo" style="font-weight:650;color:#2C4FE0">Still unsure? Talk to us →</a></div>
+    <div style="flex:999 1 560px;min-width:0"><Faq items={FAQS} /></div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="wrap" style="padding-bottom:100px">
+    <div class="rv final">
+      <svg width="360" height="360" viewBox="0 0 100 100" aria-hidden="true" class="final-mark"><rect x="22" y="50" width="56" height="30" rx="6" fill="#0B0D12" /><rect x="22" y="38" width="56" height="9" rx="4" fill="#0B0D12" transform="rotate(-22 22 47)" /></svg>
+      <div class="stack" style="position:relative;gap:14px;max-width:760px"><h2 class="disp" style="font-size:clamp(40px,5.6vw,76px)">Make your next Saturday the calm one.</h2><p style="margin:0;font-size:18px;line-height:1.5">Start free, bring your products and customers, and take your first online deposit this week.</p></div>
+      <div class="btns" style="position:relative"><a href={SIGN_UP} class="btn btn-ink" data-track="start_trial" data-where="final">Start free trial</a><a href="/demo" class="btn" style="background:transparent;color:#0B0D12;border:1.5px solid #0B0D12">Book a demo</a></div>
+    </div>
+  </section>
+</Page>
+
+<script>
+  // Revenue leak calculator.
+  const roi = document.querySelector<HTMLElement>('[data-roi]');
+  if (roi) {
+    const usd = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
+    const out = (k: string, v: string) => roi.querySelectorAll<HTMLElement>(`[data-out="${k}"]`).forEach((el) => { el.textContent = v; });
+    const calc = () => {
+      const v: Record<string, number> = {};
+      roi.querySelectorAll<HTMLInputElement>('input[data-k]').forEach((i) => { v[i.dataset.k!] = +i.value; });
+      const fees = v.bk! * v.avg! * (v.miss! / 100) * 0.08;
+      const bal = v.unpaid! * v.avg! * 0.7;
+      const max = Math.max(fees, bal, 1);
+      out('bk', String(v.bk)); out('avg', usd(v.avg!)); out('miss', `${v.miss}%`); out('unpaid', String(v.unpaid));
+      out('total', usd(fees + bal)); out('fees', usd(fees)); out('bal', usd(bal)); out('hrs', `${Math.round(v.bk! * 12 / 60)} hours / month`);
+      roi.querySelector<HTMLElement>('[data-bar="fees"]')!.style.width = `${Math.max(3, fees / max * 100)}%`;
+      roi.querySelector<HTMLElement>('[data-bar="bal"]')!.style.width = `${Math.max(3, bal / max * 100)}%`;
+    };
+    roi.addEventListener('input', calc);
+    calc();
+  }
+</script>
+
+<style>
+  .hero { position: relative; background: #0B0D12; color: #fff; overflow: hidden; }
+  .hero-glow { width: 620px; height: 620px; background: #2C4FE0; opacity: .45; right: -120px; top: -80px; animation: drift 14s ease-in-out infinite; transition: background-color .6s; }
+  .hero[data-gear="tents"] .hero-glow { background: #0B7A55; }
+  .hero[data-gear="av"] .hero-glow { background: #B0306A; }
+  .hero[data-gear="tools"] .hero-glow { background: #0E7490; }
+  .hero :focus-visible { outline-color: #D4FF3A; }
+  .hero-in { position: relative; display: flex; flex-wrap: wrap; gap: 56px; align-items: center; padding-top: clamp(48px, 7vw, 96px); padding-bottom: 72px; }
+  .hero-copy { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+  .new-chip { white-space: normal; align-self: flex-start; background: #141821; border: 1px solid #232835; color: #C9CED8; font-size: 13.5px; }
+  .new-chip span { background: #D4FF3A; color: #0B0D12; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 800; }
+  .hero-lede { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #A3ABB9; max-width: 54ch; }
+  .hint { font-size: 13px; font-weight: 600; color: #A3ABB9; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .hero-vis { flex: 1 1 480px; min-width: 0; position: relative; min-height: 520px; }
+  .hero-gear { position: absolute; inset: 0; }
+  .win { position: absolute; inset: 20px 0 0 30px; border-radius: 26px; background: #141821; border: 1px solid #232835; box-shadow: 0 60px 120px -40px rgba(0, 0, 0, .8); overflow: hidden; }
+  .win-bar { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid #232835; }
+  .win-bar > span:not(.mono) { width: 11px; height: 11px; border-radius: 50%; }
+  .win-bar .mono { margin-left: 14px; font-size: 12px; color: #8A93A3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .win-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .order { background: #fff; color: #10131A; border-radius: 18px; padding: 18px 20px; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 2px solid #10131A; }
+  .total > strong:first-child { font: 800 20px var(--font-display); }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .kpis > div { background: #0B0D12; border: 1px solid #232835; border-radius: 14px; padding: 12px; min-width: 0; }
+  .float { position: absolute; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 18px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7); font-size: 14.5px; font-weight: 600; white-space: nowrap; z-index: 2; }
+  .float-ic { width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .marq-wrap { border-top: 1px solid #1C212C; padding: 22px 0; overflow: hidden; }
+  .marq { display: flex; gap: 12px; width: max-content; animation: marquee 38s linear infinite; list-style: none; margin: 0; padding: 0; }
+  .marq li { background: #11141B; border: 1px solid #232835; color: #C9CED8; font-weight: 500; }
+  .marq li span { width: 7px; height: 7px; border-radius: 50%; }
+  .marq-wrap:hover .marq { animation-play-state: paused; }
+
+  .sec { padding-top: 120px; display: flex; flex-direction: column; gap: 40px; }
+  .sec-head { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: flex-end; }
+  .flips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 18px; }
+  .tag-bad { background: #FDE7E8; color: #A31F25; padding: 5px 12px; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+  .tag-good { background: #D4FF3A; color: #0B0D12; padding: 5px 12px; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+  .flip-t { font: 800 26px/1.1 var(--font-display); letter-spacing: -.02em; }
+  .flip-s { font-size: 15px; line-height: 1.5; color: #535C6B; }
+  .kind { padding: 28px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden; transition: transform .25s var(--ease-out), box-shadow .25s; }
+  .kind:hover { transform: translateY(-4px); box-shadow: 0 30px 60px -30px rgba(11, 13, 18, .3); }
+  .kind-blob { position: absolute; right: -40px; top: -40px; width: 140px; height: 140px; border-radius: 50%; }
+  .kind-ic { position: relative; width: 56px; height: 56px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .kind-t { position: relative; font: 800 24px/1.1 var(--font-display); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+  .tags .chip { background: #F1F2EA; font-size: 12.5px; padding: 5px 10px; }
+
+  .tour { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .tour-tabs { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .tabb { color: #535C6B; }
+  .tabb[aria-selected="true"] { background: #fff; color: #10131A; }
+  .tab-h { display: flex; align-items: center; gap: 12px; font: 700 18px var(--font-ui); }
+  .tab-h .mono { font-size: 13px; color: #6B7383; }
+  .tabb[aria-selected="true"] .tab-h .mono { color: #2C4FE0; }
+  .tab-more { display: none; flex-direction: column; }
+  .tabb[aria-selected="true"] .tab-more { display: flex; animation: rise .4s both; }
+  .tab-s { font-size: 15px; line-height: 1.5; color: #535C6B; padding-left: 34px; }
+  .tab-bar { margin: 8px 0 0 34px; height: 3px; background: #E3E5DC; border-radius: 3px; overflow: hidden; display: block; }
+  [data-paused="true"] .prog { animation-play-state: paused; }
+  .tour-stage { flex: 999 1 560px; min-width: 0; min-height: 520px; border-radius: 28px; background: #0B0D12; position: relative; overflow: hidden; padding: clamp(20px, 3vw, 40px); display: flex; align-items: center; justify-content: center; }
+  .mock-card { position: relative; width: min(100%, 520px); background: #fff; border-radius: 22px; padding: 26px 28px; }
+  .refused { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #FDE7E8; color: #A31F25; font-size: 13.5px; font-weight: 600; animation: pop .5s 1.9s both; }
+  .pay { position: relative; display: flex; gap: 22px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .phone { width: 280px; max-width: 100%; border-radius: 40px; background: #F3F4F6; border: 8px solid #2A303C; padding: 34px 18px 20px; color: #10131A; display: flex; flex-direction: column; gap: 12px; }
+  .pbox { background: #fff; border-radius: 14px; padding: 12px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .paid { height: 48px; border-radius: 14px; background: #0B7A55; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; animation: pop .5s 2s both; }
+  .auto { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 16px; background: #141821; border: 1px solid #232835; color: #fff; animation: slidein .5s both; }
+  .auto-ic { width: 42px; height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .map { position: relative; border-radius: 20px; overflow: hidden; background: #E9EEF4; height: 260px; }
+  .van { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: #2C4FE0; border: 4px solid #fff; color: #fff; font: 700 13px var(--font-ui); display: flex; align-items: center; justify-content: center; offset-path: path('M90 220 V200 H260 V70 H430'); offset-rotate: 0deg; animation: van 2.3s .3s cubic-bezier(.4, 0, .2, 1) both; }
+  @keyframes van { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  .phase { display: flex; align-items: center; gap: 14px; color: #fff; font-size: 14px; }
+  .pbar { flex: 1; height: 10px; background: #232835; border-radius: 99px; overflow: hidden; }
+  .pbar span { display: block; height: 100%; background: #D4FF3A; border-radius: 99px; transform-origin: left; animation: growx .8s both; }
+  .bars { height: 200px; display: flex; align-items: flex-end; gap: 10px; margin-top: 18px; }
+  .bars span { flex: 1; border-radius: 8px 8px 3px 3px; transform-origin: bottom; animation: grow .7s var(--ease-pop) both; }
+  .brand { position: relative; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; justify-content: center; --b: #2C4FE0; --bf: #fff; }
+  .brand[data-swatch="emerald"] { --b: #0B7A55; } .brand[data-swatch="ember"] { --b: #C2410C; } .brand[data-swatch="berry"] { --b: #B0306A; }
+  .brand[data-swatch="violet"] { --b: #6D3FD6; } .brand[data-swatch="teal"] { --b: #0E7490; } .brand[data-swatch="ink"] { --b: #10131A; }
+  .brand[data-swatch="volt"] { --b: #D4FF3A; --bf: #0B0D12; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 44px); gap: 10px; }
+  .swatches button { width: 44px; height: 44px; border-radius: 14px; border: 3px solid transparent; cursor: pointer; transition: transform .2s; }
+  .swatches button[aria-pressed="true"] { border-color: #fff; transform: scale(1.1); }
+  .quote { width: 300px; max-width: 100%; background: #fff; border-radius: 22px; overflow: hidden; color: #10131A; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .6); }
+  .quote-h { background: var(--b); color: var(--bf); padding: 18px 20px; display: flex; align-items: center; gap: 10px; transition: background-color .4s; }
+  .lp { width: 32px; height: 32px; border-radius: 10px; background: var(--bf); color: var(--b); font: 800 13px var(--font-ui); display: inline-flex; align-items: center; justify-content: center; }
+  .quote-btn { height: 46px; border-radius: 12px; background: var(--b); color: var(--bf); font-weight: 700; display: flex; align-items: center; justify-content: center; transition: background-color .4s; }
+
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .step-n { width: 44px; height: 44px; border-radius: 14px; background: #0B0D12; color: #D4FF3A; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .roi { position: relative; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .roi-card { flex: 1 1 440px; min-width: 0; border-radius: 28px; background: #141821; border: 1px solid #232835; padding: clamp(24px, 3vw, 40px); display: flex; flex-direction: column; gap: 22px; }
+  .roi-total { font-size: clamp(54px, 7vw, 88px); line-height: 1; letter-spacing: -.03em; color: #D4FF3A; }
+  .roi-track { height: 8px; background: #0B0D12; border-radius: 99px; overflow: hidden; }
+  .roi-track span { display: block; height: 100%; width: 50%; border-radius: 99px; transition: width .5s var(--ease-out); }
+  .roi-hours { padding: 16px; border-radius: 16px; background: #0B0D12; }
+  .dark :focus-visible { outline-color: #D4FF3A; }
+  .secu { display: flex; gap: 16px; padding: 22px; border-radius: 20px; background: #F1F2EA; }
+  .secu-ic { width: 44px; height: 44px; border-radius: 14px; background: #0B0D12; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+  .integ { background: #fff !important; border: 1px solid #E3E5DC; font-size: 14px !important; }
+  .faq-sec { padding-top: 100px; padding-bottom: 110px; display: flex; flex-wrap: wrap; gap: 48px; }
+  .final { position: relative; overflow: hidden; border-radius: 36px; background: #D4FF3A; color: #0B0D12; padding: clamp(36px, 6vw, 80px); display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end; justify-content: space-between; }
+  .final-mark { position: absolute; right: -60px; top: -90px; opacity: .14; }
+
+  @media (max-width: 640px) {
+    .hero-vis { min-height: 480px; }
+    .win { inset: 10px 0 0 0; }
+    .float { font-size: 13px; padding: 10px 12px; }
+    .float:nth-of-type(2) { left: auto !important; right: 0; }
+    .kpis .mono { font-size: 14px !important; }
+    .tour-stage { min-height: 460px; }
+    .phase span:first-child { width: 110px !important; }
+  }
+</style>

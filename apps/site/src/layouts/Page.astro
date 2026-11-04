@@ -1,0 +1,27 @@
+---
+/** A normal site page: the shell plus the vertical's nav and footer. */
+import Base from './Base.astro';
+import Nav from '~/components/Nav.astro';
+import Footer from '~/components/Footer.astro';
+import type { Vertical } from '~/lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  vertical: Vertical | 'auto';
+  nav?: 'dark' | 'light';
+  active?: string;
+  og?: string;
+  jsonLd?: Record<string, unknown>[];
+  noindex?: boolean;
+}
+const { nav = 'light', active, ...rest } = Astro.props;
+---
+<Base {...rest}>
+  <slot name="head" slot="head" />
+  <Nav vertical={rest.vertical} theme={nav} active={active} />
+  <main id="main">
+    <slot />
+  </main>
+  <Footer vertical={rest.vertical} />
+</Base>

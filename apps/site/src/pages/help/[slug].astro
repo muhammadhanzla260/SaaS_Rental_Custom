@@ -1,0 +1,27 @@
+---
+/** S9 · Help article (reuses the S8 article layout). */
+import { render } from 'astro:content';
+import Article from '~/layouts/Article.astro';
+import { helpArticles, fmtDate } from '~/lib/content';
+
+export async function getStaticPaths() {
+  const all = await helpArticles();
+  return all.map((art) => ({ params: { slug: art.id }, props: { art, all } }));
+}
+const { art, all } = Astro.props;
+const { Content, headings } = await render(art);
+const related = all.filter((a) => a.id !== art.id && a.data.category === art.data.category && !a.data.draft).slice(0, 3);
+---
+<Article
+  title={art.data.title}
+  description={art.data.description}
+  back={{ href: '/help', label: 'Help center' }}
+  kicker={`Help · ${art.data.category}`}
+  meta={`Updated ${fmtDate(art.data.updated)}`}
+  headings={headings}
+  related={related.map((r) => ({ href: `/help/${r.id}`, kicker: r.data.category, title: r.data.title }))}
+  draft={art.data.draft}
+  cta={false}
+>
+  <Content />
+</Article>

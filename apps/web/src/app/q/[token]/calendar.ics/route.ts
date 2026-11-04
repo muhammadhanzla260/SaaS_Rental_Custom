@@ -37,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Tentpole//Rentals//EN',
+    'PRODID:-//Rent Hatch//Rentals//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

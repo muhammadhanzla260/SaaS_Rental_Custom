@@ -1,0 +1,30 @@
+---
+/** Hero band for shared pages: eyebrow, headline (slot), lede, optional art on the right. */
+interface Props { eyebrow: string; lede?: string; dark?: boolean; glow?: string; center?: boolean }
+const { eyebrow, lede, dark = true, glow = '#2C4FE0', center = false } = Astro.props;
+---
+<section class:list={['ph', { dark, center }]}>
+  {dark && <div class="grid-bg"></div>}
+  <div class="glow" style={`width:560px;height:560px;background:${glow};opacity:${dark ? 0.35 : 0.28};right:-160px;top:-220px`}></div>
+  <div class="wrap ph-in">
+    <div class="ph-copy">
+      <span class="eyebrow rise">{eyebrow}</span>
+      <h1 class="disp rise" style="--d:80ms;font-size:clamp(44px,5.6vw,80px)"><slot /></h1>
+      {lede && <p class="lede rise" style="--d:160ms">{lede}</p>}
+      <slot name="after" />
+    </div>
+    {Astro.slots.has('art') && <div class="ph-art rise" style="--d:200ms" aria-hidden="true"><slot name="art" /></div>}
+  </div>
+</section>
+<style>
+  .ph { position: relative; overflow: hidden; }
+  .ph.dark { background: #0B0D12; color: #fff; }
+  .ph-in { position: relative; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; justify-content: space-between; padding-top: clamp(56px, 7vw, 96px); padding-bottom: clamp(56px, 6vw, 88px); }
+  .ph-copy { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .center .ph-in { justify-content: center; text-align: center; }
+  .center .ph-copy { align-items: center; flex-basis: 100%; }
+  .ph-art { flex: 0 1 420px; min-width: 0; display: flex; justify-content: center; }
+  .dark :global(.v), .ph :global(.v) { color: #D4FF3A; }
+  .ph:not(.dark) :global(.v) { color: #2C4FE0; }
+  @media (max-width: 760px) { .ph-art { display: none; } }
+</style>

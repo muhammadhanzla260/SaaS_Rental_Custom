@@ -9,7 +9,7 @@ export const metadata = { title: 'Organizations' };
 export default async function ConsolePage() {
   const { user } = await requirePlatformAdmin();
   const orgs = await listPlatformOrgs(db, user.id);
-  const domain = process.env.PLATFORM_APP_DOMAIN || 'tentpole.app';
+  const domain = process.env.PLATFORM_APP_DOMAIN || 'renthatch.org';
   return (
     <OrgsConsole
       domain={domain}

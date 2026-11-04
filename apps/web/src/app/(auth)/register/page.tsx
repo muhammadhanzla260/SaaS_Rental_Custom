@@ -8,12 +8,12 @@ const JOURNEY = ['Register', 'Brand & settings', 'Catalog & booking', 'Quotes & 
 
 export default async function RegisterPage() {
   const session = await getSession();
-  const domain = process.env.PLATFORM_APP_DOMAIN || 'tentpole.app';
+  const domain = process.env.PLATFORM_APP_DOMAIN || 'renthatch.org';
   return (
     <AuthSplit
       hero={
         <>
-          <HeroTitle>Open your rental business on Tentpole.</HeroTitle>
+          <HeroTitle>Open your rental business on Rent Hatch.</HeroTitle>
           <HeroSub>Register, make it yours with your brand and rules, then add your catalog and start taking deposits.</HeroSub>
           <div className="anim-rise mt-14 max-w-[600px] -rotate-1 overflow-hidden rounded-[20px] bg-white text-night shadow-[0_40px_80px_-30px_rgb(0_0_0/0.7)]" style={{ ['--d' as string]: '240ms' }} aria-hidden="true">
             <div className="flex items-center gap-2 bg-[#ECEEF2] px-4 py-3">

@@ -1,0 +1,40 @@
+---
+/** S6 · Careers. Lists roles marked open; locally (astro dev) example roles show with a badge. */
+import { getCollection, render } from 'astro:content';
+import Page from '~/layouts/Page.astro';
+import PageHero from '~/components/PageHero.astro';
+
+const PERKS = [['Remote-first', 'Work from anywhere within a few hours of US Central time.'], ['Talk to customers', 'Everyone joins customer calls. You will hear the problems first-hand.'], ['Ship weekly', 'Small changes, often. Your work is in front of rental owners fast.'], ['Learning budget', 'Books, courses and conferences that make you better at the job.']];
+const roles = await Promise.all((await getCollection('jobs', (j) => j.data.open || import.meta.env.DEV)).map(async (j) => ({ ...j, Content: (await render(j)).Content })));
+---
+<Page title="Careers" description="Join Rent Hatch: a small, remote-first team building software rental owners use every day." vertical="auto" nav="dark">
+  <PageHero eyebrow="Careers" lede="Remote-first. We ship things rental owners use the same week, and we talk to them every day." glow="#D4FF3A">
+    Small team. Real problems. <span class="v">Customers you can call.</span>
+  </PageHero>
+  <section class="wrap" style="padding-top:64px">
+    <div class="grid-auto" style="--min:240px;--gap:14px">{PERKS.map(([t, s]) => <div class="card rv perk"><strong style="font:800 20px var(--font-display)">{t}</strong><span style="font-size:15px;line-height:1.55;color:#535C6B">{s}</span></div>)}</div>
+  </section>
+  <section class="wrap stack" style="padding-top:90px;padding-bottom:100px;gap:22px">
+    <div class="stack" style="gap:14px"><span class="eyebrow">Open roles</span><h2 class="h2">Join us</h2></div>
+    {roles.length === 0 ? (
+      <div class="none"><strong style="font-size:18px">No open roles right now.</strong><span style="color:#535C6B">We still like hearing from people who care about rental businesses. <a href="/contact?topic=jobs" style="color:#2C4FE0;font-weight:600">Introduce yourself →</a></span></div>
+    ) : (
+      <div>
+        {roles.map(({ data, Content }) => (
+          <details class="faq role" name="role">
+            <summary><span class="stack" style="gap:4px"><span>{data.title}{!data.open && <span class="draft">Example · not public</span>}</span><span class="meta">{data.team} · {data.location} · {data.type}</span></span><span class="plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span></summary>
+            <div class="body"><Content /><a href={`/contact?topic=jobs`} class="btn btn-ink" style="height:44px">Apply for this role</a></div>
+          </details>
+        ))}
+      </div>
+    )}
+  </section>
+</Page>
+<style>
+  .perk { padding: 24px; display: flex; flex-direction: column; gap: 8px; }
+  .none { display: flex; flex-direction: column; gap: 6px; padding: 28px; border-radius: 22px; border: 1.5px dashed #C9CED6; }
+  .meta { font-size: 14px; font-weight: 500; color: #6B7383; }
+  .body { padding-bottom: 22px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+  .body :global(p) { margin: 0; color: #535C6B; line-height: 1.6; max-width: 70ch; }
+  .draft { margin-left: 10px; padding: 3px 8px; border-radius: 999px; background: #FFF1DC; color: #8A4A00; font-size: 11px; font-weight: 700; }
+</style>

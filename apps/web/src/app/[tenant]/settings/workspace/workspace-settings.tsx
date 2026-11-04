@@ -313,7 +313,7 @@ function PaymentsTab({ slug, initial, readOnly }: Props) {
     if (!p.success) { form.setErrors(zodFieldErrors(p.error)); form.setStatus({ kind: 'error', text: 'A few fields need attention.' }); return; }
     form.submit(() => savePaymentsAction(slug, body), (r) => saved(r.message));
   };
-  const mail = initial.mailReady === 'verified' ? 'Mail server verified' : initial.mailReady === 'untested' ? 'Mail server not tested yet' : 'Sending from Tentpole for now';
+  const mail = initial.mailReady === 'verified' ? 'Mail server verified' : initial.mailReady === 'untested' ? 'Mail server not tested yet' : 'Sending from the shared mail service for now';
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <Card className="flex flex-col gap-5 p-5 sm:p-6">
