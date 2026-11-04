@@ -204,7 +204,12 @@ const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 
   });
 
   // Coming from the pricing page's Enterprise card.
-  if (new URLSearchParams(location.search).get('size') === 'enterprise') (form.elements.namedItem('size') as HTMLSelectElement).value = '300+';
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('size') === 'enterprise') (form.elements.namedItem('size') as HTMLSelectElement).value = '300+';
+  // From the car site (link or remembered choice): start as an early-access call.
+  const rents = qs.get('rents') ?? (document.documentElement.dataset.v === 'cars' ? 'cars' : null);
+  const pre = rents && box.querySelector<HTMLInputElement>(`input[name="rents"][value="${CSS.escape(rents)}"]`);
+  if (pre) { pre.checked = true; pre.dispatchEvent(new Event('change', { bubbles: true })); }
 </script>
 
 <style>

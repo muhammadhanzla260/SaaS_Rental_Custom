@@ -1,0 +1,497 @@
+---
+/** C1 · Car rental home (early access). Every call to action collects an early-access sign-up. */
+import Page from '~/layouts/Page.astro';
+import Icon from '~/components/Icon.astro';
+import Faq from '~/components/Faq.astro';
+import Form from '~/components/Form.astro';
+import { IC } from '~/lib/site';
+
+const I = { ...IC, cal: IC.book, card: 'M3 6h18v12H3zM3 10h18', fuel: 'M4 20V5h9v15M4 10h9M13 8h3l2 2v8a1.5 1.5 0 0 1-3 0v-4h-2', doc: 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3', chart: IC.rep, globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9z', bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20h4', pin: IC.crew };
+type B = [number, number, string, string];
+const FLEETS: Record<string, { label: string; title: string; rows: [string, string, B[]][]; kpis: [string, string, string][] }> = {
+  eco: { label: 'Economy & compact', title: 'Economy & compact · this week', rows: [['Toyota Corolla', 'TX 7KL-204', [[0, 3, 'J. Patel', '#D4FF3A'], [3.3, 7, 'Airport · Thu–Sun', '#C9B4FF']]], ['Honda Civic', 'TX 3MM-118', [[1, 4, 'R. Gomez', '#C9B4FF']]], ['Kia Rio', 'TX 9PL-660', [[0, 2, 'Service · oil', '#FF8A8E'], [2.3, 6, 'K. Lee', '#D4FF3A']]], ['Nissan Versa', 'TX 2FT-907', [[4, 7, 'Weekend · M. Ali', '#C9B4FF']]], ['Hyundai Elantra', 'TX 6YU-342', [[0, 7, 'Monthly · Uber driver', '#fff']]]], kpis: [['On rent', '9 / 12', '#fff'], ['Returns today', '3', '#C9B4FF'], ['Deposits held', '$2,700', '#D4FF3A']] },
+  suv: { label: 'SUVs & vans', title: 'SUVs & vans · this week', rows: [['Toyota RAV4', 'TX 4KD-552', [[0, 3, 'J. Patel', '#D4FF3A'], [3.3, 5, 'Return check', '#FF8A8E']]], ['Ford Transit 15', 'TX 9RM-811', [[2, 7, 'Church trip · Wed–Sun', '#C9B4FF']]], ['Chevy Tahoe', 'TX 5TH-118', [[3, 7, 'M. Ruiz · Thu–Sun', '#D4FF3A']]], ['Honda Odyssey', 'TX 8OD-224', [[0, 4, 'Family trip', '#C9B4FF']]], ['Jeep Wrangler', 'TX 1JW-090', [[5, 7, 'Weekend', '#fff']]]], kpis: [['On rent', '11 / 14', '#fff'], ['One-way', '2', '#C9B4FF'], ['Deposits held', '$4,200', '#D4FF3A']] },
+  truck: { label: 'Trucks & commercial', title: 'Trucks & commercial · this week', rows: [['Box truck 16 ft', 'TX 3BX-771', [[0, 2, 'Movers LLC', '#D4FF3A'], [2.3, 5, 'A. Khan move', '#C9B4FF']]], ['Pickup F-150', 'TX 6PF-450', [[0, 7, 'Contract · Cortez', '#fff']]], ['Cargo van', 'TX 2CV-338', [[1, 3, 'Delivery co.', '#C9B4FF'], [3.3, 4, 'Service', '#FF8A8E']]], ['Box truck 26 ft', 'TX 7BX-902', [[4, 7, 'Office move', '#D4FF3A']]], ['Flatbed', 'TX 4FB-115', [[2, 6, 'Site haul', '#C9B4FF']]]], kpis: [['On rent', '7 / 9', '#fff'], ['Miles out', '4,820', '#C9B4FF'], ['Deposits held', '$3,500', '#D4FF3A']] },
+  lux: { label: 'Luxury & exotic', title: 'Luxury & exotic · this week', rows: [['Porsche 911', 'TX PRS-911', [[4, 7, 'Weekend · verified', '#D4FF3A']]], ['Tesla Model S', 'TX 2EV-930', [[0, 2, 'Airport', '#C9B4FF'], [2.3, 4, 'Detailing', '#FF8A8E']]], ['Range Rover', 'TX RR-1001', [[1, 6, 'Wedding · C. Ford', '#C9B4FF']]], ['Mercedes G-Wagon', 'TX GW-063', [[3, 5, 'Music video', '#D4FF3A']]], ['BMW M4', 'TX M4-440', [[5, 7, 'Weekend', '#fff']]]], kpis: [['On rent', '5 / 8', '#fff'], ['ID checks', '100%', '#C9B4FF'], ['Deposits held', '$14,000', '#D4FF3A']] },
+};
+const FLOATS = [['Licence verified', 'J. Patel · expires 2029', I.id, '#fff', '#10131A', '#F1EAFE', '#5B2DB0'], ['Deposit hold placed', '$300.00 · released on return', I.card, '#C9B4FF', '#1B1530', '#1B1530', '#C9B4FF'], ['Return check done', 'Fuel full · 6 photos · no new damage', I.cam, '#6D3FD6', '#fff', '#fff', '#6D3FD6']];
+const FLOAT_POS = [['0px', '8px'], ['50%', '44%'], ['6%', '80%']];
+const MARQ = ['Car rental', 'Van hire', 'Moving trucks', 'Luxury & exotic', 'Airport rentals', 'Rideshare fleets', 'Long-term rentals', 'Campervans', 'Pickup trucks', 'Cargo vans', 'Electric vehicles', 'Peer fleets'];
+const PAINS = [
+  ['The same car, promised to two customers.', 'Two bookings, one Corolla, one very angry airport pickup.', 'Every vehicle has its own calendar', 'Bookings check the exact car or class, including cleaning and service time, before they are confirmed.', 'Fleet calendar'],
+  ['“That scratch was already there.”', 'No photos, no proof, no charge.', 'Photo inspections at pickup and return', 'Both sides of every rental are photographed and marked on the car, so new damage is obvious.', 'Inspections'],
+  ['Fuel and mileage arguments.', 'Quarter tank? Half? Nobody wrote it down.', 'Fuel and odometer logged at both ends', 'Readings are captured at pickup and return, and extra miles or fuel are charged automatically.', 'Settlement'],
+  ['Fake or expired licences.', 'You only find out after the car is gone.', 'Licence and ID checked before pickup', 'Customers upload their licence when they book. Expired or mismatched details are flagged.', 'Verification'],
+  ['No-shows that cost you a weekend.', 'The car sat in the lot while three people asked for it.', 'Deposits and reminders that stop no-shows', 'A card hold at booking, a reminder the day before and clear cancellation rules.', 'Bookings'],
+  ['Missed oil changes and services.', 'Until the warning light comes on mid-rental.', 'Maintenance due by date or mileage', 'Service reminders block the car from new bookings until it is done.', 'Maintenance'],
+];
+const STOPS = [
+  ['Book', I.cal, 'Customers book online', 'A booking page on your site shows real availability by class, with your rates, extras and policies.', ['Live availability by vehicle and class', 'Weekly and monthly rates applied automatically', 'Pickup and drop-off locations']],
+  ['Verify', I.id, 'Licence and ID checked up front', 'Customers upload their licence and ID after booking. Age, expiry and name are checked before pickup day.', ['Young-driver and age rules', 'Extra drivers added and checked', 'Flags before the keys go out']],
+  ['Sign & hold', I.card, 'Agreement signed, deposit held', 'The rental agreement is e-signed and the security deposit is held on the card, not charged.', ['Typed e-signature with audit trail', 'Deposit hold by vehicle class', 'Rental paid up front or at pickup']],
+  ['Pickup', I.cam, 'A 2-minute pickup check', 'Staff walk around the car with a phone: photos, marked damage, fuel level and odometer.', ['Tap-to-mark damage diagram', 'Fuel and mileage at pickup', 'Customer signs the condition report']],
+  ['On rent', I.clock, 'Extensions and late returns, handled', 'Customers extend online, reminders go out before return time and late fees apply on their own.', ['Online extensions', 'Return reminders by text', 'Late return fees']],
+  ['Return', I.check, 'Return check against pickup', 'The same walk-around compares with pickup, so only new damage, fuel and extra miles are charged.', ['Side-by-side with pickup photos', 'Extra miles and fuel priced', 'Damage priced from your repair list']],
+  ['Settle', I.doc, 'Charges taken, deposit released', 'Extra charges come out of the deposit, the rest is released and the receipt goes out automatically.', ['Automatic settlement', 'Receipt with photos attached', 'Tolls and fines recharged later']],
+] as const;
+// [id, name, left, top, width, height, repair cents]
+const ZONES: [string, string, string, string, string, string, number][] = [['fbump', 'Front bumper', '18%', '1%', '64%', '10%', 15000], ['hood', 'Bonnet', '20%', '12%', '60%', '22%', 15000], ['roof', 'Roof', '20%', '38%', '60%', '29%', 15000], ['rbump', 'Rear bumper', '18%', '87%', '64%', '11%', 18000], ['lfd', 'Left front door', '4%', '35%', '15%', '18%', 22000], ['lrd', 'Left rear door', '4%', '55%', '15%', '18%', 22000], ['rfd', 'Right front door', '81%', '35%', '15%', '18%', 22000], ['rrd', 'Right rear door', '81%', '55%', '15%', '18%', 15000], ['trunk', 'Boot', '20%', '68%', '60%', '18%', 14000], ['wind', 'Windscreen', '22%', '23%', '56%', '9%', 30000]];
+const CLASSES = { eco: ['Economy', 4500, 20000], suv: ['SUV', 7900, 30000], van: ['Van', 9500, 30000], lux: ['Luxury', 18900, 100000] } as const;
+const EXTRAS: [string, string, number, 'day' | 'once', number?][] = [['seat', 'Child seat', 800, 'day', 5600], ['gps', 'GPS unit', 600, 'day'], ['driver', 'Extra driver', 1000, 'day'], ['cover', 'Full damage cover', 2200, 'day'], ['young', 'Driver under 25', 2500, 'day'], ['oneway', 'One-way return', 7500, 'once']];
+const FEATS = [['Fleet calendar by vehicle', 'See every car and class by the hour, with cleaning and service time held.', I.cal, '#F1EAFE', '#5B2DB0'], ['Online booking widget', 'Real availability, rates and extras on your own website.', I.globe, '#E6ECFF', '#233FB8'], ['Licence & ID checks', 'Customers upload before pickup; age and expiry are checked.', I.id, '#E3F5EC', '#0B6145'], ['Digital rental agreement', 'E-signed with the condition report attached.', I.doc, '#FFF1DC', '#8A4A00'], ['Deposit holds', 'Held by class, released automatically after return.', I.card, '#F1EAFE', '#5B2DB0'], ['Pickup & return photos', 'Tap-to-mark damage with side-by-side comparison.', I.cam, '#FDE7E8', '#A31F25'], ['Mileage & fuel charges', 'Included miles per day, extra miles and fuel priced.', I.fuel, '#E0F2F7', '#0A5566'], ['Extras & cover', 'Child seats, GPS, extra drivers and damage cover.', I.star, '#FFF1DC', '#8A4A00'], ['Maintenance by mileage', 'Services due by date or miles block new bookings.', I.wrench, '#E6ECFF', '#233FB8'], ['Multi-location & one-way', 'Pick up in one branch, return to another.', I.pin, '#E3F5EC', '#0B6145'], ['Reminders & extensions', 'Return reminders, online extensions and late fees.', I.bell, '#F1EAFE', '#5B2DB0'], ['Fleet reports', 'Utilisation, revenue per vehicle and damage history.', I.chart, '#E0F2F7', '#0A5566']];
+const KINDS = [['Car rental', 'Economy to premium, by the day, week or month.', I.car, '#6D3FD6', ['Classes', 'Weekly rates', 'Airport pickup']], ['Vans & trucks', 'Moving vans, cargo vans and box trucks for people and businesses.', I.van, '#2C4FE0', ['Per-mile pricing', 'Business accounts', 'One-way']], ['Luxury & exotic', 'High-value cars with bigger holds and stricter checks.', I.star, '#B0306A', ['Large deposits', 'ID checks', 'Photo proof']], ['Long-term & subscription', 'Monthly rentals for rideshare drivers and businesses.', I.key, '#0B7A55', ['Monthly billing', 'Auto-charge', 'Service schedule']]] as const;
+const PLANS = [['Fleet 15', 'Up to 15 vehicles', '$59', '/ month', ['1 location · 3 users', 'Bookings & fleet calendar', 'Licence checks & e-sign', 'Pickup & return inspections', 'Deposit holds'], false, 'Join early access', '#access'], ['Fleet 60', 'Up to 60 vehicles', '$149', '/ month', ['3 locations · 10 users', 'Everything in Fleet 15', 'Online booking widget', 'Maintenance by mileage', 'SMS reminders & extensions'], true, 'Join early access', '#access'], ['Fleet 200', 'Up to 200 vehicles', '$349', '/ month', ['Unlimited locations', 'Everything in Fleet 60', 'One-way rentals', 'Fleet reports', 'Priority support'], false, 'Join early access', '#access'], ['Enterprise', '200+ vehicles', 'Custom', '', ['Everything in Fleet 200', 'Telematics when released', 'SSO & custom roles', 'Dedicated manager', 'Data migration'], false, 'Talk to us', '/demo?rents=cars']] as const;
+const ROAD = [['1', 'Designing with operators', 'Now', 'We are shaping inspections, rates and checks with real fleet owners.', true], ['2', 'Private beta', 'Next', 'Early-access members run real rentals with us on hand to help.', false], ['3', 'Public launch', 'Later', 'Open sign-up, with launch pricing locked in for beta members.', false]] as const;
+const FAQS: [string, string][] = [
+  ['When does car rental launch?', 'It is in design now with a small group of operators. Early-access members join a private beta first, then we open it up. Join the list and we will keep you posted with real dates, not guesses.'],
+  ['Can customers book on my own website?', 'Yes. A booking page and an embeddable widget show your real availability, rates and extras, and take the deposit hold.'],
+  ['Do you charge the deposit or just hold it?', 'It is a card hold, not a charge. Damage, fuel or extra miles are taken from it at return, and the rest is released.'],
+  ['Does it work for vans, trucks and luxury cars?', 'Yes. Set classes, rates, mileage rules and deposit holds per class, from economy cars to box trucks and supercars.'],
+  ['Can I track mileage and services?', 'Odometer readings at every pickup and return keep mileage current. Services due by date or mileage block the car from new bookings.'],
+  ['Do you support GPS trackers and telematics?', 'Not at launch. Integrations with trackers are on the roadmap, and early-access members help us choose which ones come first.'],
+  ['How are tolls and traffic fines handled?', 'Add them to a closed rental later, with the evidence attached, and charge the card on file with a receipt.'],
+];
+---
+<Page
+  title="Rent Hatch for car & vehicle rental · Early access"
+  description="Car rental software that books every vehicle, checks every licence, photographs every scratch and settles mileage, fuel and deposits. Join early access and lock in launch pricing."
+  vertical="cars"
+  nav="dark"
+  active="home"
+>
+  <div class="cw">
+  <!-- HERO -->
+  <section class="hero" data-scope data-fleet="eco">
+    <div class="grid-bg"></div>
+    <div class="glow" style="width:640px;height:640px;background:#6D3FD6;opacity:.5;right:-140px;top:-120px;animation:drift 14s ease-in-out infinite"></div>
+    <div class="glow" style="width:380px;height:380px;background:#D4FF3A;opacity:.1;left:-120px;bottom:-160px"></div>
+    <div class="wrap hero-in">
+      <div class="stack" style="flex:1 1 520px;min-width:0;gap:26px">
+        <a href="#access" class="chip rise ea-chip"><span>EARLY ACCESS</span>Car rental is launching soon. Join the first operators →</a>
+        <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,5.6vw,80px)">Rent out cars. <span class="v">Not your weekends.</span></h1>
+        <p class="rise hero-lede" style="--d:160ms">Car rental software that books every vehicle, checks every licence, photographs every scratch and settles mileage, fuel and deposits for you.</p>
+        <div class="rise stack" style="--d:240ms;gap:10px">
+          <span id="fleet-l" style="font-size:13px;font-weight:600;color:#B9B2D0">See it with your fleet</span>
+          <div class="seg vseg" role="radiogroup" aria-labelledby="fleet-l" data-choice="fleet" data-url>
+            {Object.entries(FLEETS).map(([id, f], i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={id} style="height:44px">{f.label}</button>)}
+          </div>
+        </div>
+        <div class="rise stack" style="--d:300ms;gap:12px" data-form-root>
+          <Form kind="early-access" id="cars-hero" track="join_waitlist" source="cars-hero" class="hero-form">
+            <label for="ch-email" class="sr-only">Work email</label>
+            <input id="ch-email" name="email" class="input" type="email" required autocomplete="email" placeholder="you@yourfleet.com" />
+            <button type="submit" class="btn btn-violet">Get early access</button>
+            <a href="/demo?rents=cars" class="btn btn-ghost" style="border-color:#3B2D66">Book a demo</a>
+          </Form>
+          <div class="hero-ok" data-success tabindex="-1"><span>✓</span>You're in. We'll invite you to the private beta.</div>
+          <span style="font-size:13.5px;color:#9A93B5">Early access members help shape it and lock in launch pricing.</span>
+        </div>
+      </div>
+      <div class="hero-vis">
+        {Object.entries(FLEETS).map(([id, f], fi) => (
+          <div class="hero-fleet" data-when={`fleet:${id}`} hidden={fi !== 0} role="img" aria-label={`Preview of a car rental fleet calendar: ${f.title}`}>
+            <div class="win">
+              <div class="win-bar"><span style="background:#FF5F57"></span><span style="background:#FEBC2E"></span><span style="background:#28C840"></span><span class="mono">app.renthatch.com/fleet · preview</span></div>
+              <div class="stack" style="padding:22px;gap:12px">
+                <div class="between"><strong style="font-size:19px">{f.title}</strong><span class="mono" style="font-size:12px;color:#9A93B5">Mon – Sun</span></div>
+                <div class="mono wk"><span></span>{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => <span>{d}</span>)}</div>
+                {f.rows.map(([car, plate, blocks], i) => (
+                  <div class="frow" style={`animation-delay:${150 + i * 110}ms`}>
+                    <span class="stack"><strong style="font-size:13.5px">{car}</strong><span class="mono" style="font-size:11px;color:#9A93B5">{plate}</span></span>
+                    <span class="flane">{blocks.map(([a, z, t, c]) => <span class="fblk" style={`left:${(a / 7) * 100}%;width:${((z - a) / 7) * 100}%;background:${c};animation-delay:${150 + i * 110}ms`}>{t}</span>)}</span>
+                  </div>
+                ))}
+                <div class="kpis">{f.kpis.map(([k, v, c]) => <div><div style="font-size:11.5px;color:#9A93B5">{k}</div><div class="mono" style={`font-size:17px;font-weight:600;color:${c}`}>{v}</div></div>)}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {FLOATS.map(([t, s, icon, bg, fg, ib, ic], i) => (
+          <div class="cyc float" aria-hidden="true" style={`--d:${i * 3}s;left:${FLOAT_POS[i]![0]};top:${FLOAT_POS[i]![1]};background:${bg};color:${fg}`}>
+            <span class="float-ic" style={`background:${ib}`}><Icon d={icon} size={18} stroke={ic} width={2.4} /></span>
+            <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.65">{s}</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div class="marq-wrap">
+      <ul class="marq" aria-label="Built for these fleets">
+        {[...MARQ, ...MARQ].map((t, i) => <li class="chip" aria-hidden={i >= MARQ.length ? 'true' : undefined}><span style={`background:${['#C9B4FF', '#D4FF3A', '#6E8BFF', '#FF8FC7'][i % 4]}`}></span>{t}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- PAINS -->
+  <section class="wrap sec" data-scope style="padding-top:110px">
+    <div class="rv sec-head"><div class="stack" style="gap:16px;max-width:740px"><span class="eyebrow">Sound familiar?</span><h2 class="h2">Every car rental headache, <span class="vio">handled.</span></h2></div><button type="button" class="btn btn-line" data-flip-all data-on="Show the problems" data-off="Fix them all">Fix them all</button></div>
+    <div class="flips">
+      {PAINS.map(([pain, painSub, fix, fixSub, where]) => (
+        <button type="button" class="flip rv" aria-pressed="false" aria-label={`Problem: ${pain} Fixed: ${fix}. ${fixSub}`}>
+          <span class="flip-in" style="display:block">
+            <span class="face" style="background:#fff;border:1px solid #E3E5DC"><span class="between"><span class="chip tag-bad">✕ PROBLEM</span><span style="font-size:13px;color:#6B7383">Tap to fix →</span></span><strong class="flip-t">{pain}</strong><span class="flip-s">{painSub}</span></span>
+            <span class="face back" style="background:#1B1530;color:#fff"><span class="between"><span class="chip tag-good">✓ FIXED</span><span style="font-size:13px;color:#9A93B5">{where}</span></span><strong class="flip-t">{fix}</strong><span class="flip-s" style="color:#B9B2D0">{fixSub}</span></span>
+          </span>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- JOURNEY -->
+  <section id="journey" class="journey">
+    <div class="wrap stack" style="gap:44px" data-scope data-tour="4200" data-stop="0">
+      <div class="rv stack" style="gap:14px;max-width:760px"><span class="eyebrow" style="color:#9A93B5">One rental, start to finish</span><h2 class="h2">From online booking to deposit released</h2></div>
+      <div class="stops-scroll">
+        <div class="stops" role="tablist" aria-label="Rental journey" data-choice="stop">
+          <span class="track"></span><span class="track-on"></span>
+          {STOPS.map(([t, icon], i) => <button type="button" role="tab" class="stop" id={`cj-t${i}`} aria-controls={`cj-p${i}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-value={String(i)}><span class="dot"><Icon d={icon} size={22} /></span>{t}</button>)}
+        </div>
+      </div>
+      {STOPS.map(([, , h, p, pts], i) => (
+        <div role="tabpanel" id={`cj-p${i}`} aria-labelledby={`cj-t${i}`} class="mock jcard" data-when={`stop:${i}`} hidden={i !== 0}>
+          <div class="stack" style="flex:1 1 360px;min-width:0;gap:12px"><span class="mono" style="color:#C9B4FF;font-size:13px">Step {i + 1} of 7</span><strong style="font:800 34px/1.05 var(--font-display)">{h}</strong><p style="margin:0;font-size:16.5px;line-height:1.6;color:#B9B2D0">{p}</p></div>
+          <ul class="pts">{pts.map((t, j) => <li style={`animation-delay:${j * 90}ms`}><span aria-hidden="true">✓</span>{t}</li>)}</ul>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- INSPECTION -->
+  <section id="inspect" class="wrap sec" style="padding-top:110px">
+    <div class="rv sec-head"><div class="stack" style="gap:16px;max-width:760px"><span class="eyebrow">Pickup &amp; return inspections</span><h2 class="h2">“That scratch was already there.” <span class="vio">Not anymore.</span></h2></div><p class="lede" style="max-width:420px">Try it: switch to Return, tap the car to mark new damage, then set fuel and mileage. Watch the deposit settle.</p></div>
+    <div class="insp" data-scope data-mode="ret" data-insp data-zones={JSON.stringify(ZONES.map(([id, name, , , , , c]) => [id, name, c]))}>
+      <div class="rv car-panel">
+        <div class="between" style="flex-wrap:wrap"><span class="stack"><strong style="font-size:18px">Toyota RAV4 · TX 4KD-552</strong><span style="font-size:13px;color:#9A93B5">Rental R-1187 · J. Patel · 3 days</span></span>
+          <div class="tog" role="radiogroup" aria-label="Inspection" data-choice="mode"><button type="button" class="togb" role="radio" aria-checked="false" data-value="pick">Pickup</button><button type="button" class="togb" role="radio" aria-checked="true" data-value="ret">Return</button></div>
+        </div>
+        <div class="car">
+          <svg viewBox="0 0 300 560" width="100%" height="100%" aria-hidden="true" style="position:absolute;inset:0"><rect x="40" y="20" width="220" height="520" rx="90" fill="#2A2140" /><rect x="60" y="120" width="180" height="90" rx="30" fill="#151124" /><rect x="62" y="380" width="176" height="70" rx="26" fill="#151124" /><rect x="62" y="215" width="176" height="160" rx="18" fill="#3B2D66" /><rect x="22" y="110" width="22" height="70" rx="10" fill="#0B0D12" /><rect x="256" y="110" width="22" height="70" rx="10" fill="#0B0D12" /><rect x="22" y="380" width="22" height="70" rx="10" fill="#0B0D12" /><rect x="256" y="380" width="22" height="70" rx="10" fill="#0B0D12" /><rect x="70" y="26" width="40" height="12" rx="6" fill="#D4FF3A" /><rect x="190" y="26" width="40" height="12" rx="6" fill="#D4FF3A" /><rect x="70" y="522" width="40" height="10" rx="5" fill="#FF5A5F" /><rect x="190" y="522" width="40" height="10" rx="5" fill="#FF5A5F" /></svg>
+          {ZONES.map(([id, name, l, t, w, h]) => (
+            <button type="button" class:list={['zone', { pre: id === 'rrd', on: id === 'rbump' }]} data-zone={id} aria-pressed={id === 'rbump' ? 'true' : 'false'} aria-label={id === 'rrd' ? `${name}, damage recorded at pickup` : `${name}, mark new damage`} style={`left:${l};top:${t};width:${w};height:${h}`}><span class="mark" aria-hidden="true">{id === 'rrd' ? 'P' : '!'}</span></button>
+          ))}
+        </div>
+        <div class="legend"><span><span class="mark m-p">P</span>Recorded at pickup · no charge</span><span><span class="mark m-n">!</span>New at return · charged</span></div>
+      </div>
+      <div class="card rv ledger-card">
+        <strong style="font:800 24px var(--font-display)"><span data-when="mode:ret">Return settlement</span><span data-when="mode:pick" hidden>Pickup record</span></strong>
+        <div class="stack" style="gap:6px"><div class="between" style="font-size:14.5px"><label for="in-fuel">Fuel at <span data-when="mode:ret">return</span><span data-when="mode:pick" hidden>pickup</span></label><output class="mono" for="in-fuel" data-o="fuel" style="font-weight:700">6/8 tank</output></div><input id="in-fuel" type="range" min="0" max="8" step="1" value="6" class="range vr" /></div>
+        <div class="stack" style="gap:6px"><div class="between" style="font-size:14.5px"><label for="in-mi">Miles driven</label><output class="mono" for="in-mi" data-o="miles" style="font-weight:700">520 mi · 450 free</output></div><input id="in-mi" type="range" min="50" max="900" step="10" value="520" class="range vr" /></div>
+        <div class="stack" style="gap:4px" data-ledger aria-live="polite"></div>
+        <div class="release" data-when="mode:ret"><span class="stack"><strong style="font-size:15px;color:#5B2DB0">Deposit released to the customer</strong><span style="font-size:12.5px;color:#5B2DB0">of a $300.00 hold</span></span><strong class="mono" style="font-size:32px;color:#3A1F7A" data-o="release">$84.50</strong></div>
+        <span style="font-size:12.5px;color:#6B7383">Sample rates: 150 free miles a day, $0.25 a mile after, $9.00 per eighth of a tank, damage priced from your repair list.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- RATES -->
+  <section id="rates" class="wrap rates-sec">
+    <div class="rv stack" style="flex:1 1 380px;min-width:0;gap:18px"><span class="eyebrow">Rates &amp; extras</span><h2 class="h2">Daily, weekly, extras and fees. <span class="vio">Priced in a second.</span></h2><p class="lede">Weekly discounts, included miles, child seats, extra drivers, cover, young-driver and one-way fees: set them once and every booking prices itself.</p></div>
+    <div class="card rv rc" data-scope data-cls="suv" data-rates data-classes={JSON.stringify(CLASSES)} data-extras={JSON.stringify(EXTRAS)}>
+      <div class="stack" style="gap:6px"><span id="cls-l" class="lbl">Vehicle class</span><div class="ltog" role="radiogroup" aria-labelledby="cls-l" data-choice="cls">{Object.entries(CLASSES).map(([id, c]) => <button type="button" class="togb" role="radio" aria-checked={id === 'suv' ? 'true' : 'false'} data-value={id}>{c[0]}</button>)}</div></div>
+      <div class="stack" style="gap:6px"><div class="between" style="font-size:15px"><label for="rc-days">Rental length</label><output class="mono" for="rc-days" data-o="days" style="font-weight:700">3 days</output></div><input id="rc-days" type="range" min="1" max="14" value="3" class="range vr" /></div>
+      <div class="extras">{EXTRAS.map(([id, t, p, per]) => <label class="ck"><span style="display:flex;align-items:center;gap:10px"><input type="checkbox" data-x={id} checked={id === 'seat' || id === 'cover'} />{t}</span><span class="mono" style="font-size:12.5px;color:#535C6B">${p / 100}{per === 'day' ? '/day' : ''}</span></label>)}</div>
+      <div class="rc-out" aria-live="polite">
+        <div data-rows></div>
+        <div class="total"><strong>Total</strong><strong class="mono" style="font-size:36px" data-o="total"></strong></div>
+        <div class="between" style="font-size:14px;color:#5B2DB0;margin-top:6px"><span>Security deposit hold (released on return)</span><span class="mono" data-o="hold"></span></div>
+      </div>
+      <span style="font-size:12.5px;color:#6B7383">Sample rates for illustration. You set your own classes, rates and fees.</span>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="wrap sec" style="padding-top:110px">
+    <div class="rv stack" style="gap:14px;max-width:760px"><span class="eyebrow">What's in it</span><h2 class="h2">Everything a fleet runs on</h2></div>
+    <div class="grid-auto" style="--min:280px;--gap:14px">
+      {FEATS.map(([t, s, icon, bg, fg]) => <div class="card rv stack" style="padding:24px;gap:12px"><span class="ic46" style={`background:${bg}`}><Icon d={icon} size={22} stroke={fg} /></span><strong style="font:750 19px/1.2 var(--font-display)">{t}</strong><span style="font-size:14.5px;line-height:1.5;color:#535C6B">{s}</span></div>)}
+    </div>
+  </section>
+
+  <!-- FLEETS -->
+  <section id="fleets" class="fleets">
+    <div class="wrap stack" style="gap:36px">
+      <div class="rv stack" style="gap:14px;align-items:center;text-align:center"><span class="eyebrow">Built for your kind of fleet</span><h2 class="h2">Cars, vans, trucks or supercars</h2></div>
+      <div class="grid-auto" style="--min:260px">
+        {KINDS.map(([t, s, icon, c, tags]) => <div class="card rv stack" style="padding:28px;gap:12px"><span class="ic56" style={`background:${c}`}><Icon d={icon} size={28} stroke="#fff" /></span><strong style="font:800 24px/1.1 var(--font-display)">{t}</strong><span style="font-size:15px;line-height:1.5;color:#535C6B">{s}</span><span class="tags">{tags.map((g) => <span class="chip">{g}</span>)}</span></div>)}
+      </div>
+      <div class="rv core"><span style="font-size:15.5px;line-height:1.5;max-width:70ch"><strong>Built on a proven core.</strong> Online payments, automated emails and texts, roles, branding and reports already run real rental businesses on Rent Hatch. Car rental adds the vehicle-specific parts on top.</span><span class="chip" style="background:#F1EAFE;color:#5B2DB0">Same core · car-specific tools</span></div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" class="wrap sec" style="padding-top:110px;gap:32px">
+    <div class="rv sec-head"><div class="stack" style="gap:14px"><span class="eyebrow">Launch pricing</span><h2 class="h2">Priced by fleet size</h2></div><span class="chip" style="background:#F1EAFE;color:#5B2DB0">Locked in for early-access members</span></div>
+    <div class="grid-auto" style="--min:260px;--gap:14px">
+      {PLANS.map(([name, who, price, per, feats, pop, cta, href]) => (
+        <div class:list={['rv plan', { pop }]}>
+          {pop && <span class="chip pop-tag">Most fleets</span>}
+          <strong style="font:800 26px var(--font-display)">{name}</strong>
+          <span style="font-size:14px;opacity:.7">{who}</span>
+          <span style="display:flex;align-items:baseline;gap:6px"><strong class="mono" style={`font-size:${price === 'Custom' ? 40 : 52}px;letter-spacing:-.03em`}>{price}</strong><span style="font-size:14px;opacity:.65">{per}</span></span>
+          <a href={href} class="btn plan-btn">{cta}</a>
+          <ul class="ticks">{feats.map((f) => <li><span aria-hidden="true">✓</span>{f}</li>)}</ul>
+        </div>
+      ))}
+    </div>
+    <span class="rv" style="font-size:13.5px;color:#6B7383">Sample launch prices. Final pricing confirmed before the beta. Card processing billed by Stripe at their standard rates.</span>
+  </section>
+
+  <!-- EARLY ACCESS -->
+  <section id="access" class="wrap" style="padding-top:100px;padding-bottom:30px;scroll-margin-top:90px">
+    <div class="rv access" data-form-root>
+      <div class="glow" style="width:480px;height:480px;background:#6D3FD6;opacity:.5;left:-140px;bottom:-220px"></div>
+      <div class="stack" style="position:relative;flex:1 1 420px;min-width:0;gap:22px">
+        <span class="eyebrow" style="color:#9A93B5">Early access</span>
+        <h2 class="h2">Help build the car rental software you actually want</h2>
+        <ol class="road">{ROAD.map(([n, t, when, s, now]) => <li><span class:list={['rn', { now }]}>{n}</span><span class="stack" style="gap:3px"><strong style="font-size:17px">{t} <span class:list={['chip rw', { now }]}>{when}</span></strong><span style="font-size:14.5px;color:#B9B2D0;line-height:1.5">{s}</span></span></li>)}</ol>
+      </div>
+      <div class="ea-box">
+        <Form kind="early-access" id="cars-access" track="join_waitlist" source="cars-access" class="stack" style="gap:12px">
+          <strong style="font:800 26px var(--font-display)">Get early access</strong>
+          <span style="font-size:14.5px;color:#B9B2D0;line-height:1.5">First invites go to fleets that tell us how they work today.</span>
+          <label for="ea-name" class="dl">Your name</label><input id="ea-name" name="name" class="input" autocomplete="name" />
+          <label for="ea-email" class="dl">Work email</label><input id="ea-email" name="email" class="input" type="email" required autocomplete="email" placeholder="you@yourfleet.com" />
+          <div class="g2"><span class="stack" style="gap:6px"><label for="ea-fleet" class="dl">Fleet size</label><select id="ea-fleet" name="fleet_size" class="input"><option>1–15</option><option>16–60</option><option>61–200</option><option>200+</option></select></span><span class="stack" style="gap:6px"><label for="ea-now" class="dl">Using today</label><select id="ea-now" name="current_tool" class="input"><option>Spreadsheets</option><option>Car rental software</option><option>Pen &amp; paper</option></select></span></div>
+          <button type="submit" class="btn btn-violet" style="margin-top:6px">Request early access</button>
+        </Form>
+        <div class="ea-ok" data-success tabindex="-1"><span class="tick">✓</span><strong style="font:800 26px var(--font-display)">You're on the early-access list</strong><span style="color:#B9B2D0;line-height:1.5">We'll reach out to book a 20-minute call about your fleet, then send your beta invite.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ + CTA -->
+  <section class="wrap faq-sec">
+    <div class="rv stack" style="flex:1 1 320px;gap:16px"><span class="eyebrow">Car rental questions</span><h2 class="h2" style="font-size:clamp(34px,3.6vw,48px)">What fleet owners ask us</h2><a href="/demo?rents=cars" style="font-weight:650;color:#6D3FD6">Talk to us →</a></div>
+    <div style="flex:999 1 560px;min-width:0"><Faq items={FAQS} /></div>
+  </section>
+  <section class="wrap" style="padding-bottom:100px">
+    <div class="rv final"><h2 class="disp" style="font-size:clamp(38px,5vw,68px);max-width:760px">Keys out, keys back, money settled.</h2><div style="display:flex;flex-wrap:wrap;gap:12px"><a href="#access" class="btn" style="background:#1B1530;color:#fff">Get early access</a><a href="/demo?rents=cars" class="btn" style="border:1.5px solid #1B1530;color:#1B1530">Book a demo</a></div></div>
+  </section>
+  </div>
+</Page>
+
+<script>
+  const money = (c: number) => (c < 0 ? '−' : '') + '$' + (Math.abs(c) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const row = (k: string, s: string, v: string, color = '#10131A') => `<div class="row" style="font-size:14.5px"><span>${k}<span style="display:block;font-size:12px;color:#6B7383">${s}</span></span><span class="mono" style="color:${color}">${v}</span></div>`;
+
+  // Inspection demo: tap zones in Return mode; fuel and mileage settle the $300 hold.
+  const insp = document.querySelector<HTMLElement>('[data-insp]');
+  if (insp) {
+    const zones: [string, string, number][] = JSON.parse(insp.dataset.zones!);
+    const HOLD = 30000, FREE = 450;
+    const fuel = insp.querySelector<HTMLInputElement>('#in-fuel')!;
+    const miles = insp.querySelector<HTMLInputElement>('#in-mi')!;
+    const out = (k: string, v: string) => { insp.querySelector(`[data-o="${k}"]`)!.textContent = v; };
+    const render = () => {
+      const ret = insp.dataset.mode === 'ret';
+      const marked = [...insp.querySelectorAll<HTMLElement>('.zone.on:not(.pre)')].map((z) => zones.find((x) => x[0] === z.dataset.zone)!);
+      const dmg = marked.reduce((a, z) => a + z[2], 0);
+      const f = +fuel.value, mi = +miles.value;
+      const fuelCost = Math.max(0, 8 - f) * 900;
+      const extra = Math.max(0, mi - FREE);
+      const miCost = extra * 25;
+      out('fuel', `${f}/8 tank`);
+      out('miles', `${mi} mi · ${FREE} free`);
+      insp.querySelector('[data-ledger]')!.innerHTML = ret
+        ? row('Security deposit hold', 'Placed at pickup', money(HOLD))
+          + row('New damage', marked.length ? marked.map((z) => z[1]).join(', ') : 'Tap the car to mark damage', marked.length ? '−' + money(dmg) : money(0), marked.length ? '#A31F25' : '#10131A')
+          + row('Fuel', f < 8 ? `${8 - f}/8 tank short` : 'Returned full', fuelCost ? '−' + money(fuelCost) : money(0), fuelCost ? '#A31F25' : '#10131A')
+          + row('Extra miles', extra ? `${extra} mi over × $0.25` : 'Within allowance', miCost ? '−' + money(miCost) : money(0), miCost ? '#A31F25' : '#10131A')
+          + row('Already there at pickup', 'Right rear door scratch · photo P-3', 'No charge', '#0B6145')
+        : row('Damage recorded', 'Right rear door scratch · photo P-3', '1 mark', '#8A4A00')
+          + row('Fuel', 'Customer must return the same level', `${f}/8`)
+          + row('Odometer', 'Logged at pickup', '24,180 mi')
+          + row('Deposit hold', 'Placed on card •4242', money(HOLD))
+          + row('Condition report', 'Signed by the customer', 'Signed', '#0B6145');
+      out('release', money(Math.max(0, HOLD - (ret ? dmg + fuelCost + miCost : 0))));
+    };
+    insp.addEventListener('click', (e) => {
+      const z = (e.target as Element).closest<HTMLButtonElement>('.zone');
+      if (!z || z.classList.contains('pre') || insp.dataset.mode !== 'ret') return;
+      const on = z.classList.toggle('on');
+      z.setAttribute('aria-pressed', String(on));
+      render();
+    });
+    insp.addEventListener('input', render);
+    insp.addEventListener('rh:choice', render);
+    render();
+  }
+
+  // Rate calculator: weekly = 6 days' price, extras by day (some capped) or once, 10% sample tax.
+  const rc = document.querySelector<HTMLElement>('[data-rates]');
+  if (rc) {
+    const CL: Record<string, [string, number, number]> = JSON.parse(rc.dataset.classes!);
+    const EX: [string, string, number, 'day' | 'once', number?][] = JSON.parse(rc.dataset.extras!);
+    const days = rc.querySelector<HTMLInputElement>('#rc-days')!;
+    const out = (k: string, v: string) => { rc.querySelector(`[data-o="${k}"]`)!.textContent = v; };
+    const render = () => {
+      const c = CL[rc.dataset.cls!]!;
+      const d = +days.value;
+      const weeks = Math.floor(d / 7), rem = d % 7;
+      const base = weeks * c[1] * 6 + Math.min(rem, 6) * c[1];
+      const ex = EX.filter(([id]) => rc.querySelector<HTMLInputElement>(`[data-x="${id}"]`)!.checked).map(([, t, p, per, cap]) => [t, per === 'once' ? 'flat fee' : `$${(p / 100).toFixed(2)} a day${cap ? ', capped' : ''}`, per === 'once' ? p : Math.min(cap ?? Infinity, p * d)] as [string, string, number]);
+      const sub = base + ex.reduce((a, r) => a + r[2], 0);
+      const tax = Math.round(sub * 0.1);
+      out('days', `${d} ${d === 1 ? 'day' : 'days'}${d >= 7 ? ' · weekly rate' : ''}`);
+      rc.querySelector('[data-rows]')!.innerHTML = row(`${c[0]} · ${d} ${d === 1 ? 'day' : 'days'}`, weeks ? `${weeks} week${weeks > 1 ? 's' : ''} at 6 days${rem ? ` + ${rem} day${rem > 1 ? 's' : ''}` : ''}` : `$${(c[1] / 100).toFixed(2)} a day`, money(base))
+        + ex.map(([t, s, v]) => row(t, s, money(v))).join('') + row('Tax', '10% sample rate', money(tax));
+      out('total', money(sub + tax));
+      out('hold', money(c[2]));
+    };
+    rc.addEventListener('input', render);
+    rc.addEventListener('change', render);
+    rc.addEventListener('rh:choice', render);
+    render();
+  }
+</script>
+
+<style>
+  .cw { --vio: #6D3FD6; }
+  .cw .v { color: #C9B4FF; }
+  .vio { color: #6D3FD6; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .hero { position: relative; background: #0D0A18; color: #fff; overflow: hidden; }
+  .hero :focus-visible, .journey :focus-visible, .car-panel :focus-visible, .access :focus-visible { outline-color: #C9B4FF; }
+  .hero-in { position: relative; display: flex; flex-wrap: wrap; gap: 56px; align-items: center; padding-top: clamp(48px, 7vw, 96px); padding-bottom: 72px; }
+  .ea-chip { white-space: normal; align-self: flex-start; background: #1B1530; border: 1px solid #3B2D66; color: #E4DAFF; font-size: 13.5px; }
+  .ea-chip span { background: #C9B4FF; color: #1B1530; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 800; }
+  .hero-lede { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #B9B2D0; max-width: 54ch; }
+  .vseg { background: #1B1530; border-color: #2E2450; }
+  .vseg :global(.segb) { color: #D9CCFF; }
+  .vseg :global(.segb[aria-checked="true"]) { background: #C9B4FF; color: #1B1530; }
+  .hero :global(.hero-form) { display: flex; flex-wrap: wrap; gap: 10px; }
+  .hero :global(.hero-form .input) { flex: 1 1 240px; border-color: #3B2D66; background: #120E22; }
+  .hero :global(.hero-form .form-error) { flex-basis: 100%; color: #FF8A8E; }
+  .hero-ok { display: none; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; background: #1B1530; border: 1px solid #3B2D66; color: #E4DAFF; font-weight: 600; animation: pop .45s both; align-self: flex-start; }
+  .hero-ok span { width: 28px; height: 28px; border-radius: 50%; background: #6D3FD6; display: inline-flex; align-items: center; justify-content: center; }
+  [data-state="sent"] > :global(form) { display: none !important; }
+  [data-state="sent"] .hero-ok, [data-state="sent"] .ea-ok { display: flex; }
+  .hero-vis { flex: 1 1 480px; min-width: 0; position: relative; min-height: 520px; }
+  .hero-fleet { position: absolute; inset: 0; }
+  .win { position: absolute; inset: 20px 0 0 30px; border-radius: 26px; background: #151124; border: 1px solid #2E2450; box-shadow: 0 60px 120px -40px rgba(0, 0, 0, .8); overflow: hidden; }
+  .win-bar { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid #2E2450; }
+  .win-bar > span:not(.mono) { width: 11px; height: 11px; border-radius: 50%; }
+  .win-bar .mono { margin-left: 14px; font-size: 12px; color: #9A93B5; }
+  .wk { display: grid; grid-template-columns: 150px repeat(7, minmax(0, 1fr)); font-size: 11px; color: #9A93B5; }
+  .frow { display: grid; grid-template-columns: 150px 1fr; align-items: center; animation: slidein .5s var(--ease-out) both; }
+  .flane { position: relative; height: 34px; background: #0D0A18; border-radius: 10px; border: 1px solid #2E2450; }
+  .fblk { position: absolute; top: 4px; bottom: 4px; border-radius: 7px; color: #1B1530; font: 600 11px var(--font-ui); display: flex; align-items: center; padding-left: 8px; white-space: nowrap; overflow: hidden; transform-origin: left; animation: growx .7s var(--ease-out) both; }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+  .kpis > div { background: #0D0A18; border: 1px solid #2E2450; border-radius: 14px; padding: 12px; min-width: 0; }
+  .float { position: absolute; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 18px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7); font-size: 14.5px; font-weight: 600; white-space: nowrap; z-index: 2; }
+  .float-ic { width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .marq-wrap { border-top: 1px solid #221A3A; padding: 22px 0; overflow: hidden; }
+  .marq { display: flex; gap: 12px; width: max-content; animation: marquee 38s linear infinite; list-style: none; margin: 0; padding: 0; }
+  .marq li { background: #151124; border: 1px solid #2E2450; color: #D9CCFF; font-weight: 500; }
+  .marq li span { width: 7px; height: 7px; border-radius: 50%; }
+  .marq-wrap:hover .marq { animation-play-state: paused; }
+
+  .sec { padding-bottom: 30px; display: flex; flex-direction: column; gap: 40px; }
+  .sec-head { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: flex-end; }
+  .flips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 18px; }
+  .tag-bad { background: #FDE7E8; color: #A31F25; padding: 5px 12px; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+  .tag-good { background: #C9B4FF; color: #1B1530; padding: 5px 12px; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+  .flip-t { font: 800 26px/1.1 var(--font-display); letter-spacing: -.02em; }
+  .flip-s { font-size: 15px; line-height: 1.5; color: #535C6B; }
+
+  .journey { background: #0D0A18; color: #fff; padding: 100px 0; margin-top: 90px; scroll-margin-top: 76px; }
+  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; }
+  .stops { position: relative; min-width: 760px; display: flex; gap: 8px; }
+  .track, .track-on { position: absolute; left: 6%; top: 23px; height: 2px; }
+  .track { right: 6%; background: #2E2450; }
+  .track-on { width: 0; background: #C9B4FF; transition: width .6s var(--ease-out); }
+  .stop { position: relative; flex: 1; min-width: 96px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: none; background: none; cursor: pointer; font: 600 14px var(--font-ui); color: #8A82A6; padding: 0; }
+  .dot { width: 46px; height: 46px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #151124; color: #fff; transition: all .3s; }
+  .stop[aria-selected="true"], .stop.done { color: #fff; }
+  .stop[aria-selected="true"] .dot { background: #C9B4FF; color: #1B1530; box-shadow: 0 0 0 8px rgba(201, 180, 255, .18); transform: scale(1.1); }
+  .stop.done .dot { background: #6D3FD6; }
+  .jcard { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; border-radius: 28px; background: #151124; border: 1px solid #2E2450; padding: clamp(24px, 3vw, 40px); }
+  .pts { flex: 1 1 360px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .pts li { display: flex; gap: 12px; padding: 14px 16px; border-radius: 14px; background: #0D0A18; font-size: 15px; animation: slidein .45s both; }
+  .pts span { color: #C9B4FF; font-weight: 800; }
+
+  .insp { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; }
+  .car-panel { flex: 999 1 560px; min-width: 0; border-radius: 30px; background: #0D0A18; color: #fff; padding: clamp(20px, 3vw, 32px); display: flex; flex-direction: column; gap: 18px; position: relative; overflow: hidden; }
+  .tog { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: #1B1530; border: 1px solid #2E2450; }
+  .togb { height: 40px; padding: 0 16px; border-radius: 10px; border: none; font: 600 14px var(--font-ui); cursor: pointer; background: transparent; color: #D9CCFF; }
+  .togb[aria-checked="true"] { background: #C9B4FF; color: #1B1530; }
+  .car { position: relative; align-self: center; width: min(100%, 300px); aspect-ratio: 300 / 560; }
+  .zone { position: absolute; border: 2px dashed transparent; border-radius: 14px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color .2s, border-color .2s; }
+  [data-mode="ret"] .zone:not(.pre):hover { border-color: #C9B4FF; background: rgba(201, 180, 255, .12); }
+  [data-mode="pick"] .zone:not(.pre) { cursor: default; }
+  .mark { width: 26px; height: 26px; border-radius: 50%; display: none; align-items: center; justify-content: center; font: 800 13px var(--font-ui); animation: pop .4s both; }
+  .zone.pre { border-color: #F5B04C; cursor: default; }
+  .zone.pre .mark, .m-p { display: inline-flex; background: #F5B04C; color: #0B0D12; }
+  [data-mode="ret"] .zone.on { border-color: #FF5A5F; }
+  [data-mode="ret"] .zone.on .mark, .m-n { display: inline-flex; background: #FF5A5F; color: #fff; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: #B9B2D0; }
+  .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .mark { width: 18px; height: 18px; font-size: 10px; }
+  .ledger-card { flex: 1 1 380px; min-width: 0; padding: clamp(22px, 3vw, 32px); display: flex; flex-direction: column; gap: 16px; }
+  .range.vr { accent-color: #6D3FD6; }
+  .release { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px; border-radius: 16px; background: #F1EAFE; }
+
+  .rates-sec { padding-top: 110px; padding-bottom: 30px; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; scroll-margin-top: 90px; }
+  .rc { flex: 1 1 520px; min-width: 0; padding: clamp(22px, 3vw, 34px); display: flex; flex-direction: column; gap: 16px; }
+  .lbl { font-size: 13px; font-weight: 600; color: #535C6B; }
+  .ltog { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: #F1F2EA; flex-wrap: wrap; align-self: flex-start; }
+  .ltog .togb { color: #353C48; }
+  .ltog .togb[aria-checked="true"] { background: #0B0D12; color: #fff; }
+  .extras { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  .ck { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #F7F8F3; cursor: pointer; font-size: 14.5px; }
+  .ck input { width: 18px; height: 18px; accent-color: #6D3FD6; }
+  .rc-out { border-radius: 18px; background: #F7F8F3; padding: 6px 18px 16px; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 2px solid #10131A; }
+  .total > strong:first-child { font: 800 22px var(--font-display); }
+  .ic46 { width: 46px; height: 46px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; }
+  .ic56 { width: 56px; height: 56px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .fleets { background: #F1F2EA; margin-top: 100px; padding: 100px 0; scroll-margin-top: 76px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tags .chip { background: #F1F2EA; font-size: 12.5px; padding: 5px 10px; }
+  .core { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; }
+  .plan { border-radius: 26px; padding: 28px; display: flex; flex-direction: column; gap: 14px; background: #fff; color: #10131A; border: 1px solid #E3E5DC; position: relative; }
+  .plan.pop { background: #1B1530; color: #fff; border-color: #1B1530; }
+  .plan.pop :focus-visible { outline-color: #C9B4FF; }
+  .pop-tag { position: absolute; top: -14px; left: 28px; background: #C9B4FF; color: #1B1530; font-size: 12px; padding: 5px 12px; font-weight: 800; }
+  .plan-btn { background: #1B1530; color: #fff; }
+  .plan.pop .plan-btn { background: #C9B4FF; color: #1B1530; }
+  .ticks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .ticks li { display: flex; gap: 10px; font-size: 14.5px; }
+  .ticks span { color: #6D3FD6; font-weight: 800; }
+  .plan.pop .ticks span { color: #C9B4FF; }
+  .access { border-radius: 36px; background: #0D0A18; color: #fff; padding: clamp(28px, 5vw, 64px); display: flex; flex-wrap: wrap; gap: 48px; position: relative; overflow: hidden; }
+  .road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+  .road li { display: flex; gap: 16px; align-items: flex-start; }
+  .rn { width: 36px; height: 36px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; background: #3B2D66; color: #fff; font-weight: 800; font-size: 14px; }
+  .rn.now { background: #C9B4FF; color: #1B1530; }
+  .rw { margin-left: 6px; padding: 2px 8px; font-size: 11px; background: #2E2450; color: #D9CCFF; }
+  .rw.now { background: #C9B4FF; color: #1B1530; }
+  .ea-box { position: relative; flex: 1 1 360px; min-width: 0; background: #1B1530; border: 1px solid #3B2D66; border-radius: 26px; padding: 28px; }
+  .ea-box .input { border-color: #3B2D66; background: #0E0B18; width: 100%; }
+  .ea-box :global(.form-error) { color: #FF8A8E; }
+  .dl { font-size: 13px; font-weight: 600; color: #E4DAFF; }
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ea-ok { display: none; flex-direction: column; gap: 12px; animation: pop .45s both; }
+  .tick { width: 56px; height: 56px; border-radius: 50%; background: #6D3FD6; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; }
+  .faq-sec { padding-top: 100px; padding-bottom: 100px; display: flex; flex-wrap: wrap; gap: 48px; }
+  .cw :global(.faq[open] .plus) { background: #1B1530; color: #C9B4FF; }
+  .final { border-radius: 36px; background: #C9B4FF; color: #1B1530; padding: clamp(36px, 6vw, 72px); display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; justify-content: space-between; }
+
+  @media (max-width: 640px) {
+    .hero-vis { min-height: 480px; }
+    .win { inset: 10px 0 0 0; }
+    .wk, .frow { grid-template-columns: 110px 1fr; }
+    .float { font-size: 13px; padding: 10px 12px; }
+    .kpis .mono { font-size: 14px !important; }
+    .g2 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  document.addEventListener('rh:choice', (e) => {
+    const d = (e as CustomEvent).detail;
+    if (d.key !== 'stop') return;
+    const scope = e.target as HTMLElement;
+    scope.querySelectorAll<HTMLElement>('.stop').forEach((s, i) => s.classList.toggle('done', i < +d.value));
+    scope.querySelector<HTMLElement>('.track-on')!.style.width = `${(+d.value / 6) * 88}%`;
+  });
+</script>
