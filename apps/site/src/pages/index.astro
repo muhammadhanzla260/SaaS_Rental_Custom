@@ -1,0 +1,186 @@
+---
+/** W0 · Start screen: "What do you rent out?" Each door is a real link that remembers the choice. */
+import Base from '~/layouts/Base.astro';
+import Logo from '~/components/Logo.astro';
+import Icon from '~/components/Icon.astro';
+import { IC, SIGN_IN } from '~/lib/site';
+
+const confetti = Array.from({ length: 14 }, (_, i) => ({
+  x: ((i * 37) % 96) + '%', w: 6 + (i % 3) * 3, c: ['#D4FF3A', '#FF5A5F', '#6E8BFF', '#F5B04C', '#3DD39A'][i % 5], t: 5 + (i % 4), d: -i * 0.6,
+}));
+const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '#3DD39A', 10, -7], ['14%', '#6E8BFF', 12, -2]] as const;
+---
+<Base
+  title="Rent Hatch · Rental software for event and car rental businesses"
+  description="Rental management software for event, party and equipment rental, with car and vehicle rental coming soon. Pick your business to see what Rent Hatch does for you."
+  vertical="none"
+  bodyClass="gate-body"
+>
+  <script is:inline slot="head">
+    // Return visitors skip the start screen (the edge does this on Vercel; this covers other hosts).
+    (function(){var m=document.cookie.match(/(?:^|; )rh_vertical=(events|cars)/);if(m&&!/[?&]choose=/.test(location.search))location.replace('/'+m[1]);})();
+  </script>
+  <div class="gate-page" data-glow>
+    <div class="cursor-glow" aria-hidden="true"></div>
+    <header class="wrap gate-head">
+      <span class="gate-logo"><Logo size={38} animate /><span>Rent Hatch</span></span>
+      <span class="gate-acts"><a href={SIGN_IN} class="gate-login">Log in</a><a href="/demo" class="chip gate-talk">Talk to us</a></span>
+    </header>
+
+    <main id="main" class="wrap gate-main">
+      <div class="gate-intro">
+        <h1 class="disp rise" style="font-size:clamp(44px,6vw,88px)">What do you <span class="v">rent out?</span></h1>
+        <p class="rise" style="--d:120ms">Pick one. We'll show you only what matters to your kind of business. You can switch any time from the top bar.</p>
+      </div>
+
+      <div class="gate">
+        <a href="/events" class="door door-e rise" data-set-vertical="events" style="--d:200ms">
+          <div class="art" aria-hidden="true">
+            {confetti.map((c) => <span class="conf" style={`left:${c.x};width:${c.w}px;background:${c.c};animation-duration:${c.t}s;animation-delay:${c.d}s`}></span>)}
+            {balloons.map(([x, c, t, d]) => (
+              <span class="balloon" style={`left:${x};animation-duration:${t}s;animation-delay:${d}s`}><svg width="44" height="86" viewBox="0 0 44 86"><ellipse cx="22" cy="24" rx="20" ry="24" fill={c} /><path d="M22 48 q-6 12 2 22 q6 8 -2 16" stroke="#ffffff66" stroke-width="1.5" fill="none" /></svg></span>
+            ))}
+            <div class="castle">
+              <svg viewBox="0 0 300 240" width="100%"><path d="M30 220 V110 L60 70 L90 110 V220 Z" fill="#2C4FE0" /><path d="M210 220 V110 L240 70 L270 110 V220 Z" fill="#2C4FE0" /><rect x="80" y="100" width="140" height="120" rx="10" fill="#4C6BFF" /><path d="M80 100 L105 60 L130 100 L150 55 L170 100 L195 60 L220 100 Z" fill="#D4FF3A" /><path d="M120 220 v-50 a30 30 0 0 1 60 0 v50 z" fill="#0B0D12" /><circle cx="60" cy="130" r="9" fill="#D4FF3A" /><circle cx="240" cy="130" r="9" fill="#D4FF3A" /><rect x="20" y="214" width="260" height="14" rx="7" fill="#D4FF3A" /><path d="M60 70 V40 l22 8 -22 8" fill="#FF5A5F" /><path d="M240 70 V40 l22 8 -22 8" fill="#FF5A5F" /></svg>
+            </div>
+          </div>
+          <div class="door-body">
+            <span class="chip badge-live"><span class="dot"></span>Available now</span>
+            <h2 class="disp door-h">Event &amp; equipment rental</h2>
+            <span class="door-sub" style="color:#C9D2FF">Bounce houses, tents, tables, AV, concessions and tools. Delivered, set up and picked up.</span>
+            <div class="feats">
+              <span><Icon d={IC.check} size={16} stroke="#D4FF3A" width={2.6} />Never double-book a unit again</span>
+              <span><Icon d={IC.check} size={16} stroke="#D4FF3A" width={2.6} />Deposits and balances collected online</span>
+              <span><Icon d={IC.check} size={16} stroke="#D4FF3A" width={2.6} />Crews tracked live on event day</span>
+            </div>
+            <span class="enter enter-e">Enter event rental<Icon d={IC.arrow} size={20} width={2.4} /></span>
+          </div>
+        </a>
+
+        <a href="/cars" class="door door-c rise" data-set-vertical="cars" style="--d:300ms">
+          <div class="art" aria-hidden="true">
+            <div class="road"></div>
+            <div class="dashes">{Array.from({ length: 16 }, () => <span></span>)}</div>
+            <div class="car">
+              <div class="car-in">
+                <svg viewBox="0 0 320 130" width="100%"><path class="beam" d="M300 60 L360 40 L360 90 Z" fill="#D4FF3A" opacity=".25" /><path d="M20 92 Q18 70 40 66 L90 60 L130 30 Q140 24 160 24 L220 24 Q236 24 248 36 L276 62 Q304 66 306 86 L306 96 Q306 104 298 104 L28 104 Q20 104 20 96 Z" fill="#6D3FD6" /><path d="M136 36 L156 32 L196 32 L196 60 L110 62 Z" fill="#C9B4FF" /><path d="M204 32 L222 32 Q232 32 240 40 L258 60 L204 60 Z" fill="#C9B4FF" /><rect x="290" y="72" width="14" height="10" rx="3" fill="#D4FF3A" /><rect x="22" y="74" width="10" height="9" rx="3" fill="#FF5A5F" /><path d="M60 70 h20" stroke="#ffffff55" stroke-width="3" stroke-linecap="round" /></svg>
+                <span class="wheel" style="left:14.5%"><span></span></span>
+                <span class="wheel" style="right:13%"><span></span></span>
+              </div>
+            </div>
+            <div class="fob"><svg width="70" height="110" viewBox="0 0 70 110"><circle cx="35" cy="14" r="10" fill="none" stroke="#C9B4FF" stroke-width="4" /><rect x="14" y="26" width="42" height="66" rx="14" fill="#1B1530" stroke="#C9B4FF" stroke-width="3" /><circle cx="35" cy="48" r="7" fill="#D4FF3A" /><rect x="27" y="64" width="16" height="6" rx="3" fill="#C9B4FF" /></svg></div>
+          </div>
+          <div class="door-body">
+            <span class="chip badge-soon">Early access · launching soon</span>
+            <h2 class="disp door-h">Car &amp; vehicle rental</h2>
+            <span class="door-sub" style="color:#D9CCFF">Cars, vans, trucks and luxury fleets. Booked online, checked out and checked back in.</span>
+            <div class="feats">
+              <span><Icon d={IC.check} size={16} stroke="#C9B4FF" width={2.6} />Licence checks before the keys go out</span>
+              <span><Icon d={IC.check} size={16} stroke="#C9B4FF" width={2.6} />Photo inspections that end damage arguments</span>
+              <span><Icon d={IC.check} size={16} stroke="#C9B4FF" width={2.6} />Mileage, fuel and deposits settled automatically</span>
+            </div>
+            <span class="enter enter-c">Enter car rental<Icon d={IC.arrow} size={20} width={2.4} /></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="gate-foot rise" style="--d:420ms">
+        <span>Rent both? Start with the one that makes most of your money. Both run on the same Rent Hatch core.</span>
+        <a href="/quiz">Not sure? Take the 30-second quiz →</a>
+      </div>
+    </main>
+  </div>
+</Base>
+
+<script>
+  // A soft glow follows the cursor (pointer devices only, never under reduced motion).
+  const page = document.querySelector<HTMLElement>('[data-glow]');
+  if (page && matchMedia('(pointer: fine) and (prefers-reduced-motion: no-preference)').matches) {
+    let raf = 0;
+    page.addEventListener('pointermove', (e) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        page.style.setProperty('--mx', `${e.clientX}px`);
+        page.style.setProperty('--my', `${e.clientY + scrollY}px`);
+      });
+    });
+  }
+</script>
+
+<style>
+  :global(.gate-body) { background: #07080B; }
+  .gate-page { min-height: 100vh; min-height: 100dvh; background: #07080B; color: #fff; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .cursor-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 40%), rgba(212, 255, 58, .09), transparent 60%); }
+  .gate-head { width: 100%; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 8px; }
+  .gate-logo { display: inline-flex; align-items: center; gap: 10px; font: 800 24px var(--font-display); letter-spacing: -.03em; white-space: nowrap; }
+  .gate-acts { display: flex; gap: 8px; align-items: center; }
+  .gate-login { color: #C9CED8; font-size: 15px; font-weight: 550; padding: 10px 14px; white-space: nowrap; }
+  .gate-talk { border: 1.5px solid #2E3442; color: #fff; }
+  .gate-head :focus-visible, .gate-main :focus-visible { outline-color: #D4FF3A; }
+  .gate-main { width: 100%; position: relative; flex: 1; display: flex; flex-direction: column; gap: 28px; padding-top: 28px; padding-bottom: 32px; }
+  .gate-intro { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end; }
+  .gate-intro p { margin: 0; color: #A3ABB9; font-size: 17px; max-width: 40ch; line-height: 1.5; }
+  .gate { display: flex; gap: 16px; flex-wrap: wrap; flex: 1; min-height: 0; }
+  .door { position: relative; flex: 1 1 420px; min-width: 0; min-height: 620px; border-radius: 36px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: clamp(24px, 3.4vw, 48px); color: #fff; transition: flex-grow .7s var(--ease-out), transform .4s var(--ease-out), box-shadow .4s; }
+  .door-e { background: linear-gradient(160deg, #1B2A6B 0%, #0E1430 55%, #0B0D12 100%); box-shadow: 0 0 0 1px #1C2347; }
+  .door-c { background: linear-gradient(160deg, #3A1F7A 0%, #1A1036 55%, #0B0D12 100%); box-shadow: 0 0 0 1px #2A1F4A; }
+  .door:hover { transform: translateY(-4px); }
+  .door:focus-visible { outline: 3px solid #D4FF3A; outline-offset: 4px; border-radius: 36px; }
+  .door-e:is(:hover, :focus-visible) { flex-grow: 1.6; box-shadow: 0 40px 120px -30px rgba(44, 79, 224, .7); }
+  .door-c:is(:hover, :focus-visible) { flex-grow: 1.6; box-shadow: 0 40px 120px -30px rgba(109, 63, 214, .7); }
+  /* The door not being chosen tucks its list away. */
+  .gate:has(.door-c:is(:hover, :focus-visible)) .door-e .feats,
+  .gate:has(.door-e:is(:hover, :focus-visible)) .door-c .feats { display: none; }
+  .art { position: absolute; inset: 0; pointer-events: none; }
+  .door-body { position: relative; display: flex; flex-direction: column; gap: 18px; }
+  .door-h { font-size: clamp(38px, 4.4vw, 64px); }
+  .door-sub { font-size: 17px; max-width: 44ch; line-height: 1.5; }
+  .feats { display: flex; flex-direction: column; gap: 10px; animation: rise .4s both; }
+  .feats span { display: flex; gap: 10px; align-items: center; font-size: 15.5px; }
+  .feats :global(svg) { flex: none; }
+  .badge-live { align-self: flex-start; background: rgba(61, 211, 154, .15); color: #3DD39A; border: 1px solid rgba(61, 211, 154, .35); }
+  .badge-live .dot { width: 8px; height: 8px; border-radius: 50%; background: #3DD39A; animation: blink 1.6s infinite; }
+  .badge-soon { align-self: flex-start; background: rgba(201, 180, 255, .15); color: #E4DAFF; border: 1px solid rgba(201, 180, 255, .35); }
+  .enter { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 26px; border-radius: 999px; font: 700 17px var(--font-ui); transition: gap .3s, transform .2s; }
+  .door:hover .enter { gap: 18px; }
+  .enter-e { background: #D4FF3A; color: #0B0D12; animation: pulse 2s infinite; }
+  .enter-c { background: #fff; color: #3A1F7A; animation: pulsev 2s infinite; }
+  .gate-foot { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; color: #8A93A3; font-size: 14px; }
+  .gate-foot a { color: #D4FF3A; font-weight: 600; }
+
+  /* events art */
+  .conf { position: absolute; top: 0; height: 14px; border-radius: 3px; opacity: .45; animation: conf 6s linear infinite; transition: opacity .4s; }
+  .door-e:hover .conf { opacity: 1; animation-duration: 2.6s !important; }
+  .balloon { position: absolute; bottom: -60px; animation: floatup 10s ease-in infinite; }
+  .castle { position: absolute; right: 7%; top: 5%; width: min(46%, 300px); animation: bob 3.4s ease-in-out infinite; }
+  .door-e:hover .castle { animation-duration: 1.4s; }
+  /* cars art */
+  .road { position: absolute; left: 0; right: 0; top: 22%; height: 110px; background: #120B24; }
+  .dashes { position: absolute; left: 0; top: calc(22% + 51px); width: 200%; height: 8px; display: flex; gap: 60px; animation: road 1.2s linear infinite; }
+  .dashes span { flex: none; width: 100px; height: 8px; border-radius: 4px; background: #C9B4FF55; }
+  .door-c:hover .dashes { animation-duration: .45s; }
+  .car { position: absolute; left: 44%; top: calc(22% - 64px); width: min(54%, 340px); transform: translateX(-50%); }
+  .car-in { position: relative; animation: hover .6s ease-in-out infinite; }
+  .beam { animation: beam 1.4s ease-in-out infinite; }
+  .wheel { position: absolute; bottom: -2%; width: 17%; aspect-ratio: 1; border-radius: 50%; background: #0B0D12; border: 6px solid #2A2140; display: flex; align-items: center; justify-content: center; animation: wheel .9s linear infinite; }
+  .wheel span { width: 60%; height: 8%; background: #C9B4FF; }
+  .door-c:hover .wheel { animation-duration: .35s; }
+  .fob { position: absolute; right: 8%; top: 9%; animation: sway 2.6s ease-in-out infinite; transform-origin: 50% 0; }
+
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-14px) rotate(1deg); } }
+  @keyframes sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes floatup { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(-420px); opacity: 0; } }
+  @keyframes conf { 0% { transform: translateY(-40px) rotate(0); } 100% { transform: translateY(620px) rotate(540deg); } }
+  @keyframes road { from { transform: translateX(0); } to { transform: translateX(-160px); } }
+  @keyframes wheel { to { transform: rotate(360deg); } }
+  @keyframes hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes beam { 0%, 100% { opacity: .35; } 50% { opacity: .8; } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(212, 255, 58, .55); } 100% { box-shadow: 0 0 0 18px rgba(212, 255, 58, 0); } }
+  @keyframes pulsev { 0% { box-shadow: 0 0 0 0 rgba(201, 180, 255, .6); } 100% { box-shadow: 0 0 0 18px rgba(201, 180, 255, 0); } }
+
+  @media (max-width: 640px) {
+    .door { min-height: 560px; border-radius: 28px; }
+    .gate-acts .gate-login { padding: 10px 6px; }
+  }
+  @media (max-width: 380px) { .gate-logo { font-size: 20px; } }
+</style>

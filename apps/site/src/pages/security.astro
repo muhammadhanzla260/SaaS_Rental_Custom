@@ -1,0 +1,58 @@
+---
+/** S3 · Security & privacy. */
+import Page from '~/layouts/Page.astro';
+import PageHero from '~/components/PageHero.astro';
+import Icon from '~/components/Icon.astro';
+import { COMPANY, SUBPROCESSORS } from '~/data/company';
+
+const PILLARS = [
+  ['Every business walled off', 'Each rental business is isolated from every other one in the database itself, not just in the screens. Tested on every release.', 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z'],
+  ['Card data never touches us', 'Payments run through Stripe’s hosted fields and your own Stripe account. Stripe is PCI DSS Level 1 certified.', 'M3 6h18v12H3zM3 10h18'],
+  ['Encrypted everywhere', 'TLS for everything in transit. Data, mail passwords and API keys are encrypted at rest and never shown again.', 'M8 11V8a4 4 0 0 1 8 0v3M6 11h12v10H6z'],
+  ['Passkeys & two-step sign-in', 'Modern sign-in for owners and staff, with roles that limit what each person can see.', 'M14 10a4 4 0 1 0-3.5 4L4 20.5V22h3v-2h2v-2h2l1.5-1.5'],
+  ['Full audit log', 'Every change to an order, payment, checklist or setting is recorded with who and when.', 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3'],
+  ['GPS only on the job', 'Crew location is shared only while en route to an assigned job, and deleted after 90 days.', 'M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z'],
+  ['Backups & recovery', 'Nightly backups, stored separately from the live database.', 'M4 7c0-2 3.6-3 8-3s8 1 8 3-3.6 3-8 3-8-1-8-3zM4 7v10c0 2 3.6 3 8 3s8-1 8-3V7M4 12c0 2 3.6 3 8 3s8-1 8-3'],
+  ['Your data, your exit', 'Export customers, orders and payments to CSV any time. Close your account and we delete it on request.', 'M12 3v12M7 10l5 5 5-5M4 21h16'],
+];
+---
+<Page title="Security & privacy" description="How Rent Hatch keeps each rental business walled off, card data out of our systems, crews' locations private and your data exportable." vertical="auto" nav="dark">
+  <PageHero eyebrow="Security & privacy" lede="How we keep your business walled off, your payments safe and your crews' locations private." glow="#0B7A55">
+    Your customers' data, <span class="v">locked down.</span>
+    <svg slot="art" width="220" height="260" viewBox="0 0 220 260"><path d="M110 10 200 45v70c0 62-40 112-90 135C60 227 20 177 20 115V45z" fill="#141821" stroke="#2E3442" stroke-width="4" /><path d="M110 34 178 60v56c0 48-30 88-68 106-38-18-68-58-68-106V60z" fill="none" stroke="#3DD39A" stroke-width="3" /><path d="M76 128l24 24 46-50" fill="none" stroke="#D4FF3A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="120" style="animation:drawl 1s .4s both;--len:120" /></svg>
+  </PageHero>
+
+  <section class="wrap" style="padding-top:64px">
+    <div class="grid-auto" style="--min:300px;--gap:14px">
+      {PILLARS.map(([t, s, icon]) => <div class="card rv pil"><span class="pic"><Icon d={icon} size={20} stroke="#D4FF3A" /></span><strong class="pt">{t}</strong><span class="ps">{s}</span></div>)}
+    </div>
+  </section>
+
+  <section class="wrap stack" style="padding-top:90px;gap:22px">
+    <span class="eyebrow">Sub-processors</span><h2 class="h2">Who else touches your data</h2>
+    <div class="card" style="overflow-x:auto">
+      <table class="subs"><thead><tr><th scope="col">Sub-processor</th><th scope="col">What for</th><th scope="col">Where</th></tr></thead>
+        <tbody>{SUBPROCESSORS.map(([n, p, l]) => <tr><th scope="row">{n}</th><td>{p}</td><td>{l}</td></tr>)}</tbody></table>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding-top:60px;padding-bottom:100px">
+    <div class="report">
+      <span style="font-size:15.5px;line-height:1.55;max-width:70ch"><strong>Found a security issue?</strong> Email <a href={`mailto:${COMPANY.emails.security}`}>{COMPANY.emails.security}</a>. We reply within 2 business days and won't take action against good-faith research.</span>
+      <span style="display:flex;gap:10px;flex-wrap:wrap"><a href="/legal/privacy" class="btn btn-line" style="height:44px">Privacy policy</a><a href="/legal/dpa" class="btn btn-line" style="height:44px">Data processing agreement</a></span>
+    </div>
+  </section>
+</Page>
+<style>
+  .pil { padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+  .pic { width: 40px; height: 40px; border-radius: 12px; background: #0B0D12; display: inline-flex; align-items: center; justify-content: center; }
+  .pt { font: 800 20px/1.2 var(--font-display); }
+  .ps { font-size: 14.5px; line-height: 1.55; color: #535C6B; }
+  .subs { width: 100%; min-width: 560px; border-collapse: collapse; }
+  .subs th, .subs td { padding: 16px 18px; text-align: left; border-bottom: 1px solid #E3E5DC; font-size: 15px; }
+  .subs thead th { font: 700 12px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: #535C6B; }
+  .subs tbody th { font-weight: 650; }
+  .subs tr:last-child > * { border-bottom: none; }
+  .report { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 24px 28px; border-radius: 22px; background: #F1F2EA; }
+  .report a:not(.btn) { color: #2C4FE0; font-weight: 600; }
+</style>

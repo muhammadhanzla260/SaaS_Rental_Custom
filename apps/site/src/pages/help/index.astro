@@ -1,0 +1,101 @@
+---
+/** S9 · Help center: live search, event/car toggle (defaults to the visitor's side), categories, popular. */
+import Page from '~/layouts/Page.astro';
+import Icon from '~/components/Icon.astro';
+import { helpArticles, HELP_CATS } from '~/lib/content';
+import { COMPANY } from '~/data/company';
+
+const arts = await helpArticles();
+const forSide = (v: 'events' | 'cars') => arts.filter((a) => a.data.vertical === v || a.data.vertical === 'both');
+---
+<Page title="Help center" description="Guides for setting up and running Rent Hatch: bookings, pricing, payments, email and SMS, crews and billing." vertical="auto" nav="dark">
+  <div data-help data-scope data-prod="events">
+    <section class="hero">
+      <div class="grid-bg"></div>
+      <div class="wrap stack" style="position:relative;gap:22px;align-items:center;text-align:center;padding-top:clamp(56px,7vw,96px);padding-bottom:64px">
+        <h1 class="disp rise" style="font-size:clamp(44px,5.6vw,76px)">How can we help?</h1>
+        <label class="search rise" style="--d:100ms"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="#8A93A3" stroke-width="2" stroke-linecap="round" /></svg><span class="sr-only">Search help articles</span><input type="search" data-q placeholder="Search, e.g. connect Stripe, rain check, cleaning buffer" autocomplete="off" /></label>
+        <div class="seg rise" style="--d:160ms" role="radiogroup" aria-label="Product" data-choice="prod">
+          <button type="button" class="segb" role="radio" aria-checked="true" data-value="events" style="height:42px">Event rental</button>
+          <button type="button" class="segb" role="radio" aria-checked="false" data-value="cars" style="height:42px">Car rental · early access</button>
+        </div>
+        <ul class="results" data-results hidden aria-live="polite">
+          {arts.map((a) => <li data-art={a.data.vertical} data-text={`${a.data.title} ${a.data.description}`.toLowerCase()} hidden><a href={`/help/${a.id}`}><strong>{a.data.title}</strong><span>{a.data.category}</span></a></li>)}
+          <li data-nores hidden>No articles found. <a href="/contact?topic=support">Ask support →</a></li>
+        </ul>
+      </div>
+    </section>
+
+    {(['events', 'cars'] as const).map((side, si) => {
+      const list = forSide(side);
+      return (
+        <div data-when={`prod:${side}`} hidden={si !== 0}>
+          <section class="wrap" style="padding-top:56px">
+            <div class="grid-auto" style="--min:240px;--gap:14px">
+              {HELP_CATS[side].map(([name, icon, bg, fg]) => {
+                const n = list.filter((a) => a.data.category === name).length;
+                const first = list.find((a) => a.data.category === name);
+                return (
+                  <a href={first ? `/help/${first.id}` : '/contact?topic=support'} class="card cat">
+                    <span class="cic" style={`background:${bg}`}><Icon d={icon} size={22} stroke={fg} /></span>
+                    <strong style="font:800 19px var(--font-display)">{name}</strong>
+                    <span style="color:#6B7383;font-size:14px">{n ? `${n} article${n > 1 ? 's' : ''}` : 'Guides coming soon'}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+          {list.some((a) => a.data.popular) && (
+            <section class="wrap stack" style="padding-top:56px;gap:16px">
+              <h2 class="h2" style="font-size:clamp(28px,3vw,38px)">Popular articles</h2>
+              <ul class="pop">{list.filter((a) => a.data.popular).map((a) => <li><a href={`/help/${a.id}`}>{a.data.title}<span aria-hidden="true">→</span></a></li>)}</ul>
+            </section>
+          )}
+        </div>
+      );
+    })}
+
+    <section class="wrap" style="padding-top:56px;padding-bottom:100px">
+      <div class="stuck"><span><strong>Still stuck?</strong> Our support team replies within 4 business hours. {COMPANY.supportHours}.</span><a href="/contact?topic=support" class="btn btn-ink" style="height:44px">Contact support</a></div>
+    </section>
+  </div>
+</Page>
+<script>
+  import { choose } from '~/scripts/ui';
+  const root = document.querySelector<HTMLElement>('[data-help]')!;
+  const q = root.querySelector<HTMLInputElement>('[data-q]')!;
+  const box = root.querySelector<HTMLElement>('[data-results]')!;
+  const run = () => {
+    const term = q.value.trim().toLowerCase();
+    box.hidden = !term;
+    let n = 0;
+    box.querySelectorAll<HTMLElement>('[data-art]').forEach((li) => {
+      const ok = !!term && (li.dataset.art === 'both' || li.dataset.art === root.dataset.prod) && term.split(/\s+/).every((w) => li.dataset.text!.includes(w));
+      li.hidden = !ok;
+      if (ok) n++;
+    });
+    box.querySelector<HTMLElement>('[data-nores]')!.hidden = !term || n > 0;
+  };
+  q.addEventListener('input', run);
+  root.addEventListener('rh:choice', run);
+  if (document.documentElement.dataset.v === 'cars') choose(root, 'prod', 'cars', false);
+</script>
+<style>
+  .hero { position: relative; background: #0B0D12; color: #fff; overflow: hidden; }
+  .hero :focus-visible { outline-color: #D4FF3A; }
+  .search { display: flex; align-items: center; gap: 12px; width: min(680px, 100%); height: 60px; padding: 0 22px; border-radius: 999px; background: #fff; color: #10131A; }
+  .search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 16px; }
+  .results { list-style: none; margin: 0; padding: 8px; width: min(680px, 100%); text-align: left; background: #fff; color: #10131A; border-radius: 20px; }
+  .results a { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; }
+  .results a:hover { background: #F1F2EA; }
+  .results span { color: #6B7383; font-size: 13px; }
+  .results [data-nores] { padding: 12px 14px; color: #535C6B; }
+  .results [data-nores] a { display: inline; padding: 0; color: #2C4FE0; font-weight: 600; }
+  .cat { padding: 22px; display: flex; flex-direction: column; gap: 10px; transition: transform .25s var(--ease-out); }
+  .cat:hover { transform: translateY(-3px); }
+  .cic { width: 44px; height: 44px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; }
+  .pop { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 8px; }
+  .pop a { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 16px; background: #fff; border: 1px solid #E3E5DC; font-weight: 600; }
+  .pop a:hover { border-color: #10131A; }
+  .stuck { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 22px; background: #F1F2EA; font-size: 15.5px; }
+</style>

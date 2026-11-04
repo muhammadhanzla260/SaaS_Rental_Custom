@@ -1,0 +1,152 @@
+---
+/** E3 · Features: every module, then the full searchable list. */
+import Page from '~/layouts/Page.astro';
+import { SIGN_UP } from '~/lib/site';
+import { CAT_COLORS, FEATURES, MODULES, type FeatureCat } from '~/data/features';
+
+const cats = ['All', ...Object.keys(CAT_COLORS)] as ('All' | FeatureCat)[];
+const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f) => f.cat === c).length);
+---
+<Page
+  title="Features · Event rental software"
+  description={`All ${FEATURES.length} Rent Hatch features for event rental: bookings, payments, automations, crew portal and GPS, reports, brand and settings.`}
+  vertical="events"
+  active="product"
+>
+  <section style="position:relative;overflow:hidden">
+    <div class="glow" style="width:600px;height:600px;background:#D4FF3A;opacity:.3;right:-160px;top:-260px"></div>
+    <div class="wrap hero">
+      <span class="eyebrow rise">Every feature, module by module</span>
+      <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,6vw,86px);max-width:1000px">Everything a rental business runs on. <span style="color:#2C4FE0">Nothing it doesn't.</span></h1>
+      <p class="lede rise" style="--d:160ms">Bookings, money, messages, crews and reports, designed together so information flows from the first quote to the last receipt without anyone retyping it.</p>
+      <div class="rise btns" style="--d:240ms;justify-content:center"><a href={SIGN_UP} class="btn btn-ink" data-track="start_trial" data-where="e3-hero">Start free trial</a><a href="/demo" class="btn btn-line">Book a demo</a></div>
+    </div>
+  </section>
+
+  <div class="modbar">
+    <nav class="wrap modnav" aria-label="Modules" data-spy>
+      {MODULES.map((m) => <a href={`#${m.id}`}>{m.tag.replace('Crew portal & GPS', 'Crew & GPS')}</a>)}
+      <a href="#all">All features</a>
+    </nav>
+  </div>
+
+  {MODULES.map((m, i) => (
+    <section id={m.id} class="wrap mod" data-spy-target>
+      <div class="mod-in" style={`flex-direction:${i % 2 ? 'row-reverse' : 'row'}`}>
+        <div class="rv stack" style="flex:1 1 400px;min-width:0;gap:18px">
+          <span class="chip" style={`align-self:flex-start;background:${m.bg};color:${m.fg}`}>{m.tag}</span>
+          <h2 class="h2" style="font-size:clamp(34px,4vw,54px)">{m.h}</h2>
+          <p class="lede">{m.p}</p>
+          <ul class="pts">{m.pts.map((p) => <li><span aria-hidden="true" style={`background:${m.fg}`}>✓</span>{p}</li>)}</ul>
+        </div>
+        <div class="rv mod-ui" aria-hidden="true">
+          <div class="glow" style={`width:320px;height:320px;background:${m.glow};opacity:.4;right:-80px;bottom:-120px`}></div>
+          {m.ui.map(([t, s, v, vc], j) => (
+            <div class="ui-row" style={`animation-delay:${j * 120}ms;background:${j === m.ui.length - 1 ? '#141821' : '#11141B'}`}>
+              <span class="stack" style="flex:1;gap:2px"><strong style="font-size:15.5px">{t}</strong><span style="font-size:13px;opacity:.65">{s}</span></span>
+              <span class="mono" style={`font-size:14px;font-weight:600;color:${vc}`}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  ))}
+
+  <section id="all" class="wrap all" data-spy-target data-features>
+    <div class="rv between" style="flex-wrap:wrap;gap:20px;align-items:flex-end">
+      <div class="stack" style="gap:14px"><span class="eyebrow">The full list</span><h2 class="h2">All {FEATURES.length} features</h2></div>
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="#535C6B" stroke-width="2" stroke-linecap="round" /></svg><span class="sr-only">Search features</span><input type="search" data-q placeholder="Search features, e.g. rain check" /></label>
+    </div>
+    <div class="cats" role="group" aria-label="Filter features">
+      {cats.map((c, i) => <button type="button" class="fchip" aria-pressed={i === 0 ? 'true' : 'false'} data-cat={c}>{c}<span class="mono">{count(c)}</span></button>)}
+    </div>
+    <p class="sr-only" aria-live="polite" data-status></p>
+    <ul class="fgrid">
+      {FEATURES.map((f) => (
+        <li class="fcard" data-cat={f.cat} data-text={`${f.title} ${f.text}`.toLowerCase()}>
+          <span class="between"><span class="chip" style={`background:${CAT_COLORS[f.cat][0]};color:${CAT_COLORS[f.cat][1]};font-size:12px;padding:4px 10px`}>{f.cat}</span>{f.soon && <span class="soon" style="background:#E3E5DC;color:#353C48">Coming</span>}</span>
+          <strong style="font:750 19px/1.2 var(--font-display)">{f.title}</strong>
+          <span style="font-size:14.5px;line-height:1.5;color:#535C6B">{f.text}</span>
+        </li>
+      ))}
+    </ul>
+    <div class="none" data-none hidden>No feature matches “<span data-none-q></span>”. <a href="/demo" style="color:#2C4FE0;font-weight:600">Ask us on a demo →</a></div>
+  </section>
+
+  <section class="wrap" style="padding-bottom:100px">
+    <div class="rv final">
+      <h2 class="disp" style="font-size:clamp(38px,5vw,68px);max-width:760px">See it with your own products and prices.</h2>
+      <div class="btns"><a href={SIGN_UP} class="btn btn-ink" data-track="start_trial" data-where="e3-final">Start free trial</a><a href="/demo" class="btn" style="border:1.5px solid #0B0D12;color:#0B0D12">Book a demo</a></div>
+    </div>
+  </section>
+</Page>
+
+<script>
+  // Search + category filter.
+  const root = document.querySelector<HTMLElement>('[data-features]');
+  if (root) {
+    const q = root.querySelector<HTMLInputElement>('[data-q]')!;
+    let cat = 'All';
+    const apply = () => {
+      const term = q.value.trim().toLowerCase();
+      let shown = 0;
+      root.querySelectorAll<HTMLElement>('.fcard').forEach((c) => {
+        const on = (cat === 'All' || c.dataset.cat === cat) && (!term || c.dataset.text!.includes(term));
+        c.hidden = !on;
+        if (on) shown++;
+      });
+      root.querySelector<HTMLElement>('[data-none]')!.hidden = shown > 0;
+      root.querySelector<HTMLElement>('[data-none-q]')!.textContent = q.value;
+      root.querySelector<HTMLElement>('[data-status]')!.textContent = `${shown} features shown`;
+    };
+    q.addEventListener('input', apply);
+    root.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>('.fchip');
+      if (!b) return;
+      cat = b.dataset.cat!;
+      root.querySelectorAll('.fchip').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    });
+  }
+  // Scroll-spy for the sticky module nav.
+  const links = new Map([...document.querySelectorAll<HTMLAnchorElement>('[data-spy] a')].map((a) => [a.hash.slice(1), a]));
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) if (en.isIntersecting) {
+      links.forEach((a, id) => a.toggleAttribute('aria-current', id === en.target.id));
+      links.get(en.target.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  document.querySelectorAll('[data-spy-target]').forEach((s) => io.observe(s));
+</script>
+
+<style>
+  .hero { position: relative; padding-top: clamp(56px, 7vw, 100px); padding-bottom: 40px; display: flex; flex-direction: column; gap: 22px; align-items: center; text-align: center; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .modbar { position: sticky; top: 76px; z-index: 20; background: rgba(250, 250, 246, .92); backdrop-filter: blur(12px); border-bottom: 1px solid #E3E5DC; }
+  .modnav { display: flex; gap: 4px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; scrollbar-width: none; }
+  .modnav a { padding: 10px 14px; border-radius: 999px; font: 600 14px var(--font-ui); color: #353C48; white-space: nowrap; transition: background-color .2s, color .2s; }
+  .modnav a:hover { background: #F1F2EA; color: #10131A; }
+  .modnav a[aria-current] { background: #0B0D12; color: #fff; }
+  .mod { padding-top: 96px; padding-bottom: 8px; scroll-margin-top: 140px; }
+  .mod-in { display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .pts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .pts li { display: flex; gap: 10px; font-size: 15px; line-height: 1.45; }
+  .pts span { width: 22px; height: 22px; border-radius: 50%; color: #fff; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+  .mod-ui { flex: 1 1 480px; min-width: 0; border-radius: 30px; background: #0B0D12; padding: clamp(22px, 3vw, 36px); position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+  .ui-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; color: #fff; border: 1px solid #232835; animation: slidein .5s both; }
+  .all { padding-top: 120px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 28px; scroll-margin-top: 140px; }
+  .search { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 18px; border-radius: 999px; background: #fff; border: 1.5px solid #E3E5DC; min-width: min(100%, 320px); }
+  .search:focus-within { border-color: #2C4FE0; }
+  .search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font: 400 15px var(--font-ui); }
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fchip { height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #E3E5DC; background: #fff; color: #353C48; font: 600 14px var(--font-ui); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background-color .2s, color .2s, border-color .2s; }
+  .fchip .mono { opacity: .6; font-size: 12px; }
+  .fchip[aria-pressed="true"] { background: #0B0D12; color: #fff; border-color: #0B0D12; }
+  .fgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+  .fcard { border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; padding: 24px; display: flex; flex-direction: column; gap: 12px; animation: rise .45s both; transition: transform .25s var(--ease-out), box-shadow .25s, border-color .25s; }
+  .fcard:hover { transform: translateY(-4px); box-shadow: 0 26px 40px -28px rgba(11, 13, 18, .45); border-color: #C9CED6; }
+  .none { padding: 40px; text-align: center; border-radius: 22px; border: 1.5px dashed #C9CED6; color: #535C6B; }
+  .final { border-radius: 36px; background: #D4FF3A; padding: clamp(36px, 6vw, 72px); display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; justify-content: space-between; }
+  @media (max-width: 640px) { .modbar { top: 76px; } }
+</style>

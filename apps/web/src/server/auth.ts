@@ -9,7 +9,7 @@ import { db } from './db';
 import { platformEmail, sendPlatformEmail } from './mailer';
 
 export const auth = betterAuth({
-  appName: 'Tentpole',
+  appName: 'Rent Hatch',
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
@@ -34,7 +34,7 @@ export const auth = betterAuth({
         lines: [`Hi ${user.name.split(' ')[0]}, someone asked to reset the password for ${user.email}.`, 'If it was not you, ignore this email.'],
         cta: { label: 'Choose a new password', url },
       });
-      await sendPlatformEmail({ to: user.email, subject: 'Reset your Tentpole password', ...mail });
+      await sendPlatformEmail({ to: user.email, subject: 'Reset your Rent Hatch password', ...mail });
     },
   },
   emailVerification: {
@@ -46,7 +46,7 @@ export const auth = betterAuth({
         lines: [`Hi ${user.name.split(' ')[0]}, confirm ${user.email} so your workspace can send invitations and reset passwords.`],
         cta: { label: 'Confirm email', url },
       });
-      await sendPlatformEmail({ to: user.email, subject: 'Confirm your email for Tentpole', ...mail });
+      await sendPlatformEmail({ to: user.email, subject: 'Confirm your email for Rent Hatch', ...mail });
     },
   },
   session: {
@@ -63,10 +63,10 @@ export const auth = betterAuth({
       sendMagicLink: async ({ email, url }) => {
         const mail = platformEmail({
           title: 'Your sign-in link',
-          lines: ['Use this link to sign in to Tentpole. It works once and expires in 15 minutes.', 'If you did not ask for it, ignore this email.'],
+          lines: ['Use this link to sign in to Rent Hatch. It works once and expires in 15 minutes.', 'If you did not ask for it, ignore this email.'],
           cta: { label: 'Sign in', url },
         });
-        await sendPlatformEmail({ to: email, subject: 'Sign in to Tentpole', ...mail });
+        await sendPlatformEmail({ to: email, subject: 'Sign in to Rent Hatch', ...mail });
       },
     }),
     nextCookies(),

@@ -1,0 +1,307 @@
+---
+/** E6 · Book a demo: details → calendar and time slots (visitor's time zone) → confirmed. */
+import Page from '~/layouts/Page.astro';
+import Form from '~/components/Form.astro';
+import { SIGN_UP } from '~/lib/site';
+import { VIDEOS } from '~/data/videos';
+
+/** When the sales team takes calls: weekdays, these wall-clock starts in HOST_TZ, booked at least a day ahead. */
+const SCHEDULE = { tz: 'America/Chicago', days: [1, 2, 3, 4, 5], times: ['09:00', '10:30', '12:00', '13:30', '15:00', '16:30'], leadHours: 20, horizonDays: 35 };
+const AGENDA = [['5 min', 'Your business', 'What you rent, how you deliver, where it hurts today.'], ['10 min', 'A real order, built live', 'Pricing, availability, the quote page, deposit and reminders.'], ['5 min', 'Event day and reports', 'Crew portal, live GPS and the numbers at month end.'], ['After', 'A plan to switch', 'What we import, what it costs and how long it takes.']];
+const KINDS = [['party', 'Party & inflatables'], ['tents', 'Tents & furniture'], ['av', 'AV & staging'], ['tools', 'Tools & equipment'], ['cars', 'Cars & vehicles']];
+const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 'Central · Chicago'], ['America/Denver', 'Mountain · Denver'], ['America/Phoenix', 'Arizona · Phoenix'], ['America/Los_Angeles', 'Pacific · Los Angeles'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii'], ['America/Toronto', 'Canada · Toronto'], ['Europe/London', 'UK · London'], ['Asia/Dubai', 'UAE · Dubai'], ['Australia/Sydney', 'Australia · Sydney']];
+---
+<Page
+  title="Book a demo"
+  description="A 20-minute video walkthrough of Rent Hatch with someone who has run rental bookings. Bring a real order and we'll build it live."
+  vertical="auto"
+>
+  <section style="position:relative;overflow:hidden">
+    <div class="glow" style="width:560px;height:560px;background:#D4FF3A;opacity:.28;left:-200px;top:-200px"></div>
+    <div class="wrap layout">
+      <div class="stack" style="flex:1 1 400px;min-width:0;gap:24px">
+        <span class="eyebrow rise">Book a demo</span>
+        <h1 class="disp rise" style="--d:80ms;font-size:clamp(44px,5.4vw,76px)">See Rent Hatch run <span style="color:#2C4FE0">your</span> <span data-copy="events">Saturday.</span><span data-copy="cars" hidden>fleet.</span></h1>
+        <p class="lede rise" style="--d:160ms" data-copy="events">20 minutes on video with someone who has run rental bookings. Bring a real order and we'll build it live.</p>
+        <p class="lede rise" style="--d:160ms" data-copy="cars" hidden>Car rental is in early access. This 20-minute call walks through the shared core and what we're building for fleets, and gets your feedback on it.</p>
+        <ul class="rise agenda" style="--d:220ms">{AGENDA.map(([t, h, s]) => <li><span class="mono">{t}</span><span class="stack" style="gap:2px"><strong style="font-size:16px">{h}</strong><span style="font-size:14.5px;color:#535C6B">{s}</span></span></li>)}</ul>
+        <div class="rise self v-events" style="--d:280ms"><span style="font-size:15px;flex:1">Rather click around yourself?</span><a href={SIGN_UP} class="btn btn-ink" style="height:44px" data-track="start_trial" data-where="demo">Start free trial</a></div>
+      </div>
+
+      <div class="rise box" style="--d:120ms" data-demo data-step="0" data-form-root data-schedule={JSON.stringify(SCHEDULE)}>
+        <div class="steps" aria-hidden="true">{['Your details', 'Pick a time', 'Confirmed'].map((t, i) => <span data-s={i}><span></span>{t}</span>)}</div>
+        <Form kind="demo" id="demo-form" track="book_demo">
+          <input type="hidden" name="slot" data-slot />
+          <input type="hidden" name="timezone" data-tzv />
+          <fieldset class="pane" data-pane="0">
+            <legend class="sr-only">Your details</legend>
+            <div class="g2">
+              <label class="field"><span>Full name</span><input name="name" required autocomplete="name" placeholder="Jordan Reyes" /></label>
+              <label class="field"><span>Work email</span><input name="email" type="email" required autocomplete="email" placeholder="you@yourbusiness.com" /></label>
+              <label class="field"><span>Company</span><input name="company" required autocomplete="organization" placeholder="Lakeside Party Rentals" /></label>
+              <label class="field"><span>Phone (optional)</span><input name="phone" type="tel" autocomplete="tel" placeholder="(512) 555-0100" /></label>
+            </div>
+            <div class="field"><span id="rent-l">What do you rent out?</span>
+              <div class="kinds" role="radiogroup" aria-labelledby="rent-l">
+                {KINDS.map(([id, label], i) => <label class="rc"><input type="radio" name="rents" value={id} required checked={i === 0} /><span class="dot"></span>{label}{id === 'cars' && <span class="soon">Soon</span>}</label>)}
+              </div>
+            </div>
+            <div class="carnote" data-copy="cars" hidden>Car rental is in design, so this call becomes an early-access conversation: we'll show the shared core and ask what your fleet needs.</div>
+            <div class="g2">
+              <label class="field"><span data-copy="events">How many rental items?</span><span data-copy="cars" hidden>How many vehicles?</span><select name="size"><option>1–25</option><option>26–100</option><option>101–300</option><option>300+</option></select></label>
+              <label class="field"><span>What do you use today?</span><select name="current_tool"><option>Spreadsheets &amp; texts</option><option>Another rental software</option><option>A general booking app</option><option>Pen and paper</option></select></label>
+            </div>
+            <button type="button" class="btn btn-ink" data-next style="align-self:flex-end">Pick a time →</button>
+          </fieldset>
+
+          <fieldset class="pane" data-pane="1" hidden>
+            <legend class="sr-only">Pick a time</legend>
+            <div class="between" style="flex-wrap:wrap">
+              <span style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="nav" data-month="-1" aria-label="Previous month">‹</button>
+                <strong style="font:800 22px var(--font-display);min-width:9ch" data-month-label aria-live="polite"></strong>
+                <button type="button" class="nav" data-month="1" aria-label="Next month">›</button>
+              </span>
+              <label class="tz">Time zone<select data-tz>{ZONES.map(([v, l]) => <option value={v}>{l}</option>)}</select></label>
+            </div>
+            <div class="cal" role="grid" aria-label="Choose a day">
+              <div class="wk" role="row">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => <span role="columnheader">{w}</span>)}</div>
+              <div class="days" data-days role="row"></div>
+            </div>
+            <div class="stack" style="gap:10px"><span style="font-size:14px;font-weight:600" data-day-label>Pick a day to see times</span><div class="slots" data-slots></div></div>
+            <div class="between"><button type="button" class="btn btn-line" data-prev style="height:46px">← Back</button><button type="submit" class="btn btn-ink" data-confirm style="height:46px" disabled>Confirm a time</button></div>
+          </fieldset>
+        </Form>
+        <div class="pane done" data-success tabindex="-1">
+          <svg width="96" height="96" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#0B0D12" /><path d="M30 52 L44 66 L72 36" fill="none" stroke="#D4FF3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="70" class="drawc" /></svg>
+          <strong style="font:800 34px var(--font-display)">You're booked in</strong>
+          <span class="mono when" data-when-line></span>
+          <span style="font-size:15px;color:#535C6B;max-width:46ch;line-height:1.55">A calendar invite is on its way to <span data-email></span>. The video link follows from the person running your call. Reply with a real order you'd like us to build.</span>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center"><a class="btn btn-line" style="height:44px" data-gcal target="_blank" rel="noopener">Add to Google Calendar</a><a class="btn btn-line" style="height:44px" data-ics download="rent-hatch-demo.ics">Download .ics</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEOS -->
+  <section id="watch" class="wrap sec" style="padding-top:20px;padding-bottom:110px;scroll-margin-top:90px">
+    <div class="rv sec-head"><div class="stack" style="gap:14px"><span class="eyebrow">Watch first</span><h2 class="h2">Rather watch than talk? Start here.</h2></div><span style="font-size:15px;color:#535C6B;max-width:40ch">A real workspace, recorded end to end. Pick the tour in the look you like, or the full training.</span></div>
+    <div class="vids" data-vids>
+      <div class="rv player">
+        <video controls preload="none" playsinline width="1280" height="720" poster={`/video/${VIDEOS[0]!.id}.jpg`} src={`/video/${VIDEOS[0]!.id}.mp4`} data-player aria-label={`${VIDEOS[0]!.title}, ${VIDEOS[0]!.look} look`}></video>
+      </div>
+      <ul class="vlist">
+        {VIDEOS.map((v, i) => (
+          <li class="rv" style={`--d:${i * 60}ms`}>
+            <button type="button" class="vitem" aria-pressed={i === 0 ? 'true' : 'false'} data-video={v.id} data-label={`${v.title}${v.look ? `, ${v.look} look` : ''}`} style={`--acc:${v.accent}`}>
+              <span class="vthumb"><img src={`/video/${v.id}.jpg`} alt="" width="160" height="90" loading="lazy" decoding="async" /><span class="vlen mono">{v.length}</span></span>
+              <span class="stack" style="gap:4px;min-width:0"><strong>{v.title}{v.look && <span class="vlook">{v.look}</span>}</strong><span class="vblurb">{v.blurb}</span></span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Page>
+
+<script>
+  // Video picker: swap the player's source and start it.
+  const vids = document.querySelector<HTMLElement>('[data-vids]')!;
+  const player = vids.querySelector<HTMLVideoElement>('[data-player]')!;
+  vids.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-video]');
+    if (!b || b.getAttribute('aria-pressed') === 'true') return;
+    vids.querySelectorAll('[data-video]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    player.poster = `/video/${b.dataset.video}.jpg`;
+    player.src = `/video/${b.dataset.video}.mp4`;
+    player.setAttribute('aria-label', b.dataset.label!);
+    void player.play().catch(() => {});
+    if (matchMedia('(max-width: 900px)').matches) player.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  type Schedule = { tz: string; days: number[]; times: string[]; leadHours: number; horizonDays: number };
+  const box = document.querySelector<HTMLElement>('[data-demo]')!;
+  const form = box.querySelector<HTMLFormElement>('form')!;
+  const S: Schedule = JSON.parse(box.dataset.schedule!);
+  const tzSel = box.querySelector<HTMLSelectElement>('[data-tz]')!;
+  const slotIn = box.querySelector<HTMLInputElement>('[data-slot]')!;
+  const tzIn = box.querySelector<HTMLInputElement>('[data-tzv]')!;
+  const confirmBtn = box.querySelector<HTMLButtonElement>('[data-confirm]')!;
+
+  // Detect the visitor's zone; add it to the list if it's not one of ours.
+  const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (mine && ![...tzSel.options].some((o) => o.value === mine)) tzSel.add(new Option(mine.replace(/_/g, ' '), mine), 0);
+  tzSel.value = mine || S.tz;
+
+  /** UTC instant for a wall-clock time in a zone (two passes settle DST edges). */
+  function zoned(y: number, m: number, d: number, hh: number, mm: number, tz: string) {
+    let t = Date.UTC(y, m, d, hh, mm);
+    for (let i = 0; i < 2; i++) {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' }).formatToParts(new Date(t)).map((x) => [x.type, +x.value || 0]));
+      t += Date.UTC(y, m, d, hh, mm) - Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!);
+    }
+    return new Date(t);
+  }
+  const ymd = (d: Date, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+
+  /** Every open slot, keyed by the visitor-zone date. */
+  function allSlots() {
+    const out = new Map<string, Date[]>();
+    const now = Date.now();
+    for (let i = 0; i <= S.horizonDays; i++) {
+      const day = new Date(now + i * 86_400_000);
+      const [y, m, d] = ymd(day, S.tz).split('-').map(Number) as [number, number, number];
+      const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+      if (!S.days.includes(dow)) continue;
+      for (const t of S.times) {
+        const [hh, mm] = t.split(':').map(Number) as [number, number];
+        const at = zoned(y, m - 1, d, hh, mm, S.tz);
+        if (at.getTime() - now < S.leadHours * 3_600_000) continue;
+        const key = ymd(at, tzSel.value);
+        if (!out.has(key)) out.set(key, []);
+        if (!out.get(key)!.some((x) => x.getTime() === at.getTime())) out.get(key)!.push(at);
+      }
+    }
+    return out;
+  }
+
+  let slots = allSlots();
+  let month = (() => { const f = [...slots.keys()].sort()[0] ?? ymd(new Date(), tzSel.value); const [y, m] = f.split('-').map(Number); return { y: y!, m: m! - 1 }; })();
+  let day = '';
+  let chosen: Date | null = null;
+  const fmtTime = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: tzSel.value, hour: 'numeric', minute: '2-digit' }).format(d);
+  const fmtLong = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: tzSel.value, weekday: 'short', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(d);
+
+  function renderMonth() {
+    const label = new Date(Date.UTC(month.y, month.m, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    box.querySelector('[data-month-label]')!.textContent = label;
+    const first = new Date(Date.UTC(month.y, month.m, 1)).getUTCDay();
+    const len = new Date(Date.UTC(month.y, month.m + 1, 0)).getUTCDate();
+    let html = '';
+    for (let i = 0; i < first; i++) html += '<span></span>';
+    for (let d = 1; d <= len; d++) {
+      const key = `${month.y}-${String(month.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const ok = slots.has(key);
+      html += `<button type="button" role="gridcell" class="day" data-day="${key}" ${ok ? '' : 'disabled'} aria-pressed="${key === day}" aria-label="${label.split(' ')[0]} ${d}${ok ? '' : ', no times'}">${d}</button>`;
+    }
+    box.querySelector('[data-days]')!.innerHTML = html;
+  }
+  function renderSlots() {
+    const list = day ? slots.get(day) ?? [] : [];
+    box.querySelector('[data-day-label]')!.textContent = day ? `Times on ${new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}` : 'Pick a day to see times';
+    box.querySelector('[data-slots]')!.innerHTML = list.map((d, i) => `<button type="button" class="slot" data-at="${d.toISOString()}" aria-pressed="${chosen?.getTime() === d.getTime()}" style="animation-delay:${i * 40}ms">${fmtTime(d)}</button>`).join('');
+    confirmBtn.disabled = !chosen;
+    confirmBtn.textContent = chosen ? `Confirm ${new Intl.DateTimeFormat('en-US', { timeZone: tzSel.value, month: 'short', day: 'numeric' }).format(chosen)} · ${fmtTime(chosen)}` : 'Confirm a time';
+    slotIn.value = chosen ? chosen.toISOString() : '';
+    tzIn.value = tzSel.value;
+  }
+  const go = (step: number) => {
+    box.dataset.step = String(step);
+    box.querySelectorAll<HTMLElement>('[data-pane]').forEach((p) => { p.hidden = +p.dataset.pane! !== step; });
+    box.querySelector<HTMLElement>(`[data-pane="${step}"] input, [data-pane="${step}"] button`)?.focus({ preventScroll: true });
+  };
+
+  box.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    if (t.closest('[data-next]')) {
+      const fields = [...box.querySelectorAll<HTMLInputElement>('[data-pane="0"] input, [data-pane="0"] select')];
+      if (fields.every((f) => f.reportValidity())) { go(1); renderMonth(); renderSlots(); }
+      return;
+    }
+    if (t.closest('[data-prev]')) return go(0);
+    const mb = t.closest<HTMLElement>('[data-month]');
+    if (mb) { const n = month.m + +mb.dataset.month!; month = { y: month.y + Math.floor(n / 12), m: ((n % 12) + 12) % 12 }; return renderMonth(); }
+    const db = t.closest<HTMLButtonElement>('.day');
+    if (db && !db.disabled) { day = db.dataset.day!; chosen = null; renderMonth(); return renderSlots(); }
+    const sb = t.closest<HTMLElement>('.slot');
+    if (sb) { chosen = new Date(sb.dataset.at!); renderSlots(); }
+  });
+  tzSel.addEventListener('change', () => { slots = allSlots(); day = chosen ? ymd(chosen, tzSel.value) : ''; renderMonth(); renderSlots(); });
+
+  // Car choice turns the copy into an early-access call.
+  box.addEventListener('change', (e) => {
+    const r = e.target as HTMLInputElement;
+    if (r.name !== 'rents') return;
+    const cars = r.value === 'cars';
+    document.querySelectorAll<HTMLElement>('[data-copy]').forEach((el) => { el.hidden = (el.dataset.copy === 'cars') !== cars; });
+  });
+
+  form.addEventListener('rh:sent', () => {
+    if (!chosen) return;
+    const end = new Date(chosen.getTime() + 30 * 60_000);
+    const f = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    box.querySelector('[data-when-line]')!.textContent = `${fmtLong(chosen)} · 20 min`;
+    box.querySelector('[data-email]')!.textContent = (form.elements.namedItem('email') as HTMLInputElement).value;
+    box.querySelector<HTMLAnchorElement>('[data-gcal]')!.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Rent Hatch demo')}&dates=${f(chosen)}/${f(end)}&details=${encodeURIComponent('20-minute Rent Hatch walkthrough. The video link arrives by email.')}`;
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Rent Hatch//Demo//EN', 'BEGIN:VEVENT', `UID:${f(chosen)}@renthatch.org`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(chosen)}`, `DTEND:${f(end)}`, 'SUMMARY:Rent Hatch demo', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    box.querySelector<HTMLAnchorElement>('[data-ics]')!.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    box.dataset.step = '2';
+  });
+
+  const qs = new URLSearchParams(location.search);
+  // From the car site (link or remembered choice): start as an early-access call.
+  const rents = qs.get('rents') ?? (document.documentElement.dataset.v === 'cars' ? 'cars' : null);
+  const pre = rents && box.querySelector<HTMLInputElement>(`input[name="rents"][value="${CSS.escape(rents)}"]`);
+  if (pre) { pre.checked = true; pre.dispatchEvent(new Event('change', { bubbles: true })); }
+</script>
+
+<style>
+  .sec { display: flex; flex-direction: column; gap: 36px; }
+  .sec-head { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: flex-end; }
+  .vids { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .player { flex: 999 1 560px; min-width: 0; border-radius: 28px; overflow: hidden; background: #0B0D12; box-shadow: 0 50px 90px -50px rgba(11, 13, 18, .55); aspect-ratio: 16 / 9; }
+  .player video { display: block; width: 100%; height: 100%; object-fit: contain; background: #0B0D12; }
+  .vlist { flex: 1 1 320px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .vitem { width: 100%; display: flex; gap: 14px; align-items: center; padding: 10px; border-radius: 20px; border: 1.5px solid #E3E5DC; background: #fff; text-align: left; cursor: pointer; font: inherit; color: #10131A; transition: border-color .2s, transform .2s, box-shadow .2s; }
+  .vitem:hover { transform: translateY(-2px); box-shadow: 0 18px 30px -22px rgba(11, 13, 18, .45); }
+  .vitem[aria-pressed="true"] { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 22%, transparent); }
+  .vthumb { position: relative; flex: none; width: 128px; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #F1F2EA; }
+  .vthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .vlen { position: absolute; right: 6px; bottom: 6px; padding: 2px 6px; border-radius: 6px; background: rgba(11, 13, 18, .8); color: #fff; font-size: 11.5px; }
+  .vitem strong { font-size: 15.5px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .vlook { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--acc) 14%, #fff); color: color-mix(in srgb, var(--acc) 70%, #10131A); }
+  .vblurb { font-size: 13.5px; line-height: 1.45; color: #535C6B; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  @media (max-width: 480px) { .vthumb { width: 96px; } }
+  .layout { position: relative; padding-top: clamp(48px, 6vw, 88px); padding-bottom: 100px; display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
+  .agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .agenda li { display: flex; gap: 14px; align-items: flex-start; }
+  .agenda .mono { width: 54px; flex: none; font-size: 13px; color: #6B7383; padding-top: 2px; }
+  .self { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 20px; background: #F1F2EA; flex-wrap: wrap; }
+  .box { flex: 1 1 520px; min-width: 0; border-radius: 30px; background: #fff; border: 1px solid #E3E5DC; box-shadow: 0 50px 90px -50px rgba(11, 13, 18, .45); overflow: hidden; }
+  .steps { display: flex; gap: 6px; padding: 18px 24px 0; }
+  .steps > span { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: #6B7383; }
+  .steps > span > span { height: 4px; border-radius: 4px; background: #E3E5DC; transition: background-color .4s; }
+  [data-step="0"] [data-s="0"], [data-step="1"] :is([data-s="0"], [data-s="1"]), [data-step="2"] [data-s] { color: #10131A; }
+  [data-step="0"] [data-s="0"] > span, [data-step="1"] :is([data-s="0"], [data-s="1"]) > span, [data-step="2"] [data-s] > span { background: #0B0D12; }
+  .pane { border: none; margin: 0; padding: 24px; display: flex; flex-direction: column; gap: 16px; animation: rise .45s var(--ease-out) both; min-width: 0; }
+  .g2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+  .rc { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #E3E5DC; background: #fff; cursor: pointer; font: 600 14px var(--font-ui); }
+  .rc input { position: absolute; opacity: 0; pointer-events: none; }
+  .rc .dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #C9CED6; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+  .rc:has(input:checked) { border-color: #0B0D12; background: #F7FBE6; }
+  .rc:has(input:checked) .dot { border-color: #0B0D12; box-shadow: inset 0 0 0 3px #fff; background: #0B0D12; }
+  .rc:has(input:focus-visible) { outline: 2px solid #2C4FE0; outline-offset: 2px; }
+  .carnote { padding: 14px 16px; border-radius: 14px; background: #F1EAFE; color: #5B2DB0; font-size: 14px; line-height: 1.5; animation: rise .3s both; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .nav { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #E3E5DC; background: #fff; cursor: pointer; font-size: 18px; }
+  .tz { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #535C6B; }
+  .tz select { height: 38px; border-radius: 12px; border: 1.5px solid #E3E5DC; background: #fff; padding: 0 10px; max-width: 200px; }
+  .wk, .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .wk span { text-align: center; font-size: 12px; font-weight: 700; color: #6B7383; }
+  .days { margin-top: 6px; }
+  .days :global(.day) { height: 48px; border-radius: 12px; border: none; font: 600 14px var(--font-mono); cursor: pointer; background: #F1F2EA; color: #10131A; transition: background-color .2s, color .2s, transform .15s; }
+  .days :global(.day:disabled) { background: transparent; color: #9AA2AF; cursor: not-allowed; }
+  .days :global(.day[aria-pressed="true"]) { background: #0B0D12; color: #D4FF3A; }
+  .days :global(.day:active) { transform: scale(.95); }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .slots :global(.slot) { height: 44px; border-radius: 12px; border: 1.5px solid #E3E5DC; background: #fff; font: 600 14px var(--font-mono); cursor: pointer; animation: rise .3s both; }
+  .slots :global(.slot[aria-pressed="true"]) { background: #D4FF3A; border-color: #0B0D12; }
+  [data-confirm]:disabled { opacity: .4; cursor: not-allowed; }
+  .done { display: none; padding: 40px 28px; align-items: center; text-align: center; }
+  [data-state="sent"] form { display: none; }
+  [data-state="sent"] .done { display: flex; }
+  .when { font-size: 16px; padding: 10px 16px; border-radius: 12px; background: #F1F2EA; }
+  .drawc { animation: drawc .6s .2s both; }
+  @keyframes drawc { from { stroke-dashoffset: 70; } to { stroke-dashoffset: 0; } }
+</style>

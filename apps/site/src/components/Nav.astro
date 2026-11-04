@@ -1,0 +1,160 @@
+---
+/**
+ * Site navigation. One component for both businesses: `vertical` decides the logo link, menus,
+ * pricing link, main button and the switcher. Shared pages pass vertical="auto" and get both
+ * variants; the cookie script in Base picks one before first paint.
+ */
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import { NAV, IC, SIGN_IN, type Vertical } from '~/lib/site';
+
+interface Props { vertical: Vertical | 'auto'; theme?: 'dark' | 'light'; active?: string }
+const { vertical, theme = 'light', active = 'none' } = Astro.props;
+const variants: Vertical[] = vertical === 'auto' ? ['events', 'cars'] : [vertical];
+const dark = theme === 'dark';
+const chev = 'M2.5 4.5 6 8l3.5-3.5';
+---
+{variants.map((v) => {
+  const n = NAV[v];
+  const id = `nav-${v}`;
+  return (
+    <header class:list={['rh-nav', dark ? 'is-dark' : 'is-light', vertical === 'auto' && `v-${v}`]} data-nav>
+      <div class="rh-bar">
+        <a href={n.home} aria-label="Rent Hatch home" class="rh-home">
+          <Logo size={34} />
+          <span class="rh-word">Rent Hatch</span>
+        </a>
+        <div class="rh-rel">
+          <button type="button" class="rh-vchip" data-toggle={`${id}-sw`} aria-expanded="false" aria-controls={`${id}-sw`} aria-label={`${n.label}: switch business type`} style={`background:${n.chipBg};color:${n.chipFg}`}>
+            <Icon d={n.icon} size={16} width={2.2} />{n.label}<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d={chev} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+          </button>
+          <div class="rh-pop" id={`${id}-sw`} hidden>
+            <span class="rh-pop-h">You're viewing</span>
+            {(['events', 'cars'] as const).map((o) => {
+              const cur = o === v;
+              const meta = o === 'events'
+                ? { t: 'Event & equipment rental', s: 'Party, tents, AV, tools', ib: '#E6ECFF', ic: '#233FB8' }
+                : { t: 'Car & vehicle rental', s: 'Cars, vans, trucks · early access', ib: '#F1EAFE', ic: '#5B2DB0' };
+              return (
+                <a href={NAV[o].home} class="rh-item" data-set-vertical={o} aria-current={cur ? 'true' : undefined} style={cur ? 'background:#F3F4EE' : undefined}>
+                  <span class="rh-ic" style={`background:${meta.ib}`}><Icon d={NAV[o].icon} size={20} stroke={meta.ic} /></span>
+                  <span class="rh-txt"><strong>{meta.t}</strong><span>{meta.s}</span></span>
+                  {cur && <span class="rh-tick" aria-hidden="true">✓</span>}
+                </a>
+              );
+            })}
+            <a href="/?choose=1" class="rh-item rh-back">← Back to the start screen</a>
+          </div>
+        </div>
+        <nav aria-label="Main" class="rh-desk rh-menu">
+          {[['product', 'Product', n.product, 3], ['solutions', n.solutionsLabel, n.solutions, 2]].map(([key, label, items, cols]) => (
+            <div class="rh-mwrap">
+              <button type="button" class="rh-link" data-toggle={`${id}-${key}`} aria-expanded="false" aria-controls={`${id}-${key}`} aria-current={active === key ? 'page' : undefined}>
+                {label as string}<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" class="rh-chev"><path d={chev} fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+              </button>
+              <div class="rh-mega" id={`${id}-${key}`} hidden>
+                <div class="rh-mgrid" style={`--cols:${cols}`}>
+                  {(items as typeof n.product).map((it) => (
+                    <a href={it.href} class="rh-item">
+                      <span class="rh-ic" style={`background:${it.bg}`}><Icon d={it.icon} size={22} stroke={it.fg} /></span>
+                      <span class="rh-txt"><strong>{it.title}</strong><span>{it.sub}</span></span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+          {n.links.map((l) => <a href={l.href} class="rh-link" aria-current={active === l.id ? 'page' : undefined}>{l.t}</a>)}
+        </nav>
+        <div class="rh-desk rh-actions">
+          <a href={SIGN_IN} class="rh-link rh-dim">Log in</a>
+          <a href="/demo" class="rh-btn rh-outline">Book a demo</a>
+          <a href={n.cta.href} class="rh-btn" style={`background:${n.ctaBg};color:${n.ctaFg}`} data-track={v === 'events' ? 'start_trial' : undefined} data-where="nav">{n.cta.t}</a>
+        </div>
+        <button type="button" class="rh-mob rh-link rh-burger" data-toggle={`${id}-sheet`} aria-expanded="false" aria-controls={`${id}-sheet`} aria-label="Menu">
+          <Icon d="M4 7h16M4 12h16M4 17h16" size={24} class="b-open" /><Icon d="M6 6l12 12M18 6 6 18" size={24} class="b-close" />
+        </button>
+      </div>
+      <div class="rh-sheet" id={`${id}-sheet`} hidden>
+        {n.mobile.map((r) => <a href={r.href} class="rh-mrow">{r.t} <span aria-hidden="true">→</span></a>)}
+        <div class="rh-sheet-btns">
+          <a href="/demo" class="rh-btn" style="border:1.5px solid #2E3442;color:#EEF0F4">Book a demo</a>
+          <a href={n.cta.href} class="rh-btn" style={`background:${n.ctaBg};color:${n.ctaFg}`}>{n.cta.t}</a>
+        </div>
+      </div>
+    </header>
+  );
+})}
+
+<script>
+  // Disclosure menus: one open at a time; Escape or a click outside closes them.
+  const close = (except?: Element) => {
+    document.querySelectorAll<HTMLButtonElement>('[data-nav] [data-toggle][aria-expanded="true"]').forEach((b) => {
+      if (b === except) return;
+      b.setAttribute('aria-expanded', 'false');
+      document.getElementById(b.dataset.toggle!)?.setAttribute('hidden', '');
+    });
+  };
+  document.addEventListener('click', (e) => {
+    const btn = (e.target as Element).closest<HTMLButtonElement>('[data-nav] [data-toggle]');
+    if (btn) {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      close(btn);
+      btn.setAttribute('aria-expanded', String(open));
+      document.getElementById(btn.dataset.toggle!)?.toggleAttribute('hidden', !open);
+      return;
+    }
+    if (!(e.target as Element).closest('.rh-pop, .rh-mega, .rh-sheet')) close();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+</script>
+
+<style>
+  .rh-nav { position: sticky; top: 0; z-index: 40; font-family: var(--font-ui); }
+  .is-dark { background: rgba(11, 13, 18, .92); color: #fff; border-bottom: 1px solid #1C212C; --fg2: #C9CED8; --hov: rgba(255, 255, 255, .08); --bd2: #2E3442; }
+  .is-light { background: rgba(250, 250, 246, .92); color: #10131A; border-bottom: 1px solid #E2E5EA; --fg2: #353C48; --hov: #ECEEE6; --bd2: #C9CED6; }
+  @supports (backdrop-filter: blur(1px)) { .rh-nav { backdrop-filter: saturate(1.4) blur(14px); } }
+  .rh-bar { position: relative; max-width: 1240px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left, 0px)); height: 76px; display: flex; align-items: center; gap: 14px; }
+  .rh-home { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+  .rh-word { font: 800 22px var(--font-display); letter-spacing: -.03em; white-space: nowrap; }
+  .rh-rel, .rh-mwrap { position: relative; }
+  .rh-mwrap { position: static; }
+  .rh-link { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border-radius: 10px; border: none; background: none; font: 550 15px var(--font-ui); cursor: pointer; color: var(--fg2); transition: background-color .2s, color .2s; white-space: nowrap; }
+  .rh-link:hover, .rh-link[aria-expanded="true"] { background: var(--hov); color: inherit; }
+  .rh-link[aria-current] { color: inherit; }
+  .rh-chev { transition: transform .25s var(--ease-out); }
+  [aria-expanded="true"] > .rh-chev { transform: rotate(180deg); }
+  .rh-btn { display: inline-flex; align-items: center; justify-content: center; height: 42px; padding: 0 18px; border-radius: 999px; font: 650 14.5px var(--font-ui); white-space: nowrap; transition: transform .15s, box-shadow .2s; }
+  .rh-btn:active { transform: scale(.97); }
+  .rh-outline { border: 1.5px solid var(--bd2); }
+  .rh-vchip { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 8px; border-radius: 999px; border: none; cursor: pointer; font: 700 12.5px var(--font-ui); letter-spacing: .02em; white-space: nowrap; }
+  .rh-menu { align-items: center; gap: 2px; margin-left: 6px; flex: 1; }
+  .rh-actions { align-items: center; gap: 8px; }
+  .rh-desk { display: flex; }
+  .rh-mob { display: none; }
+  .rh-mega { position: absolute; left: 50%; top: calc(100% + 4px); width: min(980px, calc(100vw - 32px)); transform: translateX(-50%); background: #fff; color: #10131A; border-radius: 24px; box-shadow: 0 40px 80px -30px rgba(11, 13, 18, .45), 0 0 0 1px rgba(16, 19, 26, .06); padding: 22px; animation: megain .35s var(--ease-out) both; }
+  .rh-mgrid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 4px; }
+  @keyframes megain { from { opacity: 0; transform: translate(-50%, -8px) scale(.98); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+  .rh-pop { position: absolute; left: 0; top: calc(100% + 10px); width: 320px; max-width: calc(100vw - 32px); background: #fff; color: #10131A; border-radius: 20px; padding: 10px; box-shadow: 0 30px 60px -24px rgba(11, 13, 18, .45), 0 0 0 1px rgba(16, 19, 26, .06); animation: popin .3s var(--ease-out) both; z-index: 5; }
+  .rh-pop-h { display: block; padding: 8px 10px; font: 700 11px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: #6B7383; }
+  .rh-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px; border-radius: 16px; color: #10131A; transition: background-color .2s; }
+  .rh-pop .rh-item { padding: 12px; }
+  .rh-item:hover { background: #F3F4EE; }
+  .rh-ic { width: 42px; height: 42px; border-radius: 12px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+  .rh-txt { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .rh-txt strong { font-size: 15px; }
+  .rh-txt span { font-size: 13px; color: #535C6B; line-height: 1.4; }
+  .rh-tick { color: #0B7A55; font-weight: 800; }
+  .rh-back { padding: 10px 12px !important; font-size: 13.5px; color: #2C4FE0; font-weight: 600; }
+  .rh-burger { margin-left: auto; width: 44px; justify-content: center; padding: 0; color: inherit; }
+  .rh-burger :global(.b-close), .rh-burger[aria-expanded="true"] :global(.b-open) { display: none; }
+  .rh-burger[aria-expanded="true"] :global(.b-close) { display: block; }
+  .rh-sheet { background: #0B0D12; color: #EEF0F4; padding: 12px 16px 24px; border-top: 1px solid #232835; animation: popin .3s var(--ease-out) both; max-height: calc(100dvh - 76px); overflow-y: auto; }
+  .rh-mrow { display: flex; justify-content: space-between; align-items: center; padding: 16px 4px; border-bottom: 1px solid #1C212C; font: 600 18px var(--font-ui); }
+  .rh-mrow span { color: #A3ABB9; }
+  .rh-sheet-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+  @media (max-width: 1080px) { .rh-actions .rh-outline { display: none; } }
+  @media (max-width: 960px) { .rh-desk { display: none; } .rh-mob { display: inline-flex; } }
+  @media (min-width: 961px) { .rh-sheet { display: none; } }
+  @media (max-width: 420px) { .rh-word { font-size: 19px; } .rh-vchip { padding: 0 8px 0 7px; } }
+</style>

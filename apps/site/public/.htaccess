@@ -1,0 +1,65 @@
+# Rent Hatch marketing site on Apache (Namecheap shared hosting). Upload with the rest of dist/.
+
+Options -Indexes
+ErrorDocument 404 /404.html
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Always https, and no www.
+  RewriteCond %{HTTPS} !=on [OR]
+  RewriteCond %{HTTP_HOST} ^www\. [NC]
+  RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L,NE]
+
+  # Two-site rule: a return visitor to "/" goes to the business they picked. "/?choose=1" skips it.
+  RewriteCond %{QUERY_STRING} !(^|&)choose= [NC]
+  RewriteCond %{HTTP_COOKIE} (^|;\s*)rh_vertical=(events|cars)(;|$)
+  RewriteRule ^$ /%2 [R=307,L]
+
+  # The old plans page.
+  RewriteRule ^events/pricing/?$ /events#pricing [R=301,L,NE]
+
+  # Clean URLs: /events serves events/index.html; /events/ redirects to /events.
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^(.+)/$ /$1 [R=301,L]
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.+?)/?$ /$1/index.html [L]
+</IfModule>
+
+# Folders are served through the rules above, so Apache must not add a trailing slash itself.
+DirectorySlash Off
+
+# Keep the form settings private.
+<Files "config.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</Files>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/javascript application/json image/svg+xml application/xml
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType video/mp4 .mp4
+  AddType image/svg+xml .svg
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  # Hashed build files never change; pages always revalidate.
+  <FilesMatch "\.(js|css|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(png|jpg|svg|ico|mp4)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+  </FilesMatch>
+</IfModule>

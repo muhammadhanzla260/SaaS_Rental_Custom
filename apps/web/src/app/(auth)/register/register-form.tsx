@@ -20,6 +20,10 @@ export function RegisterForm({ domain, signedIn }: { domain: string; signedIn: {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // The marketing site links here with ?vertical=cars; car businesses get early access instead of a trial.
+  const [rents, setRents] = useState<'events' | 'cars'>('events');
+  useEffect(() => { if (new URLSearchParams(location.search).get('vertical') === 'cars') setRents('cars'); }, []);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://renthatch.org';
   const set = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV((x) => ({ ...x, [k]: val }));
 
   useEffect(() => { if (!slugTouched) set('slug', slugify(v.businessName)); }, [v.businessName, slugTouched]);
@@ -50,11 +54,43 @@ export function RegisterForm({ domain, signedIn }: { domain: string; signedIn: {
   };
 
   const score = passwordScore(v.password);
+  const rentPicker = (
+    <fieldset className="mt-6">
+      <legend className="mb-2 text-sm font-semibold text-fg">What do you rent out?</legend>
+      <div className="grid grid-cols-2 gap-2">
+        {([['events', 'Event & equipment', 'Party, tents, AV, tools'], ['cars', 'Cars & vehicles', 'Early access']] as const).map(([id, label, sub]) => (
+          <label key={id} className={cx('flex cursor-pointer flex-col rounded-xl border-[1.5px] px-4 py-3 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent', rents === id ? 'border-fg bg-surface-2' : 'border-line')}>
+            <input type="radio" name="rents" value={id} checked={rents === id} onChange={() => setRents(id)} className="sr-only" />
+            <span className="font-semibold text-fg">{label}</span>
+            <span className="text-sm text-fg-2">{sub}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+
+  // Car rental is early access: never create a workspace, send them to the early-access list.
+  if (rents === 'cars') {
+    return (
+      <div className="anim-rise">
+        <h1 className="font-display text-[34px] font-extrabold leading-tight tracking-[-0.02em] text-fg sm:text-[40px]">Car rental is in early access</h1>
+        {rentPicker}
+        <div className="mt-6 rounded-2xl border border-line bg-surface-2 p-5">
+          <p className="text-base text-fg-2">Rent Hatch for car and vehicle rental isn't open for sign-up yet. Join the early-access list: members try it first in a private beta and lock in launch pricing.</p>
+          <a href={`${siteUrl}/cars#access`} className="mt-4 inline-flex h-12 items-center gap-2 rounded-full bg-[#6D3FD6] px-6 font-semibold text-white">
+            Join early access <ArrowRight className="size-4" />
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} noValidate className="anim-rise">
       <h1 className="font-display text-[34px] font-extrabold leading-tight tracking-[-0.02em] text-fg sm:text-[40px]">Create your workspace</h1>
       <p className="mt-2 text-base text-fg-2">{signedIn ? `Signed in as ${signedIn.email}. Add another business.` : 'Free trial. No card needed to start.'}</p>
       {error && <Notice kind="danger" className="mt-5">{error}</Notice>}
+      {rentPicker}
 
       <div className="mt-7 flex flex-col gap-5">
         <Field label="Business name" htmlFor="r-biz" error={errors.businessName}>

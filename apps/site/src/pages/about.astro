@@ -1,0 +1,52 @@
+---
+/** S4 · About. */
+import Page from '~/layouts/Page.astro';
+import PageHero from '~/components/PageHero.astro';
+
+const VALUES = [['01', 'Built from real Saturdays', 'Every feature starts from a real job that went wrong, not a feature list.'], ['02', 'To the cent', 'Prices, payments and reports have to match exactly. Close is not good enough.'], ['03', 'Your business, your brand', 'Customers see you, not us. Your logo, your email, your domain.'], ['04', 'Plain words', 'No jargon in the product or on the invoice. If a crew lead cannot follow it, we rewrite it.']];
+const TIMELINE = [['2026', 'Built inside a rental company', 'The first version ran a multi-location party rental business.', '#0B0D12'], ['Late 2026', 'Rent Hatch for event & equipment rental', 'Opened to every event and equipment rental business.', '#2C4FE0'], ['Next', 'Rent Hatch for car rental', 'Early access with fleet owners, then public launch.', '#6D3FD6'], ['After that', 'Integrations & API', 'Accounting sync, Zapier and an open API.', '#D4FF3A']];
+---
+<Page title="About" description="Rent Hatch started inside a working, multi-location rental company. We build software for the people who make the party happen." vertical="auto">
+  <PageHero eyebrow="About Rent Hatch" dark={false} glow="#D4FF3A">
+    We build software for the people who <span class="v">make the party happen.</span>
+  </PageHero>
+
+  <section class="wrap story">
+    <div class="stack prose" style="flex:1 1 560px;min-width:0;gap:18px">
+      <p>Rent Hatch started inside a working, multi-location rental company. Every Saturday brought the same problems: a bounce house promised twice, a deposit that never came, a crew that couldn't find the address, a travel fee nobody added.</p>
+      <p>The tools on the market were either built for hotels and cars, or for spreadsheets with extra steps. So we built the system that company needed, and then opened it up to every rental business.</p>
+      <p>Today Rent Hatch runs event and equipment rental, and car rental is next. Same core, built for the way each business actually works.</p>
+    </div>
+    <aside class="founder">
+      <span class="av">MH</span>
+      <strong style="font:800 22px var(--font-display)">Muhammad Hanzla</strong>
+      <span style="color:#6B7383;font-size:14px">Founder</span>
+      <span style="font-size:15px;line-height:1.55;color:#353C48">Solution architect with years of building rental and ERP systems for businesses in the US, UK and Gulf.</span>
+      <a href="/contact" style="color:#2C4FE0;font-weight:650">Get in touch →</a>
+    </aside>
+  </section>
+
+  <section class="wrap stack" style="padding-top:90px;gap:28px">
+    <div class="stack" style="gap:14px"><span class="eyebrow">What we believe</span><h2 class="h2">How we build</h2></div>
+    <div class="grid-auto" style="--min:240px;--gap:14px">
+      {VALUES.map(([n, t, s]) => <div class="card rv val"><span class="mono" style="color:#2C4FE0;font-weight:700">{n}</span><strong style="font:800 21px/1.2 var(--font-display)">{t}</strong><span style="font-size:15px;line-height:1.55;color:#535C6B">{s}</span></div>)}
+    </div>
+  </section>
+
+  <section class="wrap stack" style="padding-top:90px;padding-bottom:100px;gap:28px">
+    <div class="stack" style="gap:14px"><span class="eyebrow">Timeline</span><h2 class="h2">Where we're headed</h2></div>
+    <ol class="tl">{TIMELINE.map(([when, t, s, c]) => <li class="rv"><span class="tdot" style={`background:${c}`}></span><span class="mono when">{when}</span><strong style="font-size:18px">{t}</strong><span style="color:#535C6B;line-height:1.5">{s}</span></li>)}</ol>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a href="/careers" class="btn btn-ink">Work with us</a><a href="/contact" class="btn btn-line">Contact</a></div>
+  </section>
+</Page>
+<style>
+  .story { display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start; padding-top: 10px; }
+  .prose p { margin: 0; font-size: clamp(18px, 1.6vw, 21px); line-height: 1.6; color: #353C48; max-width: 62ch; }
+  .founder { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 28px; border-radius: 26px; background: #fff; border: 1px solid #E3E5DC; }
+  .av { width: 64px; height: 64px; border-radius: 20px; background: #0B0D12; color: #D4FF3A; display: inline-flex; align-items: center; justify-content: center; font: 800 22px var(--font-display); margin-bottom: 8px; }
+  .val { padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+  .tl { list-style: none; margin: 0; padding: 0 0 0 28px; border-left: 2px solid #E3E5DC; display: flex; flex-direction: column; gap: 28px; }
+  .tl li { position: relative; display: flex; flex-direction: column; gap: 4px; }
+  .tdot { position: absolute; left: -37px; top: 2px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #FAFAF6; }
+  .when { font-size: 13px; color: #6B7383; }
+</style>

@@ -7,7 +7,7 @@ export async function sendInviteEmail(opts: { email: string; name?: string | nul
   const url = appUrl(`/invite/${opts.token}`);
   const first = opts.name?.split(' ')[0];
   const mail = platformEmail({
-    title: `Join ${opts.orgName} on Tentpole`,
+    title: `Join ${opts.orgName} on Rent Hatch`,
     lines: [
       `${first ? `Hi ${first}, ` : ''}${opts.inviter} invited you to ${opts.orgName} as ${ROLE_LABELS[opts.role].label}.`,
       ROLE_LABELS[opts.role].description,

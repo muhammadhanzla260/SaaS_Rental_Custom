@@ -1,0 +1,55 @@
+---
+/** S10 · Changelog: tag filter and email subscribe. */
+import { getCollection, render } from 'astro:content';
+import Page from '~/layouts/Page.astro';
+import NewsletterForm from '~/components/NewsletterForm.astro';
+import { fmtDate } from '~/lib/content';
+
+const TAGS: Record<string, [string, string]> = { New: ['#E3F5EC', '#0B6145'], Improved: ['#E6ECFF', '#233FB8'], Fixed: ['#FFF1DC', '#8A4A00'], Cars: ['#F1EAFE', '#5B2DB0'] };
+const entries = await Promise.all((await getCollection('changelog')).sort((a, b) => b.data.date.getTime() - a.data.date.getTime()).map(async (e) => ({ ...e, Content: (await render(e)).Content })));
+---
+<Page title="Changelog" description="Every improvement to Rent Hatch, as it ships." vertical="auto">
+  <section class="wrap hero">
+    <div class="stack" style="flex:1 1 480px;gap:16px"><span class="eyebrow rise">Changelog</span><h1 class="disp rise" style="--d:80ms;font-size:clamp(44px,5.4vw,76px)">What's new in Rent Hatch</h1><p class="lede rise" style="--d:160ms">Every improvement, as it ships.</p></div>
+    <div class="rise" style="--d:220ms;flex:1 1 340px;max-width:440px"><NewsletterForm id="news-changelog" source="changelog" label="Get updates by email" /></div>
+  </section>
+  <section class="wrap stack" style="gap:28px;padding-bottom:100px" data-cl>
+    <div class="cats" role="group" aria-label="Filter updates">{['All', ...Object.keys(TAGS)].map((t, i) => <button type="button" class="fchip" aria-pressed={i === 0 ? 'true' : 'false'} data-tag={t}>{t}</button>)}</div>
+    <ol class="tl">
+      {entries.map((e) => (
+        <li class="rv" data-tags={e.data.tags.join(' ')}>
+          <time class="mono" datetime={e.data.date.toISOString().slice(0, 10)}>{fmtDate(e.data.date)}</time>
+          <div class="entry">
+            <span class="tags">{e.data.tags.map((t) => <span class="chip" style={`background:${TAGS[t]![0]};color:${TAGS[t]![1]}`}>{t}</span>)}</span>
+            <h2>{e.data.title}</h2>
+            <div class="md"><e.Content /></div>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </section>
+</Page>
+<script>
+  const root = document.querySelector<HTMLElement>('[data-cl]')!;
+  root.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('.fchip');
+    if (!b) return;
+    root.querySelectorAll('.fchip').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    root.querySelectorAll<HTMLElement>('[data-tags]').forEach((li) => { li.hidden = b.dataset.tag !== 'All' && !li.dataset.tags!.split(' ').includes(b.dataset.tag!); });
+  });
+</script>
+<style>
+  .hero { padding-top: clamp(48px, 6vw, 88px); padding-bottom: 40px; display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end; justify-content: space-between; }
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fchip { height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #E3E5DC; background: #fff; color: #353C48; font: 600 14px var(--font-ui); cursor: pointer; }
+  .fchip[aria-pressed="true"] { background: #0B0D12; color: #fff; border-color: #0B0D12; }
+  .tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+  .tl li { display: grid; grid-template-columns: 140px 1fr; gap: 24px; }
+  time { font-size: 14px; color: #6B7383; padding-top: 22px; }
+  .entry { padding: 24px; border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; display: flex; flex-direction: column; gap: 10px; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tags .chip { font-size: 12px; padding: 4px 10px; }
+  h2 { margin: 0; font: 800 24px/1.2 var(--font-display); }
+  .md :global(ul) { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #353C48; line-height: 1.55; }
+  @media (max-width: 640px) { .tl li { grid-template-columns: 1fr; gap: 6px; } time { padding-top: 0; } }
+</style>

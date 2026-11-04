@@ -1,0 +1,38 @@
+---
+/** S8 · Blog article. */
+import { render } from 'astro:content';
+import Article from '~/layouts/Article.astro';
+import { posts, fmtDate, minutes } from '~/lib/content';
+import { SITE_URL } from '~/lib/site';
+
+export async function getStaticPaths() {
+  const all = await posts();
+  return all.map((post) => ({ params: { slug: post.id }, props: { post, all } }));
+}
+const { post, all } = Astro.props;
+const { Content, headings } = await render(post);
+const d = post.data;
+const related = all.filter((p) => p.id !== post.id && !p.data.draft).sort((a, b) => Number(b.data.tag === d.tag) - Number(a.data.tag === d.tag)).slice(0, 3);
+const ld = {
+  '@context': 'https://schema.org', '@type': 'Article', headline: d.title, description: d.description,
+  datePublished: d.date.toISOString(), dateModified: (d.updated ?? d.date).toISOString(),
+  author: { '@type': d.author === 'Rent Hatch team' ? 'Organization' : 'Person', name: d.author },
+  publisher: { '@type': 'Organization', name: 'Rent Hatch', logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png` } },
+  mainEntityOfPage: `${SITE_URL}/blog/${post.id}`,
+};
+---
+<Article
+  title={d.title}
+  description={d.description}
+  back={{ href: '/blog', label: 'All posts' }}
+  kicker={d.tag}
+  author={d.author}
+  meta={`${fmtDate(d.date)} · ${d.minutes ?? minutes(post.body)} min read`}
+  headings={headings}
+  related={related.map((r) => ({ href: `/blog/${r.id}`, kicker: r.data.tag, title: r.data.title }))}
+  jsonLd={[ld]}
+  draft={d.draft}
+  cta={d.vertical !== 'cars'}
+>
+  <Content />
+</Article>
