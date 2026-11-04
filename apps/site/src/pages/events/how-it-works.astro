@@ -1,0 +1,287 @@
+---
+/** E2 · Event & equipment rental in depth. */
+import Page from '~/layouts/Page.astro';
+import Icon from '~/components/Icon.astro';
+import Faq from '~/components/Faq.astro';
+import { IC, SIGN_UP } from '~/lib/site';
+import { DEMO_DEFAULT, demoRows, usd } from '~/lib/price-demo';
+
+type Block = [number, number, string, ('q' | undefined)?];
+const BOARD: Record<string, { label: string; try: string; owned: number; alt: string; units: [string, string, Block[]][] }> = {
+  party: { label: 'Inflatables & party', try: 'Castle Bounce House', owned: 2, alt: 'Tropical Combo Slide', units: [['Castle Bounce House · #1', 'BH-CASTLE · Austin', [[10, 15.5, 'Rivera birthday'], [15.5, 17, '']]], ['Castle Bounce House · #2', 'BH-CASTLE · Austin', [[12, 18, 'Maria G. · 1–6 PM'], [18, 19.5, '']]], ['Tropical Combo Slide', 'SL-COMBO · Austin', [[9, 13, 'Oak Hill Elementary'], [13, 14, '']]], ['Popcorn Machine · #1', 'CN-POP · Austin', [[12, 18, 'Maria G.'], [18, 18.5, '']]], ['Dunk Tank', 'GM-DUNK · Austin', [[14, 19, 'Quote · Priya S.', 'q']]]] },
+  tents: { label: 'Tents & furniture', try: '20×40 frame tent', owned: 1, alt: '20×30 frame tent', units: [['20×40 frame tent', 'TN-2040 · Dallas', [[8, 21, 'Greenway Church · 3 days']]], ['20×30 frame tent', 'TN-2030 · Dallas', [[16, 21, 'Quote · Lee wedding', 'q']]], ['Chiavari chairs ×160', 'CH-CHIA · 220 owned', [[8, 21, 'Greenway Church']]], ['Banquet tables ×20', 'TB-BANQ · 60 owned', [[10, 17, 'Smith reunion'], [17, 18.5, '']]], ['Dance floor 16×16', 'DF-16 · Dallas', [[15, 22, 'Lopez quinceañera']]]] },
+  av: { label: 'AV & staging', try: 'LED wall 10×6', owned: 1, alt: 'Projector + 16 ft screen', units: [['LED wall 10×6', 'AV-LED · Houston', [[11, 20, 'Corporate launch']]], ['Projector + 16 ft screen', 'AV-PROJ · Houston', [[18, 22, 'Movie night · HOA']]], ['PA system 2,000 W', 'AV-PA2K · Houston', [[11, 20, 'Corporate launch'], [20, 21, '']]], ['Stage deck 16×12', 'ST-1612 · Houston', [[9, 20, 'Fall festival']]], ['Uplight kit ×12', 'LT-UP12 · Houston', [[16, 22, 'Quote · Gala', 'q']]]] },
+  tools: { label: 'Tools & equipment', try: 'Scissor lift 19 ft', owned: 2, alt: 'Boom lift 40 ft', units: [['Scissor lift 19 ft · #1', 'EQ-SL19 · Phoenix', [[8, 17, 'Mesa build · 2 days']]], ['Scissor lift 19 ft · #2', 'EQ-SL19 · Phoenix', [[8, 13, 'Desert Co.'], [13, 14.5, '']]], ['Generator 7.5 kW', 'EQ-GEN75 · Phoenix', [[9, 21, 'Fall fair · 3 days']]], ['Boom lift 40 ft', 'EQ-BL40 · Phoenix', [[12, 16, 'Quote · Sun Roofing', 'q']]], ['Mini excavator', 'EQ-MX · Phoenix', [[8, 16, 'Cortez Landscaping']]]] },
+};
+const pos = (h: number) => ((h - 8) / 14) * 100;
+const STOPS = [
+  ['Lead', IC.mail, 'A new enquiry, answered in minutes', 'Website forms, calls and messages land in one pipeline with a reply-time target. An auto-reply goes out instantly and follow-ups run on day 1, 3 and 7.', ['Auto-reply email and a text to your sales team', 'Reply-time badge so nothing sits for hours', 'Follow-ups stop when they reply or book']],
+  ['Quote', 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3', 'A priced quote in a minute', 'Add items and the price builds itself: overtime, travel, surfaces, waiver and tax. Every unit is checked against the calendar first.', ['Live availability by unit', 'Every field editable, even after booking', 'Coupons, discounts and custom lines']],
+  ['Sign & pay', 'M3 6h18v12H3zM3 10h18M7 15h4', 'Signed and paid without a phone call', 'Customers open one link, accept your policies, sign the agreement and pay the deposit by card. The balance is scheduled for event day.', ['Typed e-signature with a full audit trail', 'Deposit 30%, 50%, full or custom', 'Card saved for the event-day balance']],
+  ['Reminders', IC.clock, 'Reminders on timings you choose', 'Pre-event emails, a setup-spot check by text and a day-before reminder. All from your own email address and number.', ['Set days, before or after, and send time', 'Quiet hours so texts never go out at night', 'Every message logged exactly as sent']],
+  ['Event day', IC.crew, 'Crews on time, customers in the loop', 'The balance charges at 8 AM. Crews work through a 5-phase checklist with photo proof, and customers get a text when the crew is 5 minutes away.', ['Start En Route, live GPS and ETA', 'EVENT START records the real start time', 'Contract and balance checks on arrival']],
+  ['Close-out', IC.check, 'Packed, checked and flagged', 'Breakdown, site clean-up and the review card. Damage is reported with photos and the item is held from bookings until it is fixed.', ['Close-out photo proof', 'Damage report → maintenance flag', 'Review request sends the next day']],
+  ['Report', IC.rep, 'Know exactly how the week went', 'Sales, receivables, rain checks, commissions and gateway reconciliation, ready the moment the week ends.', ['32 ready-made reports', 'Export or email them on a schedule', 'Numbers that match your payments to the cent']],
+] as const;
+const DAY = [['5-phase crew checklist', 'Pre-departure, load, arrival, setup and close-out, written for rental crews, with photo proof where it matters.', 'M5 12.5l4.5 4.5L19 7M5 6h14', '#E6ECFF', '#233FB8'], ['Live GPS while en route', 'Tracking starts when the crew leaves and stops on arrival. Never off the clock.', IC.crew, '#FCE8F1', '#9B2160'], ['“5 minutes away” texts', 'Customers get one text when the crew leaves and another when they are close.', IC.chat, '#E3F5EC', '#0B6145'], ['EVENT START, on record', 'One tap records the real start time and location, so late starts are visible.', IC.clock, '#FFF1DC', '#8A4A00'], ['Contract & balance on arrival', 'If the agreement is not signed or a balance is due, the crew is prompted before setup.', 'M5 4h14v16H5zM9 8h6M9 12h6', '#E0F2F7', '#0A5566'], ['Damage reported with photos', 'Close-out damage flags the item for maintenance and holds it from new bookings.', 'M12 3 2 20h20zM12 10v4M12 17h.01', '#FDE7E8', '#A31F25']];
+const CMP = [['Knows which unit is free, by the minute', 'Guesswork', 'By day, not by unit'], ['Travel, overtime & surface fees', 'Manual maths', 'Usually not'], ['E-sign, deposits & auto-charged balances', 'Chasing by text', 'Deposits only'], ['Crew checklists, GPS & heads-up texts', '—', '—'], ['Rain checks & credits', 'Notes in a spreadsheet', '—'], ['Your own email, domain and branding', '—', 'Their branding'], ['32 rental reports', 'Pivot tables', 'A few basics']];
+const MOVES = [['1', 'Export what you have', 'Products, prices and customers from your spreadsheet or current system as CSV.'], ['2', 'We map and import it', 'Units, price rules per service type, customers and saved addresses.'], ['3', 'Prices checked to the cent', 'We re-price your recent orders and compare them with what you charged.'], ['4', 'Go live on a quiet day', 'Turn on online quotes and payments when you are ready. Old bookings come along.']];
+const FAQS: [string, string][] = [
+  ['Does it handle staffed, drop-off and pick-up orders?', 'Yes. Each product has prices for staffed, drop-off and customer pick-up, and travel fees follow the service type automatically.'],
+  ['Can I block an item for cleaning between rentals?', 'Yes. Set a cleanup buffer for the whole business or per product, or switch on next-day returns. Units are held through the buffer.'],
+  ['What happens when it rains?', 'Issue a rain check in one tap. What the customer paid becomes credit for a new date, items are released and the balance charge stops.'],
+  ['Can I take payment without a card, like checks or POs?', 'Yes. Book with a manual payment or without payment, with a reason and an expected date. The ops board reminds you to follow up.'],
+  ['Do coaches and crews see prices?', 'No. Crews see only the jobs assigned to them, the checklist, the event contact and what is due on arrival.'],
+  ['Can each location have its own tax and email?', 'Yes. Every location has its own timezone, tax rate, document numbers, travel rules, mail server and payment account.'],
+];
+const calc = demoRows(DEMO_DEFAULT);
+---
+<Page
+  title="Event & equipment rental software · How it works"
+  description="Live availability by unit, a pricing engine that adds every fee, e-sign and deposits, crew checklists with GPS and 32 reports. See how Rent Hatch runs an event rental, start to finish."
+  vertical="events"
+  nav="dark"
+  active="solutions"
+>
+  <!-- HERO + AVAILABILITY -->
+  <section class="hero" data-scope data-gear="party">
+    <div class="grid-bg"></div>
+    <div class="glow" style="width:600px;height:600px;background:#2C4FE0;opacity:.45;left:40%;top:-200px;animation:drift 16s ease-in-out infinite"></div>
+    <div class="wrap stack" style="position:relative;padding-top:clamp(48px,7vw,96px);padding-bottom:80px;gap:48px">
+      <div class="hero-top">
+        <div class="stack" style="flex:1 1 560px;min-width:0;gap:24px">
+          <span class="chip rise" style="align-self:flex-start;background:#1F3A2C;color:#3DD39A"><span class="blink-dot"></span>Event &amp; equipment rental software</span>
+          <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,6vw,84px)">Book it. Bill it. Deliver it. <span class="v">All in one place.</span></h1>
+          <p class="rise lede-d" style="--d:160ms">For rental companies that deliver, set up and pick up. Rent Hatch knows which unit is free, prices every order to the cent, collects the money and keeps your crews on schedule.</p>
+          <div class="rise btns" style="--d:240ms"><a href={SIGN_UP} class="btn btn-volt" data-track="start_trial" data-where="e2-hero">Start free trial</a><a href="/demo" class="btn btn-ghost">Book a demo</a></div>
+        </div>
+        <div class="rise stack" style="--d:300ms;gap:10px">
+          <span id="kind-l" style="font-size:13px;color:#8A93A3;font-weight:600">Show me it with</span>
+          <div class="seg" role="radiogroup" aria-labelledby="kind-l" data-choice="gear" data-url>
+            {Object.entries(BOARD).map(([id, b], i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={id} style="height:42px">{b.label}</button>)}
+          </div>
+        </div>
+      </div>
+      <div class="rise board" style="--d:360ms" data-board>
+        <div class="between" style="flex-wrap:wrap"><strong style="font-size:18px">Availability · Saturday, Nov 7</strong><span class="legend"><span><i style="background:#2C4FE0"></i>Booked</span><span><i style="background:#2E3442"></i>Cleaning buffer</span><span><i style="border:1.5px dashed #D4FF3A"></i>Quote · holds nothing</span></span></div>
+        <div class="board-scroll">
+          <div class="board-grid">
+            <div class="mono hours"><span></span>{['8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'].map((h) => <span>{h}</span>)}</div>
+            {Object.entries(BOARD).map(([id, b], gi) => (
+              <div class="stack" style="gap:8px" data-when={`gear:${id}`} hidden={gi !== 0}>
+                {b.units.map(([name, meta, blocks], ui) => (
+                  <div class="unit">
+                    <span class="stack"><strong style="font-size:14.5px">{name}</strong><span class="mono" style="font-size:11.5px;color:#8A93A3">{meta}</span></span>
+                    <span class="lane">
+                      {blocks.map(([a, z, t, q], bi) => (
+                        <span class:list={['blk', { quote: q, buffer: !t }]} style={`left:${pos(a)}%;width:${((z - a) / 14) * 100}%;animation-delay:${ui * 90 + bi * 60}ms`}>{t}</span>
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        {Object.entries(BOARD).map(([id, b], gi) => (
+          <div class="try" data-when={`gear:${id}`} hidden={gi !== 0}>
+            <button type="button" class="btn" data-try style="height:44px;background:#2C4FE0;color:#fff">+ Try to book another {b.try} at 2 PM</button>
+            <span class="chip refused" role="status">✕ Refused · all {b.owned} {b.owned === 1 ? 'unit is' : 'units are'} out · {b.alt} is free →</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKFLOW -->
+  <section class="flow">
+    <div class="wrap stack" style="gap:44px" data-scope data-tour="4200" data-stop="0">
+      <div class="rv stack" style="gap:14px;max-width:760px"><span class="eyebrow" style="color:#8A93A3">One booking, start to finish</span><h2 class="h2">Every step of a rental, handled in order</h2></div>
+      <div class="stops-scroll">
+        <div class="stops" role="tablist" aria-label="Rental workflow" data-choice="stop">
+          <span class="track"></span><span class="track-on"></span>
+          {STOPS.map(([t, icon], i) => (
+            <button type="button" role="tab" class="stop" id={`stop-t${i}`} aria-controls={`stop-p${i}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-value={String(i)} style={`--i:${i}`}>
+              <span class="dot"><Icon d={icon} size={22} /></span>{t}
+            </button>
+          ))}
+        </div>
+      </div>
+      {STOPS.map(([, , h, p, pts], i) => (
+        <div role="tabpanel" id={`stop-p${i}`} aria-labelledby={`stop-t${i}`} class="mock flow-card" data-when={`stop:${i}`} hidden={i !== 0}>
+          <div class="stack" style="flex:1 1 360px;min-width:0;gap:12px"><span class="mono" style="color:#D4FF3A;font-size:13px">Step {i + 1} of 7</span><strong style="font:800 34px/1.05 var(--font-display)">{h}</strong><p style="margin:0;font-size:16.5px;line-height:1.6;color:#A3ABB9">{p}</p></div>
+          <ul class="pts">{pts.map((t, j) => <li style={`animation-delay:${j * 90}ms`}><span aria-hidden="true">✓</span>{t}</li>)}</ul>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- PRICE CALCULATOR -->
+  <section class="wrap calc-sec" id="pricing-engine">
+    <div class="rv stack" style="flex:1 1 400px;min-width:0;gap:18px"><span class="eyebrow">The pricing engine</span><h2 class="h2">Every fee you used to forget, added for you</h2><p class="lede">Overtime by the minute, travel by driving distance, setup surfaces, damage waivers and tax. Change the event and watch the order price itself.</p><span style="font-size:13.5px;color:#6B7383">Runs on the same pricing engine as the real order screen. Sample prices.</span></div>
+    <div class="card rv calc" data-scope data-calc data-mode="staffed" data-surface="grass">
+      <div class="stack" style="gap:6px"><div class="between" style="font-size:15px"><label for="pc-hours">Event length</label><output class="mono" for="pc-hours" data-out="hours" style="font-weight:700">5 hours</output></div><input id="pc-hours" type="range" min="2" max="9" step="0.5" value={DEMO_DEFAULT.hours} class="range blue" /></div>
+      <div class="stack" style="gap:6px"><div class="between" style="font-size:15px"><label for="pc-miles">Distance from warehouse</label><output class="mono" for="pc-miles" data-out="miles" style="font-weight:700">18.4 mi</output></div><input id="pc-miles" type="range" min="0" max="40" step="0.1" value={DEMO_DEFAULT.miles} class="range blue" /></div>
+      <div class="between" style="flex-wrap:wrap;gap:16px;align-items:flex-start">
+        <div class="stack" style="gap:6px"><span id="svc-l" class="lbl">Service</span><div class="tog" role="radiogroup" aria-labelledby="svc-l" data-choice="mode">{[['staffed', 'Staffed'], ['dropoff', 'Drop-off'], ['pickup', 'Pick-up']].map(([v, l], i) => <button type="button" class="togb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={v}>{l}</button>)}</div></div>
+        <div class="stack" style="gap:6px"><span id="srf-l" class="lbl">Setup surface</span><div class="tog" role="radiogroup" aria-labelledby="srf-l" data-choice="surface">{[['grass', 'Grass'], ['asphalt', 'Asphalt'], ['drivein', 'Drive-in']].map(([v, l], i) => <button type="button" class="togb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={v}>{l}</button>)}</div></div>
+      </div>
+      <div class="calc-out" aria-live="polite">
+        <div data-rows>{calc.rows.map(([k, s, c]) => <div class="row"><span>{k}<span class="sub">{s}</span></span><span class="mono">{usd(c)}</span></div>)}</div>
+        <div class="total"><strong>Total</strong><strong class="mono" style="font-size:36px" data-out="total">{usd(calc.totalCents)}</strong></div>
+        <div class="between" style="font-size:14px;color:#535C6B;margin-top:6px"><span>Deposit to book (30%)</span><span class="mono" data-out="dep">{usd(calc.depositCents)}</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVENT DAY -->
+  <section class="wrap sec">
+    <div class="rv stack" style="gap:14px;max-width:760px"><span class="eyebrow">Event day</span><h2 class="h2">Crews that show up ready, and customers who know it</h2></div>
+    <div class="grid-auto" style="--min:340px">
+      {DAY.map(([t, s, icon, bg, fg]) => <div class="card rv stack" style="padding:26px;gap:12px"><span class="ic48" style={`background:${bg}`}><Icon d={icon} size={24} stroke={fg} /></span><strong style="font:800 22px/1.15 var(--font-display)">{t}</strong><span style="font-size:15px;line-height:1.55;color:#535C6B">{s}</span></div>)}
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="wrap sec" style="gap:32px">
+    <div class="rv stack" style="gap:14px;max-width:760px"><span class="eyebrow">Why switch</span><h2 class="h2">Built for rental, not bent to fit it</h2></div>
+    <div class="card rv" style="overflow-x:auto">
+      <table class="cmp">
+        <thead><tr><th scope="col" style="width:40%">What you need</th><th scope="col">Spreadsheets &amp; texts</th><th scope="col">Generic booking app</th><th scope="col" class="us">Rent Hatch</th></tr></thead>
+        <tbody>{CMP.map(([k, a, b]) => <tr><th scope="row">{k}</th><td style={`color:${a === '—' ? '#6B7383' : '#A31F25'}`}>{a}</td><td style={`color:${b === '—' ? '#6B7383' : '#8A4A00'}`}>{b}</td><td class="us"><span aria-hidden="true">✓</span> Built in</td></tr>)}</tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SWITCHING -->
+  <section style="background:#F1F2EA;margin-top:100px;padding:100px 0">
+    <div class="wrap switch">
+      <div class="rv stack" style="flex:1 1 380px;min-width:0;gap:16px"><span class="eyebrow">Switching</span><h2 class="h2">Moving over takes days, not months</h2><p class="lede">Bring your products, prices and customers from a spreadsheet. On Growth and Scale, we move your data for you and check every price matches your old system to the cent before you go live.</p><a href="/demo" class="btn btn-ink" style="align-self:flex-start">Plan your switch with us</a></div>
+      <ol class="moves">{MOVES.map(([n, t, s]) => <li class="card rv"><span class="mono num">{n}</span><span class="stack" style="gap:4px"><strong style="font-size:17px">{t}</strong><span style="font-size:15px;color:#535C6B;line-height:1.5">{s}</span></span></li>)}</ol>
+    </div>
+  </section>
+
+  <!-- FAQ + CTA -->
+  <section class="wrap faq-sec">
+    <div class="rv stack" style="flex:1 1 320px;gap:16px"><span class="eyebrow">Event rental questions</span><h2 class="h2" style="font-size:clamp(34px,3.6vw,48px)">The details owners ask about</h2></div>
+    <div style="flex:999 1 560px;min-width:0"><Faq items={FAQS} /></div>
+  </section>
+  <section class="wrap" style="padding-bottom:100px">
+    <div class="rv cta">
+      <div class="glow" style="width:420px;height:420px;background:#D4FF3A;opacity:.16;right:-100px;top:-160px"></div>
+      <h2 class="disp" style="position:relative;font-size:clamp(38px,5vw,68px);max-width:760px">Your gear is booked solid. <span class="v">Your evenings shouldn't be.</span></h2>
+      <div class="btns" style="position:relative"><a href={SIGN_UP} class="btn btn-volt" data-track="start_trial" data-where="e2-final">Start free trial</a><a href="/events/pricing" class="btn btn-ghost">See pricing</a></div>
+    </div>
+  </section>
+</Page>
+
+<script>
+  import { demoRows, usd, type DemoInput, type Surface } from '~/lib/price-demo';
+  import type { ServiceMode } from '@rental/core/pricing';
+
+  // "Try to book" shows the refusal; switching gear resets it.
+  const board = document.querySelector<HTMLElement>('[data-board]');
+  board?.addEventListener('click', (e) => { if ((e.target as Element).closest('[data-try]')) board.dataset.refused = 'true'; });
+  document.addEventListener('rh:choice', (e) => { if ((e as CustomEvent).detail.key === 'gear' && board) delete board.dataset.refused; });
+
+  // Price calculator on the real engine.
+  const calc = document.querySelector<HTMLElement>('[data-calc]');
+  if (calc) {
+    const hours = calc.querySelector<HTMLInputElement>('#pc-hours')!;
+    const miles = calc.querySelector<HTMLInputElement>('#pc-miles')!;
+    const set = (k: string, v: string) => { calc.querySelector<HTMLElement>(`[data-out="${k}"]`)!.textContent = v; };
+    const render = () => {
+      const input: DemoInput = { hours: +hours.value, miles: +miles.value, mode: calc.dataset.mode as ServiceMode, surface: calc.dataset.surface as Surface };
+      const r = demoRows(input);
+      set('hours', `${input.hours % 1 ? input.hours.toFixed(1) : input.hours} hours`);
+      set('miles', `${input.miles} mi`);
+      calc.querySelector('[data-rows]')!.innerHTML = r.rows.map(([k, s, c]) => `<div class="row"><span>${k}<span class="sub">${s}</span></span><span class="mono">${usd(c)}</span></div>`).join('');
+      set('total', usd(r.totalCents));
+      set('dep', usd(r.depositCents));
+    };
+    calc.addEventListener('input', render);
+    calc.addEventListener('rh:choice', render);
+  }
+</script>
+
+<style>
+  .hero { position: relative; background: #0B0D12; color: #fff; overflow: hidden; }
+  .hero :focus-visible, .flow :focus-visible { outline-color: #D4FF3A; }
+  .hero-top { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-end; justify-content: space-between; }
+  .blink-dot { width: 8px; height: 8px; border-radius: 50%; background: #3DD39A; animation: blink 1.6s infinite; }
+  .lede-d { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #A3ABB9; max-width: 58ch; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .board { border-radius: 28px; background: #141821; border: 1px solid #232835; padding: clamp(18px, 2.4vw, 30px); display: flex; flex-direction: column; gap: 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: #A3ABB9; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; }
+  .board-scroll { overflow-x: auto; }
+  .board-grid { min-width: 760px; display: flex; flex-direction: column; gap: 8px; }
+  .hours { display: grid; grid-template-columns: 220px repeat(7, minmax(0, 1fr)); font-size: 12px; color: #8A93A3; }
+  .unit { display: grid; grid-template-columns: 220px 1fr; align-items: center; }
+  .lane { position: relative; height: 44px; border-radius: 12px; background: #0B0D12; border: 1px solid #1C212C; }
+  .blk { position: absolute; top: 5px; bottom: 5px; border-radius: 9px; background: #2C4FE0; color: #fff; font: 600 12px var(--font-ui); display: flex; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; transform-origin: left; animation: growx .7s var(--ease-out) both; }
+  .blk.buffer { background: #2E3442; }
+  .blk.quote { background: transparent; border: 1.5px dashed #D4FF3A; color: #D4FF3A; }
+  .try { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .refused { display: none; background: #3A1518; color: #FF8A8E; animation: pop .45s both; white-space: normal; }
+  [data-refused="true"] .refused { display: inline-flex; }
+
+  .flow { background: #11141B; color: #fff; padding: 100px 0; }
+  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; }
+  .stops { position: relative; min-width: 760px; display: flex; gap: 8px; }
+  .track, .track-on { position: absolute; left: 6%; top: 23px; height: 2px; }
+  .track { right: 6%; background: #232835; }
+  .track-on { width: 0; background: #D4FF3A; transition: width .6s var(--ease-out); }
+  .stop { display: flex; flex-direction: column; align-items: center; gap: 10px; border: none; background: none; cursor: pointer; font: 600 14px var(--font-ui); color: #8A93A3; padding: 0; flex: 1; min-width: 96px; position: relative; }
+  .dot { width: 46px; height: 46px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #141821; color: #fff; transition: background-color .3s, transform .3s, box-shadow .3s; }
+  .stop[aria-selected="true"] { color: #fff; }
+  .stop[aria-selected="true"] .dot { background: #D4FF3A; color: #0B0D12; box-shadow: 0 0 0 8px rgba(212, 255, 58, .15); transform: scale(1.1); }
+  .stop.done { color: #fff; }
+  .stop.done .dot { background: #2C4FE0; }
+  .flow-card { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; border-radius: 28px; background: #0B0D12; border: 1px solid #232835; padding: clamp(24px, 3vw, 40px); }
+  .pts { flex: 1 1 360px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .pts li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: #141821; font-size: 15px; animation: slidein .45s both; }
+  .pts span { color: #D4FF3A; font-weight: 800; }
+
+  .calc-sec { padding-top: 110px; padding-bottom: 40px; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .calc { flex: 1 1 520px; min-width: 0; padding: clamp(22px, 3vw, 36px); display: flex; flex-direction: column; gap: 18px; }
+  .range.blue { accent-color: #2C4FE0; }
+  .lbl { font-size: 13px; font-weight: 600; color: #535C6B; }
+  .tog { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: #F1F2EA; }
+  .togb { height: 38px; padding: 0 14px; border-radius: 10px; border: none; font: 600 14px var(--font-ui); cursor: pointer; background: transparent; color: #353C48; }
+  .togb[aria-checked="true"] { background: #0B0D12; color: #fff; }
+  .calc-out { border-radius: 18px; background: #F7F8F3; padding: 6px 18px 16px; }
+  .calc-out :global(.sub) { display: block; font-size: 12px; color: #6B7383; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 2px solid #10131A; }
+  .total > strong:first-child { font: 800 22px var(--font-display); }
+
+  .sec { padding-top: 110px; padding-bottom: 40px; display: flex; flex-direction: column; gap: 40px; }
+  .ic48 { width: 48px; height: 48px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; }
+  .cmp { width: 100%; min-width: 720px; border-collapse: collapse; }
+  .cmp td, .cmp th { padding: 16px 18px; text-align: left; border-bottom: 1px solid #E3E5DC; font-size: 15px; }
+  .cmp thead th { font: 700 13px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: #535C6B; }
+  .cmp tbody th { font: 600 15px var(--font-ui); color: #10131A; }
+  .cmp .us { background: #0B0D12; color: #fff; font-weight: 600; }
+  .cmp thead .us { color: #D4FF3A; border-radius: 16px 16px 0 0; }
+  .cmp td.us span { color: #D4FF3A; }
+  .switch { display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .moves { flex: 1 1 460px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .moves li { display: flex; gap: 18px; align-items: flex-start; padding: 22px; }
+  .num { width: 40px; height: 40px; border-radius: 12px; background: #0B0D12; color: #D4FF3A; flex: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .faq-sec { padding-top: 100px; padding-bottom: 100px; display: flex; flex-wrap: wrap; gap: 48px; }
+  .cta { border-radius: 36px; background: #0B0D12; color: #fff; padding: clamp(36px, 6vw, 72px); display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; justify-content: space-between; position: relative; overflow: hidden; }
+</style>
+
+<script>
+  // Workflow: earlier stops read as done and the progress line follows the current one.
+  document.addEventListener('rh:choice', (e) => {
+    const d = (e as CustomEvent).detail;
+    if (d.key !== 'stop') return;
+    const scope = (e.target as HTMLElement);
+    const cur = +d.value;
+    scope.querySelectorAll<HTMLElement>('.stop').forEach((s, i) => s.classList.toggle('done', i < cur));
+    scope.querySelector<HTMLElement>('.track-on')!.style.width = `${(cur / 6) * 88}%`;
+  });
+</script>

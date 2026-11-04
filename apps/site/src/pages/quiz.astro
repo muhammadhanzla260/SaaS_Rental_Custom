@@ -1,0 +1,255 @@
+---
+/** E5 · Which plan fits? Four questions, auto-advance, back, a "matching" beat, then a result. */
+import Page from '~/layouts/Page.astro';
+import Icon from '~/components/Icon.astro';
+import Form from '~/components/Form.astro';
+import { SIGN_UP } from '~/lib/site';
+import { PLANS } from '~/data/plans';
+
+const I = {
+  party: 'M12 3 21 20H3zM12 3v17', tent: 'M3 20 12 5l9 15M8 20l4-7 4 7M12 5V3', av: 'M3 6h18v11H3zM8 21h8M12 17v4', tool: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
+  car: 'M4 16v-4l2-5h12l2 5v4M4 16h16M7 16v2M17 16v2M6.5 12h11', other: 'M12 5v14M5 12h14', pin: 'M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z',
+  truck: 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01', box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
+  hand: 'M7 11V6a2 2 0 0 1 4 0v5M11 10V4a2 2 0 0 1 4 0v6M15 10V6a2 2 0 0 1 4 0v8a7 7 0 0 1-14 0v-2a2 2 0 0 1 4 0', cal: 'M4 5h16v15H4zM4 10h16M9 3v4M15 3v4', chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+};
+type Opt = [id: string, label: string, sub: string, icon: string, soon?: boolean];
+const QS: { key: string; title: string; sub: string; opts: Opt[] }[] = [
+  { key: 'what', title: 'What do you rent out?', sub: 'Pick the closest match. If you rent a mix, choose what makes most of your money.', opts: [['party', 'Inflatables & party rentals', 'Bounce houses, slides, games, concessions', I.party], ['tent', 'Tents, tables & event furniture', 'Canopies, chairs, linens, staging', I.tent], ['av', 'AV, staging & lighting', 'Screens, sound, lights, dance floors', I.av], ['tools', 'Tools & equipment', 'Generators, lifts, construction gear', I.tool], ['cars', 'Cars, vans & trucks', 'Daily and weekly vehicle rental', I.car, true], ['other', 'Something else', 'Tell us on a demo call', I.other]] },
+  { key: 'locs', title: 'How many locations or depots?', sub: 'Each location gets its own timezone, tax, travel rules and mail account.', opts: [['1', 'Just one', 'One warehouse or yard', I.pin], ['2-3', '2 to 3', 'A few branches', I.pin], ['4-10', '4 to 10', 'A regional operation', I.pin], ['10+', 'More than 10', 'Franchise or national', I.pin]] },
+  { key: 'crew', title: 'Do you deliver and set up?', sub: 'This decides whether we switch on the crew portal, travel fees and live GPS.', opts: [['yes', 'Yes, our crews deliver and set up', 'Drivers, setup crews, event staff', I.truck], ['some', 'Some delivery, mostly pickup', 'Drop-offs on request', I.box], ['no', 'Customers pick up and return', 'Counter or yard pickup only', I.hand]] },
+  { key: 'vol', title: 'Roughly how many bookings a month?', sub: 'A busy season month is a good guide.', opts: [['<30', 'Fewer than 30', 'Getting started', I.cal], ['30-150', '30 to 150', 'Busy weekends', I.cal], ['150-500', '150 to 500', 'Every day is busy', I.chart], ['500+', 'More than 500', 'High volume', I.chart]] },
+];
+const WHY: Record<string, [string, string[]]> = {
+  starter: ['You run one location without delivery crews, so you get everything you need to quote, book and get paid.', ['1 location · 3 users', 'Quotes, bookings & calendar', 'E-sign & online deposits', 'Email automations']],
+  growth: ['Crews on the road or a few branches: you need SMS heads-ups, the crew portal and live GPS.', ['3 locations · 10 users', 'SMS reminders & lead follow-ups', 'Crew portal with live GPS', 'All 32 reports']],
+  scale: ['With this many locations or bookings, unlimited users and done-for-you migration pay for themselves.', ['Unlimited locations & users', 'Data migration done for you', 'Priority support', 'API & webhooks when released']],
+};
+const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking', 'Pickup & return photo checks', 'Security deposit holds', 'Mileage & fuel tracking', 'Insurance & add-ons'];
+---
+<Page
+  title="Which plan fits? A 30-second quiz"
+  description="Answer four quick questions about your rental business and get the Rent Hatch setup and plan that fits."
+  vertical="auto"
+  active="quiz"
+>
+  <div class="quiz" data-quiz data-step="0">
+    <div class="glow qglow" aria-hidden="true"></div>
+    <div class="wrap stack" style="position:relative;padding-top:56px;padding-bottom:96px;gap:36px">
+      <noscript><p class="lede">This quiz needs JavaScript. <a href="/events/pricing" style="color:#2C4FE0;font-weight:600">Compare the plans</a> instead.</p></noscript>
+
+      <div class="stack q-only" style="gap:14px;max-width:760px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <button type="button" class="chip back" data-back hidden>← Back</button>
+          <span class="eyebrow" aria-live="polite">Question <span data-qn>1</span> of 4 · about 30 seconds</span>
+        </div>
+        <div class="bars" aria-hidden="true">{[0, 1, 2, 3].map(() => <span><span></span></span>)}</div>
+      </div>
+
+      {QS.map((q, qi) => (
+        <div class="qrow" data-q={qi} hidden={qi !== 0}>
+          <div class="qin stack" style="flex:1 1 380px;min-width:0;gap:16px">
+            <h1 class="disp" id={`q-${q.key}`} tabindex="-1" style="font-size:clamp(40px,5vw,68px)">{q.title}</h1>
+            <p class="lede">{q.sub}</p>
+          </div>
+          <div role="radiogroup" aria-labelledby={`q-${q.key}`} class="opts">
+            {q.opts.map(([id, label, sub, icon, soon], i) => (
+              <button type="button" class:list={['opt qin', { soonopt: soon }]} role="radio" aria-checked="false" data-key={q.key} data-val={id} style={`animation-delay:${60 + i * 50}ms`}>
+                <span class="oic"><Icon d={icon} size={26} /></span>
+                <span class="stack" style="flex:1;gap:3px">{label}<span class="osub">{sub}</span></span>
+                {soon && <span class="soon">Soon</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div class="thinking" data-thinking role="status" hidden>
+        <span class="spin" aria-hidden="true"></span>
+        <strong style="font:800 28px var(--font-display)">Matching you to the right setup…</strong>
+      </div>
+
+      <div class="stack" style="gap:28px" data-result="events" hidden>
+        <div class="res">
+          <div class="mock res-main">
+            <div class="glow" style="width:380px;height:380px;background:#2C4FE0;opacity:.5;right:-100px;top:-140px"></div>
+            <span class="chip" style="position:relative;align-self:flex-start;background:#1F3A2C;color:#3DD39A">✓ Your match · available now</span>
+            <h2 class="disp" tabindex="-1" data-result-h style="position:relative;font-size:clamp(40px,5vw,66px)">Rent Hatch for <span class="v">Events &amp; Equipment</span></h2>
+            <p data-line style="position:relative;margin:0;font-size:18px;line-height:1.55;color:#A3ABB9;max-width:58ch"></p>
+            <div class="stack" style="position:relative;gap:12px">
+              <span class="eyebrow" style="color:#8A93A3">We'll switch these on for you</span>
+              <div class="mods" data-mods></div>
+            </div>
+            <div class="btns" style="position:relative;margin-top:8px"><a href={SIGN_UP} class="btn btn-volt" data-signup data-track="start_trial" data-where="quiz">Start free trial on <span data-pname></span></a><a href="/demo" class="btn btn-ghost">Book a demo</a></div>
+          </div>
+          {PLANS.map((p) => (
+            <div class="mock res-plan" data-plan-card={p.id} hidden>
+              <span class="eyebrow">Recommended plan</span>
+              <strong style="font:800 40px var(--font-display)">{p.name}</strong>
+              <span style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap"><strong class="mono" style="font-size:48px">${p.yearly}</strong><span style="color:#535C6B">/ month, billed yearly</span></span>
+              <span style="font-size:15px;color:#535C6B;line-height:1.5">{WHY[p.id]![0]}</span>
+              <ul class="ticks">{WHY[p.id]![1].map((f) => <li><span aria-hidden="true">✓</span>{f}</li>)}</ul>
+              <a href="/events/pricing" style="margin-top:auto;font-weight:650;color:#2C4FE0">Compare all plans →</a>
+            </div>
+          ))}
+        </div>
+        <button type="button" class="chip back" data-restart style="align-self:flex-start">↺ Start over</button>
+      </div>
+
+      <div class="stack" style="gap:20px" data-result="cars" hidden>
+        <div class="mock cars" data-form-root>
+          <div class="glow" style="width:420px;height:420px;background:#6D3FD6;opacity:.5;left:-120px;bottom:-200px"></div>
+          <div class="stack" style="position:relative;flex:1 1 420px;min-width:0;gap:20px">
+            <span class="chip" style="align-self:flex-start;background:#2A2140;color:#C9B4FF">Your match · coming soon</span>
+            <h2 class="disp" tabindex="-1" data-result-h style="font-size:clamp(40px,5vw,64px)">Rent Hatch for <span style="color:#C9B4FF">Cars &amp; Vehicles</span></h2>
+            <p style="margin:0;font-size:18px;line-height:1.55;color:#B9B2D0;max-width:56ch">Car rental is in design now. It shares the core you'd expect, plus fleet calendars, licence checks, pickup and return inspections, deposit holds and mileage tracking.</p>
+            <ul class="cfeat">{CAR_FEAT.map((f) => <li><span aria-hidden="true">◷</span>{f}</li>)}</ul>
+          </div>
+          <div class="cform">
+            <Form kind="early-access" id="quiz-access" track="join_waitlist" source="quiz" class="stack" style="gap:12px">
+              <strong style="font:800 24px var(--font-display)">Get early access</strong>
+              <span style="font-size:14.5px;color:#B9B2D0;line-height:1.5">Waitlist members try it first and lock in launch pricing.</span>
+              <label for="cw-email" class="dl">Work email</label><input id="cw-email" name="email" class="input" type="email" required autocomplete="email" placeholder="you@yourfleet.com" />
+              <label for="cw-fleet" class="dl">Fleet size</label><select id="cw-fleet" name="fleet_size" class="input"><option>1–10 vehicles</option><option>11–50 vehicles</option><option>51–200 vehicles</option><option>200+ vehicles</option></select>
+              <button type="submit" class="btn btn-violet" style="margin-top:6px">Join the waitlist</button>
+            </Form>
+            <div class="done" data-success tabindex="-1"><span class="tick">✓</span><strong style="font:800 26px var(--font-display)">You're on the list</strong><span style="color:#B9B2D0;line-height:1.5">We'll email you once, when car rental opens. No newsletter unless you ask for it.</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center"><button type="button" class="chip back" data-restart>↺ Start over</button><a href="/cars" class="chip" data-set-vertical="cars" style="background:#6D3FD6;color:#fff">See Rent Hatch for Cars →</a></div>
+      </div>
+    </div>
+  </div>
+</Page>
+
+<script>
+  import { quizPlan, PLANS } from '~/data/plans';
+  import { track } from '~/scripts/track';
+
+  const root = document.querySelector<HTMLElement>('[data-quiz]')!;
+  const a: Record<string, string> = {};
+  let step = 0;
+  let timer = 0;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const WHAT: Record<string, string> = { party: 'inflatables and party rentals', tent: 'tents, tables and event furniture', av: 'AV, staging and lighting', tools: 'tools and equipment', other: 'your rentals' };
+
+  function show(n: number) {
+    step = n;
+    root.dataset.step = String(n);
+    root.querySelectorAll<HTMLElement>('[data-q]').forEach((q) => { q.hidden = +q.dataset.q! !== n; });
+    root.querySelector<HTMLElement>('[data-qn]')!.textContent = String(n + 1);
+    root.querySelector<HTMLElement>('[data-back]')!.hidden = n === 0;
+    root.querySelectorAll<HTMLElement>('.bars > span > span').forEach((b, i) => { b.style.width = i < n ? '100%' : i === n ? '35%' : '0%'; });
+    root.querySelector<HTMLElement>(`[data-q="${n}"] h1`)?.focus({ preventScroll: true });
+  }
+
+  function finish() {
+    const cars = a.what === 'cars';
+    root.dataset.done = cars ? 'cars' : 'events';
+    root.querySelectorAll<HTMLElement>('[data-q]').forEach((q) => { q.hidden = true; });
+    const thinking = root.querySelector<HTMLElement>('[data-thinking]')!;
+    thinking.hidden = false;
+    timer = window.setTimeout(() => {
+      thinking.hidden = true;
+      const res = root.querySelector<HTMLElement>(`[data-result="${cars ? 'cars' : 'events'}"]`)!;
+      if (!cars) {
+        const id = quizPlan({
+          locations: { '1': 1, '2-3': 2, '4-10': 4, '10+': 11 }[a.locs!] ?? 1,
+          crews: a.crew === 'yes',
+          bookings: { '<30': 20, '30-150': 100, '150-500': 300, '500+': 600 }[a.vol!] ?? 0,
+        });
+        const plan = PLANS.find((p) => p.id === id)!;
+        root.querySelectorAll<HTMLElement>('[data-plan-card]').forEach((c) => { c.hidden = c.dataset.planCard !== id; });
+        res.querySelector('[data-pname]')!.textContent = plan.name;
+        const su = res.querySelector<HTMLAnchorElement>('[data-signup]')!;
+        su.href = `${su.href.split('?')[0]}?plan=${id}`;
+        res.querySelector('[data-line]')!.textContent = `Built for ${WHAT[a.what!] ?? 'your rentals'}${a.crew === 'yes' ? ', with crews that deliver and set up' : a.crew === 'no' ? ', with counter pickup and returns' : ''}. Here is the setup we recommend from your answers.`;
+        const mods = ['Live availability by unit', 'E-sign + online deposits', 'Auto-charged balances'];
+        if (a.crew === 'yes' || a.crew === 'some') mods.push('Travel fees by distance');
+        if (a.crew === 'yes') mods.push('Crew portal + live GPS', 'Rain checks');
+        if (a.locs && a.locs !== '1') mods.push('Multi-location setup');
+        if (a.vol === '150-500' || a.vol === '500+') mods.push('Lead follow-ups', 'Ops board alerts');
+        res.querySelector('[data-mods]')!.innerHTML = mods.map((m, i) => `<span class="chip" style="animation-delay:${200 + i * 80}ms"><span>✓</span>${m}</span>`).join('');
+        track('quiz_result', { plan: id, what: a.what!, locations: a.locs!, crews: a.crew!, bookings: a.vol! });
+      } else {
+        track('quiz_result', { plan: 'cars_early_access', what: 'cars' });
+      }
+      res.hidden = false;
+      res.querySelector<HTMLElement>('[data-result-h]')?.focus({ preventScroll: true });
+    }, reduce ? 0 : 1100);
+  }
+
+  root.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    const opt = t.closest<HTMLButtonElement>('.opt');
+    if (opt) {
+      const key = opt.dataset.key!;
+      a[key] = opt.dataset.val!;
+      opt.closest('[role="radiogroup"]')!.querySelectorAll('.opt').forEach((o) => o.setAttribute('aria-checked', String(o === opt)));
+      clearTimeout(timer);
+      timer = window.setTimeout(() => (key === 'what' && a.what === 'cars') || step >= 3 ? finish() : show(step + 1), reduce ? 0 : 260);
+      return;
+    }
+    if (t.closest('[data-back]')) { clearTimeout(timer); show(Math.max(0, step - 1)); return; }
+    if (t.closest('[data-restart]')) {
+      clearTimeout(timer);
+      for (const k of Object.keys(a)) delete a[k];
+      delete root.dataset.done;
+      root.querySelectorAll<HTMLElement>('[data-result]').forEach((r) => { r.hidden = true; });
+      root.querySelectorAll('.opt').forEach((o) => o.setAttribute('aria-checked', 'false'));
+      show(0);
+    }
+  });
+</script>
+
+<style>
+  .quiz { position: relative; overflow: hidden; min-height: calc(100vh - 76px); }
+  .qglow { width: 560px; height: 560px; background: #D4FF3A; opacity: .22; right: -140px; top: -120px; transition: background-color .6s; }
+  [data-done="events"] .qglow { background: #2C4FE0; }
+  [data-done="cars"] .qglow { background: #6D3FD6; }
+  [data-done] .q-only { display: none; }
+  .back { border: 1px solid #E3E5DC; background: #fff; cursor: pointer; }
+  .bars { display: flex; gap: 6px; }
+  .bars > span { flex: 1; height: 6px; border-radius: 99px; background: #E3E5DC; overflow: hidden; }
+  .bars > span > span { display: block; height: 100%; width: 0; background: #0B0D12; border-radius: 99px; transition: width .5s var(--ease-out); }
+  .bars > span:first-child > span { width: 35%; }
+  .qrow { display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start; }
+  .qrow h1:focus { outline: none; }
+  .opts { flex: 999 1 520px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+  .opt { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 20px; border: 1.5px solid #E3E5DC; background: #fff; text-align: left; cursor: pointer; font: 600 17px var(--font-ui); color: #10131A; transition: border-color .2s, transform .2s, box-shadow .2s, background-color .2s; }
+  .opt:hover { border-color: #10131A; transform: translateY(-2px); box-shadow: 0 18px 30px -20px rgba(11, 13, 18, .4); }
+  .opt[aria-checked="true"] { border-color: #0B0D12; background: #F7FBE6; }
+  .osub { font-size: 13.5px; font-weight: 500; color: #535C6B; }
+  .oic { width: 52px; height: 52px; border-radius: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: #F1F2EA; color: #10131A; }
+  .opt[aria-checked="true"] .oic { background: #0B0D12; color: #D4FF3A; }
+  .soonopt .oic { background: #F1EAFE; color: #5B2DB0; }
+  @keyframes qin { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+  .qin { animation: qin .5s var(--ease-out) both; }
+  .thinking { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+  .spin { width: 64px; height: 64px; border-radius: 50%; border: 5px solid #E3E5DC; border-top-color: #0B0D12; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .res { display: flex; flex-wrap: wrap; gap: 28px; align-items: stretch; }
+  .res-main { flex: 999 1 560px; min-width: 0; border-radius: 32px; background: #0B0D12; color: #fff; padding: clamp(28px, 4vw, 52px); display: flex; flex-direction: column; gap: 22px; position: relative; overflow: hidden; }
+  .res-main :focus-visible { outline-color: #D4FF3A; }
+  [data-result-h]:focus { outline: none; }
+  .mods { display: flex; flex-wrap: wrap; gap: 10px; }
+  .mods :global(.chip) { background: #141821; border: 1px solid #2E3442; color: #fff; animation: pop .45s both; }
+  .mods :global(.chip span) { color: #D4FF3A; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .res-plan { flex: 1 1 320px; min-width: 0; border-radius: 32px; background: #fff; border: 1px solid #E3E5DC; padding: 32px; display: flex; flex-direction: column; gap: 14px; animation-delay: 150ms; }
+  .ticks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .ticks li { display: flex; gap: 10px; font-size: 15px; }
+  .ticks span { color: #2C4FE0; font-weight: 800; }
+  .cars { border-radius: 32px; background: #120F1E; color: #fff; padding: clamp(28px, 4vw, 56px); display: flex; flex-wrap: wrap; gap: 40px; position: relative; overflow: hidden; border: 1.5px dashed #4A3A80; }
+  .cars :focus-visible { outline-color: #C9B4FF; }
+  .cfeat { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .cfeat li { display: flex; gap: 10px; font-size: 15px; color: #E4DAFF; }
+  .cfeat span { color: #C9B4FF; }
+  .cform { position: relative; flex: 1 1 340px; min-width: 0; background: #1B1530; border: 1px solid #3B2D66; border-radius: 24px; padding: 28px; }
+  .cform .input { border-color: #3B2D66; background: #0E0B18; }
+  .dl { font-size: 13px; font-weight: 600; color: #E4DAFF; }
+  .done { display: none; flex-direction: column; gap: 12px; align-items: flex-start; animation: pop .45s both; }
+  .tick { width: 56px; height: 56px; border-radius: 50%; background: #6D3FD6; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; }
+  .cform .form-error { color: #FF8A8E; }
+  [data-state="sent"] form { display: none; }
+  [data-state="sent"] .done { display: flex; }
+</style>
