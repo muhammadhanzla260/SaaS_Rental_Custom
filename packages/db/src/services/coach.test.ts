@@ -15,6 +15,7 @@ import {
   addCoachPhoto, coachHome, coachOrderDetail, coachOrders, eventStart, markArrived, saveCoachPhase, setOrderStaff, setTracking, startEnRoute, trackPing,
   type EtaFn,
 } from './coach';
+import { adminChecklist, closeMaintenanceTicket, coachBoard, createMaintenanceTicket, reopenCoachPhase } from './coach-admin';
 import { createCustomer } from './customers';
 import { listLocations } from './locations';
 import { createOrder, transitionOrder } from './orders';
@@ -217,6 +218,43 @@ describe('the event', () => {
     const home = await coachHome(db, tenantId, alex.userId!, 'America/Chicago');
     expect(home.rating.orders).toBeGreaterThan(0);
     expect(home.activity.some((a) => a.orderId === o.id && a.action === 'coach.event_start')).toBe(true);
+  });
+
+  it('9: the admin reopens a phase → the coach can edit again; history shows who and why', async () => {
+    const o = await bookedOrder(5);
+    await saveCoachPhase(db, tenantId, alex, o.id, { phase: 'pre_departure', ticked: ALL_PRE });
+    await expect(saveCoachPhase(db, tenantId, alex, o.id, { phase: 'pre_departure', ticked: [] })).rejects.toThrow('locked');
+    await expect(reopenCoachPhase(db, tenantId, boss, o.id, 'pre_departure', '')).rejects.toThrow('Say why');
+    await reopenCoachPhase(db, tenantId, boss, o.id, 'pre_departure', 'Photo of the van was missing');
+    const d = await coachOrderDetail(db, tenantId, alex.userId!, o.id);
+    expect(d.checklist.phases[0]!.status).toMatchObject({ kind: 'reopened' });
+    expect((await saveCoachPhase(db, tenantId, alex, o.id, { phase: 'pre_departure', ticked: [] })).locked).toBe(true);
+    const admin = await adminChecklist(db, tenantId, o.id);
+    expect(admin.history[0]).toMatchObject({ action: 'coach.reopened', actor: 'Coach Boss', changes: { reason: 'Photo of the van was missing' } });
+  });
+
+  it('7: a maintenance ticket holds one pooled unit until it is closed; the board lists the damage first', async () => {
+    const o = await bookedOrder(0);
+    await readyToGo(o.id);
+    await markArrived(db, tenantId, alex, o.id, VENUE);
+    await saveCoachPhase(db, tenantId, alex, o.id, { phase: 'arrival', ticked: [] });
+    await saveCoachPhase(db, tenantId, alex, o.id, { phase: 'setup', ticked: [] });
+    await saveCoachPhase(db, tenantId, alex, o.id, { phase: 'closeout', ticked: [], damageNotes: 'Blower motor burnt' });
+    const board = await coachBoard(db, tenantId, { timeZone: 'America/Chicago' });
+    const row = board.orders.find((x) => x.id === o.id)!;
+    expect(row).toMatchObject({ stage: 'completed', flags: { damage: true } });
+    expect(board.attention.some((a) => a.orderId === o.id && a.kind === 'damage')).toBe(true);
+    const oos = async () => (await owner.db.execute<{ n: number }>(sql`select out_of_service as n from inventory_pools where product_id = ${castleId}::uuid`))[0]!.n;
+    const before = await oos();
+    const t = await createMaintenanceTicket(db, tenantId, boss, { orderId: o.id, productId: castleId, notes: 'Send the blower for repair' });
+    expect(t.number).toMatch(/^MT-\d{4}$/);
+    expect(await oos()).toBe(before + 1);
+    expect((await coachBoard(db, tenantId, { timeZone: 'America/Chicago' })).attention.some((a) => a.orderId === o.id && a.kind === 'damage')).toBe(false);
+    await closeMaintenanceTicket(db, tenantId, boss, t.id);
+    expect(await oos()).toBe(before);
+    const roster = (await coachBoard(db, tenantId, { timeZone: 'America/Chicago' })).roster.find((m) => m.userId === alex.userId)!;
+    expect(roster.orders).toBeGreaterThan(0);
+    expect(roster.damageReports).toBeGreaterThan(0);
   });
 
   it('7 (part): Close-Out with damage notes turns the maintenance flag on and alerts the office once', async () => {

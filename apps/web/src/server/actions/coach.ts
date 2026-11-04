@@ -4,12 +4,12 @@ import { after } from 'next/server';
 import { z } from 'zod';
 import { can, COACH_PHASE_KEYS, validLatLng } from '@rental/core';
 import {
-  activeTracking, addCoachPhoto, eventStart, markArrived, removeCoachPhoto, saveCoachPhase, setCoachNotes, setOrderStaff, setTracking, startEnRoute,
-  trackPing, type Fix, type PingResult,
+  activeTracking, addCoachPhoto, adminChecklist, closeMaintenanceTicket, createMaintenanceTicket, eventStart, markArrived, removeCoachPhoto,
+  reopenCoachPhase, saveCoachPhase, setCoachNotes, setOrderStaff, setTracking, startEnRoute, trackPing, type Fix, type PingResult,
 } from '@rental/db';
 import { dispatchOrder } from '@rental/messaging';
 import type { ActionResult } from '@/lib/result';
-import { ActionError, assertWritable, clientIp, getTenantContext, requirePermission } from '../context';
+import { ActionError, assertWritable, clientIp, getTenantContext, requirePermission, requireView } from '../context';
 import { db } from '../db';
 import { drivingEtaMinutes } from '../travel';
 import { readUpload, run } from './run';
@@ -132,6 +132,49 @@ export async function activeTrackingAction(slug: string): Promise<ActionResult<{
   return run(async () => {
     const ctx = await requireCoach(slug);
     return { ok: true, data: await activeTracking(db, ctx.tenant.id, ctx.user.id) };
+  });
+}
+
+// --- Coaches & crew admin ----------------------------------------------------------------------------------
+
+export type AdminChecklist = Awaited<ReturnType<typeof adminChecklist>>;
+
+export async function adminChecklistAction(slug: string, orderId: string): Promise<ActionResult<AdminChecklist>> {
+  return run(async () => {
+    const ctx = await requireView(slug, 'coach.manage');
+    if (!uuid.safeParse(orderId).success) return { ok: false, error: 'Unknown order.' };
+    return { ok: true, data: JSON.parse(JSON.stringify(await adminChecklist(db, ctx.tenant.id, orderId))) };
+  });
+}
+
+export async function reopenPhaseAction(slug: string, orderId: string, phase: unknown, reason: string): Promise<ActionResult> {
+  return run(async () => {
+    const ctx = await requirePermission(slug, 'coach.manage');
+    const p = z.enum(COACH_PHASE_KEYS).safeParse(phase);
+    if (!uuid.safeParse(orderId).success || !p.success) return { ok: false, error: 'Unknown phase.' };
+    await reopenCoachPhase(db, ctx.tenant.id, ctx.actor, orderId, p.data, String(reason ?? ''));
+    return { ok: true, message: 'Phase reopened. The coach can edit it again.' };
+  });
+}
+
+const ticketInput = z.object({ orderId: z.string().uuid(), productId: z.string().uuid(), unitId: z.string().uuid().nullish(), notes: z.string().max(2000).nullish() });
+
+export async function createTicketAction(slug: string, raw: unknown): Promise<ActionResult<{ number: string }>> {
+  return run(async () => {
+    const ctx = await requirePermission(slug, 'coach.manage');
+    const p = ticketInput.safeParse(raw);
+    if (!p.success) return { ok: false, error: 'Pick the damaged item first.' };
+    const t = await createMaintenanceTicket(db, ctx.tenant.id, ctx.actor, p.data);
+    return { ok: true, data: { number: t.number }, message: `${t.number} created · the unit is held from bookings` };
+  });
+}
+
+export async function closeTicketAction(slug: string, ticketId: string): Promise<ActionResult> {
+  return run(async () => {
+    const ctx = await requirePermission(slug, 'coach.manage');
+    if (!uuid.safeParse(ticketId).success) return { ok: false, error: 'Unknown ticket.' };
+    const t = await closeMaintenanceTicket(db, ctx.tenant.id, ctx.actor, ticketId);
+    return { ok: true, message: `${t.number} closed · the unit is back in service` };
   });
 }
 

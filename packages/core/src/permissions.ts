@@ -45,6 +45,7 @@ export const PERMISSIONS = {
   'billing.manage': 'Plan and billing',
   'org.delete': 'Delete the organization',
   'coach.portal': 'Coach portal (assigned orders only)',
+  'coach.manage': 'Coaches & crew: live map, checklists, reopen phases, maintenance tickets',
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 
@@ -63,6 +64,7 @@ const MATRIX: Record<Permission, readonly Role[]> = {
   'billing.manage': ['owner'],
   'org.delete': ['owner'],
   'coach.portal': ['coach', 'crew'],
+  'coach.manage': ['owner', 'admin', 'manager'],
 };
 
 /** Rows of the read-only permission matrix shown on the Team screen. */

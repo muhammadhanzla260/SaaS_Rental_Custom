@@ -74,7 +74,7 @@ export const ORG_NAV: NavGroup[] = [
     label: 'Growth',
     items: [
       { id: 'leads', label: 'Leads', icon: 'leads', phase: 4 },
-      { id: 'crew', label: 'Coaches & crew', icon: 'crew', phase: 4 },
+      { id: 'crew', label: 'Coaches & crew', icon: 'crew', href: '/crew', permission: 'coach.manage' },
     ],
   },
   {
