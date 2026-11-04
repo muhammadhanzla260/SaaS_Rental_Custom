@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CORNERS, HEX_RE, checkAccent } from './theme';
 import { isValidTimezone } from './regional';
 import { normalizePhone } from './phone';
-import { DEFAULT_SETUP_SURFACES } from './pricing';
+import { DEFAULT_PRICING_FORMULA, DEFAULT_SETUP_SURFACES } from './pricing';
 
 /**
  * Organization settings. Identity, contact, branding and core regional values
@@ -223,6 +223,15 @@ export type BrandStep = z.infer<typeof brandStepSchema>;
 
 // --- rental rules (Workspace · Rental rules; never in onboarding) --------------------------
 
+const pricePart = z.enum(['custom', 'waiver', 'setup', 'travel', 'other']);
+/** Settings → Rental rules → Price formula (applies to new quotes; each order keeps its own). */
+export const pricingFormulaSchema = z.object({
+  waiverAfterDiscount: z.boolean().default(DEFAULT_PRICING_FORMULA.waiverAfterDiscount),
+  discountOn: z.array(pricePart).default([...DEFAULT_PRICING_FORMULA.discountOn]),
+  couponOn: z.array(pricePart).default([...DEFAULT_PRICING_FORMULA.couponOn]),
+  taxOn: z.array(z.enum(['waiver', 'setup', 'travel', 'other'])).default([...DEFAULT_PRICING_FORMULA.taxOn]),
+});
+
 export const bookingDefaultsSchema = z.object({
   depositPercent: z.coerce.number().min(0).max(100).default(30),
   balanceDue: z.enum(['event_day', 'days_before']).default('event_day'),
@@ -254,6 +263,7 @@ export const bookingDefaultsSchema = z.object({
   travelRateStaffed: z.coerce.number().min(0).max(1000).default(2.5),
   travelRateDropoff: z.coerce.number().min(0).max(1000).default(3),
   defaultTaxPercent: z.coerce.number().min(0).max(100).default(0),
+  pricingFormula: pricingFormulaSchema.prefault({}),
 });
 export type BookingDefaults = z.infer<typeof bookingDefaultsSchema>;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { billableHours, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
+import { billableHours, DEFAULT_PRICING_FORMULA, depositDue, extraRateOf, linePrice, lockedPricing, orderSummary, overtimeBlocksCents, roundCents, type ProductPricing } from './pricing';
 import { orderSchema } from './commerce';
 
 const product = (o: Partial<ProductPricing> = {}): ProductPricing => ({
@@ -117,5 +117,32 @@ describe('deposit and event times (QA B-19, B-26)', () => {
     expect(r1.success ? '' : r1.error.issues.map((i) => i.message).join()).toMatch(/end after it starts/);
     const r2 = orderSchema.safeParse({ ...base, startsAt: at(13), endsAt: at(18), deposit: { kind: 'percent', value: 300 } });
     expect(r2.success ? '' : r2.error.issues.map((i) => i.message).join()).toMatch(/more than 100%/);
+  });
+});
+
+describe('price formula (Settings → Rental rules → Price formula)', () => {
+  const order = {
+    lines: [{ unitCents: 100000, quantity: 1, setupSurfaceFeeCents: 3500 }],
+    damageWaiver: { enabled: true, percent: 10 }, travelFeeCents: 5000, miscFeesCents: 2000, taxPercent: 10,
+    discount: { kind: 'percent' as const, value: 10 },
+  };
+
+  it('the default is the Odoo formula: waiver before the discount, discount on rental items, everything taxed', () => {
+    expect(orderSummary(order)).toEqual(orderSummary({ ...order, formula: DEFAULT_PRICING_FORMULA }));
+    expect(orderSummary(order)).toMatchObject({ damageWaiverCents: 10000, preTaxDiscountCents: 10000, taxableBaseCents: 110500 });
+  });
+
+  it('a discount can also take off the travel fee and setup fees', () => {
+    const s = orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, discountOn: ['travel', 'setup'] } });
+    expect(s.preTaxDiscountCents).toBe(10850); // 10% of 1,000 + 50 + 35
+  });
+
+  it('the waiver can be worked out after the discount', () => {
+    expect(orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, waiverAfterDiscount: true } }).damageWaiverCents).toBe(9000);
+  });
+
+  it('tax can leave out the waiver and travel', () => {
+    const s = orderSummary({ ...order, formula: { ...DEFAULT_PRICING_FORMULA, taxOn: ['setup', 'other'] } });
+    expect(s.taxableBaseCents).toBe(100000 + 3500 + 2000 - 10000);
   });
 });

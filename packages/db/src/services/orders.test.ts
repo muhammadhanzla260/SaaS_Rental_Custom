@@ -304,3 +304,57 @@ describe('orders (rules)', () => {
     expect(profile!.lifetimeCents).toBeGreaterThan(0);
   });
 });
+
+describe('price locks: Settings changes never reach a saved order', () => {
+  it('a paid order re-saved after every kind of price change keeps its total; new items and new orders take today’s prices', async () => {
+    const tent = await createProduct(db, tenantId, actor, productSchema.parse({ name: 'Lock Tent', priceStaffed: 300, baseHours: 4, hourlyRate: 50, inventory: { [locationId]: { owned: 3 } } }));
+    const base = orderInput(t(25, 13), t(25, 19), [{ productId: tent.id }], { eventMiles: 30, setupSurface: 'concrete', discount: { kind: 'percent', value: 10 } });
+    const o = await createOrder(db, tenantId, actor, base, prefs);
+    await transitionOrder(db, tenantId, actor, o.id, 'book', prefs);
+    await recordPayment(db, tenantId, actor, o.id, prefs, { method: 'cash', amount: o.totalCents / 100 });
+    const paid = (await getOrder(db, tenantId, o.id))!;
+
+    // Everything that can change in Settings or on the product, all at once.
+    const changed = parsePreferences({
+      booking: {
+        ...prefs.booking, travelRateStaffed: 9, freeTravelDistance: 0, depositPercent: 80,
+        setupSurfaces: prefs.booking.setupSurfaces.map((s) => ({ ...s, feeCents: s.feeCents + 5000 })),
+        pricingFormula: { waiverAfterDiscount: true, discountOn: ['travel', 'setup'], couponOn: [], taxOn: [] },
+      },
+    });
+    await updateProduct(db, tenantId, actor, tent.id, productSchema.parse({ name: 'Lock Tent', priceStaffed: 900, baseHours: 1, hourlyRate: 200 }));
+    await owner.db.execute(sql`update tax_rates set rate = 12 where tenant_id = ${tenantId}::uuid and location_id = ${locationId}::uuid`);
+
+    // 1. Re-saved with no edits (what Payment Options does before it opens): nothing moves.
+    const again = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(paid, paid.lines, paid.creditApplications), changed, paid.version);
+    expect(again.order).toMatchObject({ totalCents: paid.totalCents, travelFeeCents: paid.travelFeeCents, taxCents: paid.taxCents, paidCents: paid.totalCents });
+    expect(again.changed).toBe(0);
+    const reloaded = (await getOrder(db, tenantId, o.id))!;
+    expect(reloaded.lines.map((l) => l.id)).toEqual(paid.lines.map((l) => l.id)); // lines keep their ids across saves
+
+    // 2. The customer adds a popcorn machine: only the new item is priced today; the tent stays as agreed.
+    const added = orderInputFrom(reloaded, reloaded.lines, []);
+    added.lines.push({ productId: popcornId, quantity: 1, serviceMode: 'staffed', flatRate: false, taxable: true, overridePrice: null, basePrice: null, extraRate: null });
+    const more = await updateOrder(db, tenantId, actor, o.id, added, changed, reloaded.version);
+    const lines = (await getOrder(db, tenantId, o.id))!.lines;
+    expect(lines.find((l) => l.productId === tent.id)!.lineTotalCents).toBe(paid.lines[0]!.lineTotalCents);
+    expect(more.order.travelFeeCents).toBe(paid.travelFeeCents);
+    expect(Number(more.order.taxPercent)).toBe(Number(paid.taxPercent));
+
+    // 3. A new order today gets today's product price, rates, tax and formula.
+    const fresh = await createOrder(db, tenantId, actor, orderInput(t(26, 13), t(26, 19), [{ productId: tent.id }], { eventMiles: 30, setupSurface: 'concrete' }), changed);
+    expect(fresh.travelFeeCents).toBe(27000); // 30 mi × $9, no free miles
+    expect(Number(fresh.taxPercent)).toBe(12);
+    expect(fresh.pricingRules).toMatchObject({ formula: { waiverAfterDiscount: true }, depositPercent: 80 });
+    await owner.db.execute(sql`update tax_rates set rate = 8.25 where tenant_id = ${tenantId}::uuid and location_id = ${locationId}::uuid`);
+  });
+
+  it('a deliberate change is priced with the order’s own rules: new miles keep the order’s travel rate', async () => {
+    const o = await createOrder(db, tenantId, actor, orderInput(t(27, 13), t(27, 17), [{ productId: popcornId }], { eventMiles: 20 }), prefs);
+    const full = (await getOrder(db, tenantId, o.id))!;
+    const dearer = parsePreferences({ booking: { ...prefs.booking, travelRateStaffed: 9 } });
+    const moved = await updateOrder(db, tenantId, actor, o.id, orderInputFrom(full, full.lines, [], { eventMiles: 40 }), dearer, full.version);
+    // The order's own rate (default $2.50/mi after 10 free) for the extra miles, not today's $9.
+    expect(moved.order.travelFeeCents).toBe(Math.round((40 - prefs.booking.freeTravelDistance) * prefs.booking.travelRateStaffed * 100));
+  });
+});

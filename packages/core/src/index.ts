@@ -7,6 +7,7 @@ export * from './phone';
 export * from './mapbox';
 export * from './travel';
 export * from './pricing';
+export * from './price-lock';
 export * from './commerce';
 export * from './time';
 export * from './messaging';

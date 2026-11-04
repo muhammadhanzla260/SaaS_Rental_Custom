@@ -1,5 +1,5 @@
 import {
-  basePackageCents, extraRateOf, formatPhone, lockedPricing, quoteOrder, travelFee, utcToWallTime, wallTimeToUtc, addDays,
+  basePackageCents, extraRateOf, formatPhone, lockedLine, lockedPricing, lockedTaxPercent, lockedTravel, quoteOrder, travelFee, travelRulesFor, utcToWallTime, wallTimeToUtc, addDays,
   type OrderFormValues, type ServiceMode,
 } from '@rental/core';
 import type { BuilderData, BuilderLocation, BuilderProduct, Draft, DraftLine } from './types';
@@ -57,7 +57,7 @@ export function initialDraft(data: BuilderData): Draft {
       eventLocationFee: o.eventLocationFee, eventLocationFeeAmount: dollars(o.eventLocationFee ? o.eventLocationFeeCents : data.booking.locationFeeCents),
       contact: { ...o.contact, mobile: formatPhone(o.contact.mobile, data.country) },
       lines: o.lines.map((l) => ({
-        key: lineKey(), productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
+        key: lineKey(), lineId: l.id, productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, taxable: l.taxable, flatRate: l.flatRate,
         price: !l.productId || l.priceOverridden ? dollars(l.unitCents) : '', setupSurface: l.setupSurface,
         basePrice: l.productId && l.baseCents != null ? dollars(l.baseCents) : '', extraRate: l.productId && l.extraRateCents != null ? dollars(l.extraRateCents) : '',
       })),
@@ -122,11 +122,16 @@ export function travelOf(d: Draft, data: BuilderData) {
   if (!d.miles.trim() || !modes.length) return { cents: 0, trace: modes.length ? 'Add the event address' : '', overridden: false };
   const depot = locationOf(data, d.depotId ?? '') ?? locationOf(data, d.locationId);
   if (!depot) return { cents: 0, trace: '', overridden: false };
-  const fee = travelFee(num(d.miles), modes, depot.rules);
-  const unit = depot.rules.unit;
+  // A saved order keeps its travel fee while the miles, depot and drop-off are unchanged (price-lock.ts).
+  const locks = data.order?.locks ?? null;
+  const kept = lockedTravel(locks, num(d.miles), modes, d.depotId ?? d.locationId);
+  if (kept) return { cents: kept.cents, trace: 'As priced on this order', overridden: false };
+  const rules = travelRulesFor(locks, depot.id, depot.rules);
+  const fee = travelFee(num(d.miles), modes, rules);
+  const unit = rules.unit;
   const trace = fee.reason === 'pickup'
     ? 'Customer picks up · no travel'
-    : `${num(d.miles).toFixed(1)} ${unit} − ${depot.rules.freeDistance} free = ${fee.billable.toFixed(1)} × $${fee.rate.toFixed(2)}`;
+    : `${num(d.miles).toFixed(1)} ${unit} − ${rules.freeDistance} free = ${fee.billable.toFixed(1)} × $${fee.rate.toFixed(2)}`;
   return { cents: Math.round(fee.fee * 100), trace, overridden: false };
 }
 
@@ -139,7 +144,10 @@ export function priceDraft(d: Draft, data: BuilderData) {
   const surfaceFee = (code: string | null) => data.booking.surfaces.find((s) => s.code === code)?.feeCents ?? 0;
   const travel = travelOf(d, data);
   const usedCredits = data.credits.filter((c) => d.credits[c.id]?.on).map((c) => ({ id: c.id, cents: Math.min(cents(d.credits[c.id]!.amount), c.balanceCents) }));
-  const taxPercent = d.taxOverridden ? num(d.taxPercent) : d.customer?.taxExempt ? 0 : (loc?.taxPercent ?? 0);
+  // The same locks the server applies, so the live total is what will be saved (price-lock.ts).
+  const locks = data.order?.locks ?? null;
+  const keptTax = d.taxOverridden ? null : lockedTaxPercent(locks, d.locationId, d.customer?.id ?? '');
+  const taxPercent = d.taxOverridden ? num(d.taxPercent) : keptTax ?? (d.customer?.taxExempt ? 0 : (loc?.taxPercent ?? 0));
   const quote = quoteOrder({
     startsAt, endsAt, multiDay: d.multiDay,
     lines: d.lines.map((l) => {
@@ -148,12 +156,14 @@ export function priceDraft(d: Draft, data: BuilderData) {
         return { productId: null, name: l.name || 'Custom item', pricing: null, minHours: null, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: true, overrideUnitCents: cents(l.price), setupSurfaceFeeCents: 0, taxable: l.taxable };
       }
       const own = (mode: ServiceMode) => p.branchPrices.find((b) => b.locationId === d.locationId && b.mode === mode)?.priceCents;
-      const branch = { ...p.pricing, priceStaffedCents: own('staffed') ?? p.pricing.priceStaffedCents, pricePickupCents: own('pickup') ?? p.pricing.pricePickupCents, priceDropoffCents: own('dropoff') ?? p.pricing.priceDropoffCents };
+      const surface = l.setupSurface ?? d.setupSurface ?? null;
+      const kept = lockedLine(locks, l.lineId, l.productId, l.serviceMode, surface);
+      const branch = kept.pricing ?? { ...p.pricing, priceStaffedCents: own('staffed') ?? p.pricing.priceStaffedCents, pricePickupCents: own('pickup') ?? p.pricing.pricePickupCents, priceDropoffCents: own('dropoff') ?? p.pricing.priceDropoffCents };
       return {
         productId: p.id, name: l.name || p.name,
         pricing: lockedPricing(branch, l.serviceMode, l.basePrice.trim() === '' ? null : cents(l.basePrice), l.extraRate.trim() === '' ? null : cents(l.extraRate)),
-        minHours: p.minHours, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate,
-        overrideUnitCents: l.price.trim() === '' ? null : cents(l.price), setupSurfaceFeeCents: surfaceFee(l.setupSurface ?? d.setupSurface), taxable: l.taxable,
+        minHours: kept.pricing ? kept.pricing.minHours : p.minHours, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate,
+        overrideUnitCents: l.price.trim() === '' ? null : cents(l.price), setupSurfaceFeeCents: kept.surfaceFeeCents ?? surfaceFee(surface), taxable: l.taxable,
       };
     }),
     damageWaiver: { enabled: d.damageWaiver, percent: num(d.waiverPercent) },
@@ -165,7 +175,8 @@ export function priceDraft(d: Draft, data: BuilderData) {
     taxPercent,
     creditCents: usedCredits.reduce((s, c) => s + c.cents, 0),
     deposit: depositOf(d),
-    defaultDepositPercent: data.booking.depositPercent,
+    defaultDepositPercent: locks?.rules.depositPercent ?? data.booking.depositPercent,
+    formula: locks?.rules.formula ?? data.booking.formula,
   });
   const totalBeforeCredits = quote.summary.totalCents + quote.summary.creditCents;
   return { quote, travel, startsAt, endsAt, tz, taxPercent, totalBeforeCredits, usedCredits };
@@ -197,7 +208,7 @@ export function toOrderInput(d: Draft, data: BuilderData): OrderFormValues {
     salespersonUserId: d.salespersonUserId || null,
     referredByCustomerId: d.referredBy?.id ?? null,
     lines: d.lines.map((l) => ({
-      productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate, taxable: l.taxable,
+      lineId: l.lineId ?? null, productId: l.productId, name: l.name, serviceMode: l.serviceMode, quantity: l.quantity, flatRate: l.flatRate, taxable: l.taxable,
       overridePrice: l.price.trim() === '' ? null : num(l.price), setupSurface: l.setupSurface,
       basePrice: !l.productId || l.basePrice.trim() === '' ? null : num(l.basePrice), extraRate: !l.productId || l.extraRate.trim() === '' ? null : num(l.extraRate),
     })),

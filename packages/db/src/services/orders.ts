@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
-  addDays, basePackageCents, cancelSchema, extraRateOf, lockedPricing, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
+  addDays, basePackageCents, cancelSchema, extraRateOf, legacyPricingRules, lockedLine, lockedPricing, lockedTaxPercent, lockedTravel, travelRulesFor,
+  type LinePricingSnapshot, type OrderPricingRules, type PricingLocks, parseLocationSettings, quoteOrder, renderPrefix, rescheduleSchema, sequenceScope, toCents, travelFee,
   type BookingInput, type CancelInput, type CancelOutcome, type DocumentKind, type RescheduleInput, type OrderInput, type OrderStatus, type ServiceMode, type TenantPreferences,
 } from '@rental/core';
 import { withTenant, type Db, type Tx } from '../client';
@@ -64,7 +65,9 @@ export function travelRules(prefs: TenantPreferences, settings: unknown) {
  * prices (with branch overrides), tax, surface fees, travel from the miles,
  * coupon and credits are all worked out here, whatever the browser showed.
  */
-async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null) {
+async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null, locks: PricingLocks | null = null) {
+  // A new order takes today's rules from Settings; a saved one keeps its own (see price-lock.ts).
+  const rules: OrderPricingRules = locks?.rules ?? { formula: prefs.booking.pricingFormula, depositPercent: prefs.booking.depositPercent, travel: null };
   const ids = [...new Set(input.lines.map((l) => l.productId).filter((id): id is string => !!id))];
   const rows = ids.length ? await tx.select().from(products).where(and(eq(products.tenantId, tenantId), inArray(products.id, ids))) : [];
   const byId = new Map(rows.map((p) => [p.id, p]));
@@ -85,7 +88,9 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
 
   // Tax: the order's own % when overridden, 0 for tax-exempt customers, else the location's default rate.
   let taxPercent = input.taxPercent ?? 0;
-  if (!input.taxOverridden) {
+  const keptTax = input.taxOverridden ? null : lockedTaxPercent(locks, input.locationId, input.customerId);
+  if (keptTax != null) taxPercent = keptTax;
+  else if (!input.taxOverridden) {
     if (customer.taxExempt) taxPercent = 0;
     else {
       const [rate] = await tx
@@ -108,12 +113,21 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     if (input.eventMiles == null || !modes.length) travelCents = 0;
     else {
       const depotId = typeof travelInfo?.depotId === 'string' ? travelInfo.depotId : null;
-      const [depot] = depotId
-        ? await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, depotId))).limit(1)
-        : [loc];
-      const fee = travelFee(input.eventMiles, modes, travelRules(prefs, (depot ?? loc).settings));
-      travelCents = Math.round(fee.fee * 100);
-      travelInfo = { ...(travelInfo ?? {}), miles: input.eventMiles, billable: fee.billable, rate: fee.rate, reason: fee.reason, depotId: (depot ?? loc).id };
+      const kept = lockedTravel(locks, input.eventMiles, modes, depotId ?? input.locationId);
+      if (kept) {
+        travelCents = kept.cents;
+        travelInfo = kept.info ?? travelInfo;
+      } else {
+        const [depot] = depotId
+          ? await tx.select().from(locations).where(and(eq(locations.tenantId, tenantId), eq(locations.id, depotId))).limit(1)
+          : [loc];
+        const used = depot ?? loc;
+        const travelRule = travelRulesFor(locks, used.id, travelRules(prefs, used.settings));
+        if (!rules.travel || rules.travel.depotId !== used.id) rules.travel = { ...travelRule, depotId: used.id };
+        const fee = travelFee(input.eventMiles, modes, travelRule);
+        travelCents = Math.round(fee.fee * 100);
+        travelInfo = { ...(travelInfo ?? {}), miles: input.eventMiles, billable: fee.billable, rate: fee.rate, reason: fee.reason, depotId: used.id };
+      }
     }
   }
 
@@ -139,29 +153,36 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
       return { creditId: credit.id, code: credit.code, cents };
     });
 
+  const snapshots: (LinePricingSnapshot | null)[] = [];
   const quote = quoteOrder({
     startsAt: input.startsAt,
     endsAt: input.endsAt,
     multiDay: input.multiDay,
     lines: input.lines.map((l) => {
       if (!l.productId) {
+        snapshots.push(null);
         return {
           productId: null, name: l.name ?? 'Custom item', pricing: null, minHours: null, serviceMode: l.serviceMode, quantity: l.quantity,
           flatRate: true, overrideUnitCents: toCents(l.overridePrice ?? 0), setupSurfaceFeeCents: 0, taxable: l.taxable,
         };
       }
       const p = byId.get(l.productId)!;
+      const surface = l.setupSurface ?? input.setupSurface ?? null;
+      // A saved line keeps the product pricing and surface fee it was priced with; a new line takes today's.
+      const kept = lockedLine(locks, l.lineId, l.productId, l.serviceMode, surface);
+      const snapshot: LinePricingSnapshot = kept.pricing ?? { ...pricingOf(p, branchPrices, input.locationId), minHours: p.minHours };
+      snapshots.push(snapshot);
       return {
         productId: p.id,
         name: l.name || p.name,
         // The line's locked base and rate win over the product's current price (Odoo: locked on the order).
-        pricing: lockedPricing(pricingOf(p, branchPrices, input.locationId), l.serviceMode, l.basePrice == null ? null : toCents(l.basePrice), l.extraRate == null ? null : toCents(l.extraRate)),
-        minHours: p.minHours,
+        pricing: lockedPricing(snapshot, l.serviceMode, l.basePrice == null ? null : toCents(l.basePrice), l.extraRate == null ? null : toCents(l.extraRate)),
+        minHours: snapshot.minHours,
         serviceMode: l.serviceMode,
         quantity: l.quantity,
         flatRate: l.flatRate,
         overrideUnitCents: l.overridePrice == null ? null : toCents(l.overridePrice),
-        setupSurfaceFeeCents: surfaceFee(l.setupSurface ?? input.setupSurface),
+        setupSurfaceFeeCents: kept.surfaceFeeCents ?? surfaceFee(surface),
         taxable: l.taxable,
       };
     }),
@@ -175,7 +196,8 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     taxPercent,
     creditCents: wanted.reduce((sum, c) => sum + c.cents, 0),
     deposit: input.deposit,
-    defaultDepositPercent: prefs.booking.depositPercent,
+    defaultDepositPercent: rules.depositPercent,
+    formula: rules.formula,
   });
 
   // Spread what the engine actually applied over the chosen credits, in order.
@@ -188,14 +210,35 @@ async function priceOrder(tx: Tx, tenantId: string, input: OrderInput, prefs: Te
     })
     .filter((c) => c.cents > 0);
 
-  return { quote, taxPercent, byId, travelCents, travelInfo, coupon, applications, location: loc, customer };
+  return { quote, taxPercent, byId, travelCents, travelInfo, coupon, applications, location: loc, customer, rules, snapshots };
+}
+
+/** What a saved order was priced with: its rules, tax rate, travel fee and each line's pricing (price-lock.ts). */
+export function pricingLocksOf(o: Order, lines: OrderLine[], prefs: TenantPreferences): PricingLocks {
+  const info = (o.travelInfo ?? null) as Record<string, unknown> | null;
+  return {
+    rules: (o.pricingRules as OrderPricingRules | null) ?? legacyPricingRules(prefs.booking.depositPercent),
+    tax: o.taxOverridden ? null : { locationId: o.locationId, customerId: o.customerId, percent: Number(o.taxPercent) },
+    travel: o.travelFeeOverridden
+      ? null
+      : {
+          miles: o.eventMiles, dropoff: lines.some((l) => l.productId && l.serviceMode === 'dropoff'),
+          depotId: typeof info?.depotId === 'string' ? info.depotId : o.locationId, cents: o.travelFeeCents, info,
+        },
+    lines: Object.fromEntries(lines.map((l) => [l.id, {
+      productId: l.productId, serviceMode: l.serviceMode as ServiceMode, setupSurface: l.setupSurface, setupSurfaceFeeCents: l.setupSurfaceFeeCents,
+      pricing: (l.pricing ?? null) as LinePricingSnapshot | null,
+    }])),
+  };
 }
 export type PricedOrder = Awaited<ReturnType<typeof priceOrder>>;
 
 /** Price an order without saving it (the builder's live total, server-checked). */
 export function previewOrder(db: Db, tenantId: string, input: OrderInput, prefs: TenantPreferences, orderId?: string | null) {
   return withTenant(db, tenantId, async (tx) => {
-    const p = await priceOrder(tx, tenantId, input, prefs, orderId);
+    const saved = orderId ? (await tx.select().from(orders).where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId))).limit(1))[0] : undefined;
+    const locks = saved ? pricingLocksOf(saved, await linesOf(tx, tenantId, saved.id), prefs) : null;
+    const p = await priceOrder(tx, tenantId, input, prefs, orderId, locks);
     return { summary: p.quote.summary, lines: p.quote.lines, hours: p.quote.hours, travelCents: p.travelCents, taxPercent: p.taxPercent, warnings: p.quote.warnings };
   });
 }
@@ -249,6 +292,7 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
     creditCents: s.creditCents,
     taxPercent: priced.taxPercent,
     taxOverridden: input.taxOverridden,
+    pricingRules: priced.rules,
     depositKind: input.deposit.kind,
     depositValue: input.deposit.value,
     merchandiseCents: s.merchandiseCents,
@@ -266,13 +310,18 @@ function orderValues(input: OrderInput, priced: PricedOrder, prefs: TenantPrefer
 }
 
 async function writeLines(tx: Tx, tenantId: string, orderId: string, input: OrderInput, priced: PricedOrder) {
+  const before = new Set((await tx.select({ id: orderLines.id }).from(orderLines).where(and(eq(orderLines.tenantId, tenantId), eq(orderLines.orderId, orderId)))).map((r) => r.id));
   await tx.delete(orderLines).where(and(eq(orderLines.tenantId, tenantId), eq(orderLines.orderId, orderId)));
   if (!priced.quote.lines.length) return [];
+  // A saved line keeps its id (so the next save still finds what it was priced with); each id once.
+  const used = new Set<string>();
+  const keepId = (id: string | null | undefined) => (id && before.has(id) && !used.has(id) ? (used.add(id), id) : undefined);
   return tx
     .insert(orderLines)
     .values(
       priced.quote.lines.map((l, i) => ({
         tenantId,
+        id: keepId(input.lines[i]?.lineId),
         orderId,
         productId: l.productId,
         name: l.name,
@@ -288,6 +337,7 @@ async function writeLines(tx: Tx, tenantId: string, orderId: string, input: Orde
         extraRateCents: l.pricing ? extraRateOf(l.pricing).cents : null,
         setupSurface: l.productId ? (input.lines[i]?.setupSurface ?? input.setupSurface ?? null) : null,
         setupSurfaceFeeCents: l.setupSurfaceFeeCents,
+        pricing: priced.snapshots[i] ?? null,
         lineTotalCents: l.lineTotalCents,
         pricingTrace: l.trace,
         sort: i,
@@ -472,7 +522,8 @@ export function updateOrder(
     }
     if (before.status === 'cancelled') throw new OrgError('A cancelled order cannot be changed. Reopen it first.', 'invalid');
     const beforeLines = await linesOf(tx, tenantId, id);
-    const priced = await priceOrder(tx, tenantId, input, prefs, id);
+    // Settings changed since? Not for this order: it keeps what it was priced with (price-lock.ts).
+    const priced = await priceOrder(tx, tenantId, input, prefs, id, pricingLocksOf(before, beforeLines, prefs));
     const [order] = await tx
       .update(orders)
       .set({ ...orderValues(input, priced, prefs), version: before.version + 1 })
@@ -1043,7 +1094,7 @@ export function orderInputFrom(
     salespersonUserId: o.salespersonUserId,
     referredByCustomerId: o.referredByCustomerId,
     lines: lines.map((l) => ({
-      productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
+      lineId: l.id, productId: l.productId, name: l.name, serviceMode: l.serviceMode as OrderInput['lines'][number]['serviceMode'], quantity: l.quantity,
       flatRate: l.flatRate, overridePrice: !l.productId || l.priceOverridden ? dollars(l.unitCents) : null, taxable: l.taxable, setupSurface: l.setupSurface,
       basePrice: l.productId && l.baseCents != null ? dollars(l.baseCents) : null, extraRate: l.productId && l.extraRateCents != null ? dollars(l.extraRateCents) : null,
     })),

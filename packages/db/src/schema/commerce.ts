@@ -343,6 +343,12 @@ export const orders = pgTable(
      * charge waits for it, so the same balance is never taken twice. A lease, so a crash frees it.
      */
     chargeLockUntil: timestamp('charge_lock_until', { withTimezone: true }),
+    /**
+     * The price formula, deposit default and travel rules copied from Settings when the order was
+     * created (OrderPricingRules). Later changes to Settings apply to new quotes only. Null: an order
+     * from before this existed, priced with the default formula.
+     */
+    pricingRules: jsonb('pricing_rules'),
     summary: jsonb('summary').notNull().default({}),
     source: text('source'),
     internalNotes: text('internal_notes'),
@@ -417,6 +423,8 @@ export const orderLines = pgTable(
     extraRateCents: bigint('extra_rate_cents', { mode: 'number' }),
     setupSurface: text('setup_surface'),
     setupSurfaceFeeCents: bigint('setup_surface_fee_cents', { mode: 'number' }).notNull().default(0),
+    /** The product's pricing when this line was first priced (LinePricingSnapshot); later product edits never reach it. */
+    pricing: jsonb('pricing'),
     lineTotalCents: bigint('line_total_cents', { mode: 'number' }).notNull(),
     pricingTrace: jsonb('pricing_trace').notNull().default({}),
     sort: integer('sort').notNull().default(0),

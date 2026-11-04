@@ -198,6 +198,8 @@ export const EVENT_TYPES = ['Birthday', 'School or church', 'HOA or community', 
 
 export const orderLineSchema = z
   .object({
+    /** The saved line this is (an edit), so it keeps what it was priced with. Null for a new line. */
+    lineId: z.string().uuid().nullable().optional(),
     /** Null for a custom line (then `name` and `overridePrice` are required). */
     productId: z.string().uuid().nullable().default(null),
     name: optional(160),
