@@ -51,7 +51,7 @@ export function MailFields({ s, orgName, platformOption = true }: { s: Scope; or
           onChange={(x) => s.set('mode', x)}
           options={[
             { value: 'smtp', label: 'My own mail server (SMTP)', sub: 'Emails come from your domain. Best for deliverability.' },
-            { value: 'platform', label: 'Send from Tentpole for now', sub: 'From no-reply with your name. Switch any time.' },
+            { value: 'platform', label: 'Send from the shared mail service for now', sub: 'From no-reply with your name. Switch any time.' },
           ]}
         />
       )}

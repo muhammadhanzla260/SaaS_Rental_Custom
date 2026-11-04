@@ -51,10 +51,10 @@ export async function createOrgAction(input: unknown): Promise<ActionResult<{ sl
     if (v.sendInvite) {
       const mail = platformEmail({
         title: `Your workspace for ${v.name} is ready`,
-        lines: [`Hi ${v.ownerName.split(' ')[0]}, a Tentpole workspace has been created for ${v.name}.`, 'Set your password and you will land in a short setup.'],
+        lines: [`Hi ${v.ownerName.split(' ')[0]}, a Rent Hatch workspace has been created for ${v.name}.`, 'Set your password and you will land in a short setup.'],
         cta: { label: 'Set up my workspace', url: inviteUrl },
       });
-      emailed = (await sendPlatformEmailOrLink({ to: v.ownerEmail, subject: `Your ${v.name} workspace on Tentpole`, ...mail })).delivered;
+      emailed = (await sendPlatformEmailOrLink({ to: v.ownerEmail, subject: `Your ${v.name} workspace on Rent Hatch`, ...mail })).delivered;
     }
     revalidatePath('/console');
     return { ok: true, data: { slug: tenant.slug, inviteUrl, emailed }, message: `${v.name} created.` };

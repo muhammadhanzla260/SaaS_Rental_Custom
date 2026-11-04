@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, Moon, Search, Sun, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { authClient } from '@/lib/auth-client';
-import { Avatar, cx, PRODUCT_NAME } from '@/components/kit';
+import { Avatar, BrandMark, cx, PRODUCT_NAME } from '@/components/kit';
 import { ICONS, type NavGroup, type NavItem } from './nav';
 
 type ShellCtx = { openNav: () => void };
@@ -20,6 +20,8 @@ export type ShellProps = {
   header: ReactNode;
   user: { name: string; email: string; image?: string | null; sub?: string };
   sidebar?: SidebarStyle;
+  /** Show the Rent Hatch name and mark at the top. Only the platform console does; inside a workspace the sidebar shows the workspace alone. */
+  product?: boolean;
   /** Extra palette entries (⌘K): organizations to switch to, etc. */
   jumps?: { label: string; href: string; hint?: string }[];
   children: ReactNode;
@@ -57,7 +59,7 @@ const STYLE: Record<SidebarStyle, { panel: string; item: string; on: string; off
   },
 };
 
-function Sidebar({ base, groups, header, user, sidebar = 'dark', onSearch, onNavigate }: ShellProps & { onSearch: () => void; onNavigate?: () => void }) {
+function Sidebar({ base, groups, header, user, sidebar = 'dark', product = false, onSearch, onNavigate }: ShellProps & { onSearch: () => void; onNavigate?: () => void }) {
   const path = usePathname();
   const router = useRouter();
   const s = STYLE[sidebar];
@@ -69,12 +71,12 @@ function Sidebar({ base, groups, header, user, sidebar = 'dark', onSearch, onNav
   };
   return (
     <nav aria-label="Main" className={cx('flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-3.5 pb-3 pt-[max(1.1rem,env(safe-area-inset-top))]', s.panel)}>
-      <div className="flex items-center gap-2.5 px-1.5">
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-volt" aria-hidden="true">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B0D12" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 3 20h18L12 3Z" /><path d="M12 3v17" /></svg>
-        </span>
-        <span className="font-display text-lg font-bold tracking-[-0.01em]">{PRODUCT_NAME}</span>
-      </div>
+      {product && (
+        <div className="flex items-center gap-2.5 px-1.5">
+          <BrandMark />
+          <span className="font-display text-lg font-bold tracking-[-0.01em]">{PRODUCT_NAME}</span>
+        </div>
+      )}
 
       {header}
 

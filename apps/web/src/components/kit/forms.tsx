@@ -44,7 +44,7 @@ export function Input({ className, invalid, mono, ...rest }: InputProps) {
   return <input aria-invalid={invalid || undefined} className={cx(sized(controlClass, className), mono && 'mono', className)} {...rest} />;
 }
 
-/** Input with a fixed prefix/suffix (".tentpole.app", "mi", "$"). */
+/** Input with a fixed prefix/suffix (".renthatch.org", "mi", "$"). */
 export function AffixInput({ prefix, suffix, className, invalid, mono, ...rest }: InputProps & { prefix?: ReactNode; suffix?: ReactNode }) {
   return (
     <div

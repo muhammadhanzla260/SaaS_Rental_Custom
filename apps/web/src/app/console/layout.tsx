@@ -10,6 +10,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   return (
     <AppShell
       base="/console"
+      product
       groups={CONSOLE_NAV}
       header={
         <div className="flex shrink-0 items-start gap-2.5 rounded-xl border border-[#5A1D22] bg-[#2A1115] p-2.5">

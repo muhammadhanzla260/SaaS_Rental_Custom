@@ -11,9 +11,9 @@ const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-disp
 const mono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono-src', weight: ['400', '500', '600'], display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'Tentpole', template: '%s · Tentpole' },
+  title: { default: 'Rent Hatch', template: '%s · Rent Hatch' },
   description: 'Bookings, deposits and reminders for event rental businesses.',
-  applicationName: 'Tentpole',
+  applicationName: 'Rent Hatch',
 };
 
 export const viewport: Viewport = {

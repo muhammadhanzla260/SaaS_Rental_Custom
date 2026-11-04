@@ -26,7 +26,7 @@ async function getTransport() {
 export async function sendPlatformEmail(mail: PlatformMail): Promise<{ delivered: boolean; previewPath?: string }> {
   const t = await getTransport();
   if (t) {
-    await t.sendMail({ from: process.env.PLATFORM_MAIL_FROM || 'Tentpole <no-reply@localhost>', ...mail });
+    await t.sendMail({ from: process.env.PLATFORM_MAIL_FROM || 'Rent Hatch <no-reply@localhost>', ...mail });
     return { delivered: true };
   }
   const dir = resolve(process.cwd(), '../../.data/mail');
@@ -62,13 +62,13 @@ export function platformEmail(opts: { title: string; lines: string[]; cta: { lab
   const html = `<!doctype html><html><body style="margin:0;background:#F3F4F6;font-family:Geist,Segoe UI,Helvetica,Arial,sans-serif;color:#10131A">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border:1px solid #E2E5EA;border-radius:18px">
-<tr><td style="padding:28px 28px 8px"><div style="display:inline-block;background:#D4FF3A;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px;color:#0B0D12">Tentpole</div>
+<tr><td style="padding:28px 28px 8px"><div style="display:inline-block;background:#D4FF3A;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px;color:#0B0D12">Rent Hatch</div>
 <h1 style="font-size:22px;line-height:1.25;margin:20px 0 12px">${esc(opts.title)}</h1>
 ${opts.lines.map((l) => `<p style="font-size:15px;line-height:1.55;color:#353C48;margin:0 0 12px">${esc(l)}</p>`).join('')}
 <p style="margin:22px 0 26px"><a href="${esc(opts.cta.url)}" style="display:inline-block;background:#2C4FE0;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:10px">${esc(opts.cta.label)}</a></p>
 <p style="font-size:12px;color:#535C6B;margin:0 0 24px;word-break:break-all">Or open this link: ${esc(opts.cta.url)}</p>
 </td></tr></table>
-<p style="font-size:12px;color:#7D8594;margin-top:16px">${esc(opts.footer ?? 'You received this because someone used your email on Tentpole.')}</p>
+<p style="font-size:12px;color:#7D8594;margin-top:16px">${esc(opts.footer ?? 'You received this because someone used your email on Rent Hatch.')}</p>
 </td></tr></table></body></html>`;
   const text = [opts.title, '', ...opts.lines, '', `${opts.cta.label}: ${opts.cta.url}`].join('\n');
   return { html, text };
