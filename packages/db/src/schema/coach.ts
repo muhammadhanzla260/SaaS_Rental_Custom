@@ -131,5 +131,36 @@ export const coachGpsPings = pgTable(
   ],
 );
 
+/**
+ * A maintenance ticket (MT-0001) raised from a damage report. While open, the unit is held from
+ * bookings: a serialized unit is set to Maintenance, or one pooled unit is taken out of service.
+ */
+export const maintenanceTickets = pgTable(
+  'maintenance_tickets',
+  {
+    tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+    id: id(),
+    number: text('number').notNull(),
+    orderId: uuid('order_id'),
+    productId: uuid('product_id').notNull(),
+    locationId: uuid('location_id').notNull(),
+    /** The serialized unit held; null for pooled stock (one unit out of service). */
+    unitId: uuid('unit_id'),
+    notes: text('notes'),
+    status: text('status').notNull().default('open'),
+    createdByUserId: text('created_by_user_id'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    closedByUserId: text('closed_by_user_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.id] }),
+    uniqueIndex('maintenance_tickets_number').on(t.tenantId, t.number),
+    foreignKey({ columns: [t.tenantId, t.orderId], foreignColumns: [orders.tenantId, orders.id] }).onDelete('set null'),
+    check('maintenance_tickets_status', sql`${t.status} in ('open','closed')`),
+    index('maintenance_tickets_order_idx').on(t.tenantId, t.orderId),
+  ],
+);
+
 export type CoachChecklistRow = typeof coachChecklists.$inferSelect;
 export type OrderStaffRow = typeof orderStaff.$inferSelect;
