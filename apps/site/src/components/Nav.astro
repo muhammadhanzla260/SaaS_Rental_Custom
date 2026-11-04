@@ -25,7 +25,7 @@ const chev = 'M2.5 4.5 6 8l3.5-3.5';
           <span class="rh-word">Rent Hatch</span>
         </a>
         <div class="rh-rel">
-          <button type="button" class="rh-vchip" data-toggle={`${id}-sw`} aria-expanded="false" aria-controls={`${id}-sw`} aria-label={`Switch business type (now ${n.label})`} style={`background:${n.chipBg};color:${n.chipFg}`}>
+          <button type="button" class="rh-vchip" data-toggle={`${id}-sw`} aria-expanded="false" aria-controls={`${id}-sw`} aria-label={`${n.label}: switch business type`} style={`background:${n.chipBg};color:${n.chipFg}`}>
             <Icon d={n.icon} size={16} width={2.2} />{n.label}<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d={chev} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
           </button>
           <div class="rh-pop" id={`${id}-sw`} hidden>

@@ -8,8 +8,10 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Transporter } from 'nodemailer';
 
-const env = import.meta.env as Record<string, string | undefined>;
-const live = () => (env.MESSAGING_DELIVERY ?? (env.PROD ? 'live' : 'outbox')) === 'live';
+// Read at runtime (process.env), so secrets are never baked into the build.
+const env = process.env;
+// Live when asked to, or when a mail server is configured; otherwise emails land in .data/outbox.
+const live = () => env.MESSAGING_DELIVERY === 'live' || (env.MESSAGING_DELIVERY !== 'outbox' && !!env.PLATFORM_SMTP_URL?.trim());
 const FROM = () => env.SITE_MAIL_FROM || 'Rent Hatch <hello@renthatch.com>';
 
 export type Attachment = { filename: string; content: string; contentType: string };

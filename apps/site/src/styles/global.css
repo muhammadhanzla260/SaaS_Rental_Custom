@@ -58,7 +58,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .seg.light .segb[aria-pressed="true"], .seg.light .segb[aria-selected="true"], .seg.light .segb[aria-checked="true"] { background: var(--ink); color: #fff; }
 .soon { font: 700 10px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; background: var(--violet); color: #fff; }
 .grid-bg { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse at 60% 40%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at 60% 40%, #000 30%, transparent 75%); pointer-events: none; }
-.glow { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; }
+/* Soft glows via a radial mask: far cheaper to paint than filter: blur on phones. */
+.glow { position: absolute; border-radius: 50%; pointer-events: none; -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgba(0,0,0,.5) 45%, transparent 100%); mask-image: radial-gradient(closest-side, #000 0%, rgba(0,0,0,.5) 45%, transparent 100%); }
 .dark { background: var(--ink); color: #fff; }
 .dark .lede { color: #A3ABB9; }
 .dark .eyebrow { color: #8A93A3; }
@@ -121,3 +122,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 [hidden] { display: none !important; }
+[data-success]:focus { outline: none; }
+
+/* Long pages: sections after the first are laid out and painted only as they near the viewport. */
+main section ~ section { content-visibility: auto; contain-intrinsic-size: auto 900px; }

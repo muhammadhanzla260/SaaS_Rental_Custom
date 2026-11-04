@@ -173,11 +173,11 @@ const planData = JSON.stringify(PLANS.map(({ id, name, monthly, yearly, location
   .add-l { display: flex; align-items: center; gap: 12px; }
   .add input { width: 18px; height: 18px; accent-color: #0B0D12; flex: none; }
   .est-total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 16px; border-top: 2px solid #10131A; }
-  .cmp-scroll { overflow-x: auto; }
+  .cmp-scroll { position: relative; overflow-x: auto; min-width: 0; max-width: 100%; }
   .ptab { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; }
   .ptab td, .ptab th { padding: 14px 16px; border-bottom: 1px solid #E3E5DC; font-size: 14.5px; text-align: center; }
   .ptab th[scope="row"] { text-align: left; font-weight: 500; color: #10131A; width: 34%; }
-  .ptab thead th { position: sticky; top: 76px; background: #FAFAF6; font: 800 18px var(--font-display); z-index: 1; }
+  .ptab thead th { background: #FAFAF6; font: 800 18px var(--font-display); }
   .ptab thead th.feat { text-align: left; font: 600 14px var(--font-ui); color: #535C6B; }
   .gcell { padding: 10px 0 0 !important; border: none !important; }
   .grp { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 18px 16px; border: none; background: #F1F2EA; font: 700 15px var(--font-ui); cursor: pointer; text-align: left; border-radius: 12px; color: #10131A; }

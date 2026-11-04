@@ -55,8 +55,8 @@ export const POST: APIRoute = async ({ params, request, clientAddress, redirect 
   const jobs: Promise<unknown>[] = [];
   jobs.push(postToCrm({ form: kind, list: kind === 'contact' ? `Contact · ${data.topic}` : form.list, submittedAt: new Date().toISOString(), fields: data, meta }));
   // Without a CRM, every submission (newsletter included) still lands in the sales inbox.
-  const crmOn = !!import.meta.env.CRM_WEBHOOK_URL;
-  const inbox = inboxFor(kind, data) ?? (crmOn ? null : import.meta.env.INBOX_SALES || 'sales@renthatch.com');
+  const crmOn = !!process.env.CRM_WEBHOOK_URL;
+  const inbox = inboxFor(kind, data) ?? (crmOn ? null : process.env.INBOX_SALES || 'sales@renthatch.com');
   if (inbox) {
     const mail = renderEmail(`New ${form.list.toLowerCase()} submission`, [`From the website (${meta.page ?? 'unknown page'}).`], [...rows, ...Object.entries(meta).map(([k, v]) => [k, v] as [string, string])]);
     jobs.push(sendMail({ to: inbox, replyTo: data.email, subject: `[Website] ${form.list}${data.company ? ` · ${data.company}` : ''}${data.name ? ` · ${data.name}` : ''}`, ...mail }));

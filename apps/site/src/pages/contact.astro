@@ -1,0 +1,83 @@
+---
+/** S5 · Contact: pick a topic, the message goes to that team's inbox. */
+import Page from '~/layouts/Page.astro';
+import Form from '~/components/Form.astro';
+import Icon from '~/components/Icon.astro';
+import { COMPANY } from '~/data/company';
+
+const TOPICS = [
+  ['sales', 'Sales', 'Plans, demos and switching from another system.', 'Reply within 1 business day', 'M3 6h18v12H3zM3 10h18', 'Tell us about your rental business'],
+  ['support', 'Support', 'Help with your Rent Hatch account.', 'Reply within 4 business hours', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01', 'What do you need help with?'],
+  ['partners', 'Partners', 'Resellers, consultants and integrations.', 'Reply within 3 business days', 'M8 12h8M12 8v8M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0', 'How would you like to work together?'],
+  ['press', 'Press', 'Media enquiries and brand assets.', 'Reply within 2 business days', 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3', 'Your outlet and deadline'],
+  ['jobs', 'Jobs', 'Applying for a role or pitching one.', 'Reply within 1 week', 'M4 8h16v12H4zM9 8V5h6v3', 'The role, a link to your work and why rental software'],
+];
+const DIRECT = [['Sales', COMPANY.emails.sales], ['Support', COMPANY.emails.support], ['Security', COMPANY.emails.security], ['Office', COMPANY.address]].filter(([, v]) => v);
+---
+<Page title="Contact" description="Talk to a human at Rent Hatch: sales, support, partnerships or press. Pick a topic and we route it to the right person." vertical="auto">
+  <section class="wrap layout" data-contact data-form-root>
+    <div class="stack" style="flex:1 1 420px;min-width:0;gap:20px">
+      <span class="eyebrow rise">Contact</span>
+      <h1 class="disp rise" style="--d:80ms;font-size:clamp(44px,5.4vw,76px)">Talk to a human.</h1>
+      <p class="lede rise" style="--d:160ms">Pick what you need and we'll route it to the right person.</p>
+      <div class="topics rise" style="--d:220ms" role="radiogroup" aria-label="Topic">
+        {TOPICS.map(([id, t, s, r, icon], i) => (
+          <label class="topic"><input type="radio" name="topic-pick" value={id} checked={i === 0} data-ph={TOPICS[i]![5]} data-reply={r} data-title={t} />
+            <span class="tic"><Icon d={icon} size={20} /></span><span class="stack" style="gap:2px;flex:1"><strong>{t}</strong><span class="ts">{s}</span><span class="tr">{r}</span></span>
+          </label>
+        ))}
+      </div>
+      <dl class="direct">{DIRECT.map(([k, v]) => <div><dt>{k}</dt><dd>{v!.includes('@') ? <a href={`mailto:${v}`}>{v}</a> : v}</dd></div>)}</dl>
+    </div>
+    <div class="box rise" style="--d:120ms">
+      <Form kind="contact" id="contact-form" class="stack" style="gap:14px">
+        <input type="hidden" name="topic" value="sales" data-topic />
+        <strong style="font:800 26px var(--font-display)" data-title>Message sales</strong>
+        <div class="g2">
+          <label class="field"><span>Name</span><input name="name" required autocomplete="name" /></label>
+          <label class="field"><span>Work email</span><input name="email" type="email" required autocomplete="email" /></label>
+          <label class="field"><span>Company</span><input name="company" autocomplete="organization" /></label>
+          <label class="field"><span>What you rent</span><select name="rents"><option>Party &amp; event gear</option><option>Tents &amp; furniture</option><option>AV &amp; staging</option><option>Tools &amp; equipment</option><option>Cars &amp; vehicles</option><option>Not a rental business</option></select></label>
+        </div>
+        <label class="field"><span>Message</span><textarea name="message" rows="5" required placeholder="Tell us about your rental business" data-msg></textarea></label>
+        <button type="submit" class="btn btn-ink" style="align-self:flex-start">Send message</button>
+      </Form>
+      <div class="done" data-success tabindex="-1"><span class="tick">✓</span><strong style="font:800 26px var(--font-display)">Message sent</strong><span style="color:#535C6B" data-reply-line>Reply within 1 business day. A copy is in your inbox.</span></div>
+    </div>
+  </section>
+</Page>
+<script>
+  const root = document.querySelector<HTMLElement>('[data-contact]')!;
+  const set = (r: HTMLInputElement) => {
+    root.querySelector<HTMLInputElement>('[data-topic]')!.value = r.value;
+    root.querySelector('[data-title]')!.textContent = `Message ${r.dataset.title!.toLowerCase()}`;
+    root.querySelector<HTMLTextAreaElement>('[data-msg]')!.placeholder = r.dataset.ph!;
+    root.querySelector('[data-reply-line]')!.textContent = `${r.dataset.reply}. A copy is in your inbox.`;
+  };
+  root.addEventListener('change', (e) => { const r = e.target as HTMLInputElement; if (r.name === 'topic-pick') set(r); });
+  const want = new URLSearchParams(location.search).get('topic');
+  const pre = want && root.querySelector<HTMLInputElement>(`input[name="topic-pick"][value="${CSS.escape(want)}"]`);
+  if (pre) { pre.checked = true; set(pre); }
+</script>
+<style>
+  .layout { padding-top: clamp(48px, 6vw, 88px); padding-bottom: 100px; display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
+  .topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .topic { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: 18px; border: 1.5px solid #E3E5DC; background: #fff; cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
+  .topic input { position: absolute; opacity: 0; pointer-events: none; }
+  .topic:has(input:checked) { background: #0B0D12; color: #fff; border-color: #0B0D12; }
+  .topic:has(input:focus-visible) { outline: 2px solid #2C4FE0; outline-offset: 2px; }
+  .tic { width: 40px; height: 40px; border-radius: 12px; background: #F1F2EA; color: #10131A; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .topic:has(input:checked) .tic { background: #D4FF3A; color: #0B0D12; }
+  .ts { font-size: 13.5px; opacity: .75; }
+  .tr { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .direct { margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .direct dt { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6B7383; }
+  .direct dd { margin: 4px 0 0; font-weight: 650; }
+  .direct a { color: #2C4FE0; }
+  .box { flex: 1 1 480px; min-width: 0; border-radius: 30px; background: #fff; border: 1px solid #E3E5DC; box-shadow: 0 50px 90px -50px rgba(11, 13, 18, .45); padding: clamp(22px, 3vw, 32px); }
+  .g2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .done { display: none; flex-direction: column; gap: 12px; align-items: flex-start; animation: pop .45s both; }
+  .tick { width: 56px; height: 56px; border-radius: 50%; background: #0B0D12; color: #D4FF3A; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; }
+  [data-state="sent"] .box :global(form) { display: none; }
+  [data-state="sent"] .done { display: flex; }
+</style>

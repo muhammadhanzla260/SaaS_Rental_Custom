@@ -5,7 +5,8 @@
  *   3. Cloudflare Turnstile, when TURNSTILE_SECRET is set;
  *   4. a per-IP rate limit (best effort: per server instance).
  */
-const env = import.meta.env as Record<string, string | undefined>;
+// Read at runtime (process.env), so secrets are never baked into the build.
+const env = process.env;
 export const HONEYPOT = 'company_website';
 
 export type Verdict = { ok: true } | { ok: false; silent: boolean; reason: string };

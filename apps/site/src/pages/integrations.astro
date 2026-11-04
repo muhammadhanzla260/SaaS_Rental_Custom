@@ -1,0 +1,124 @@
+---
+/** S2 · Integrations: category filter, search, detail drawer, Live vs Coming. */
+import Page from '~/layouts/Page.astro';
+import PageHero from '~/components/PageHero.astro';
+import Logo from '~/components/Logo.astro';
+import { INTEGRATIONS } from '~/data/integrations';
+
+const CATS = ['All', 'Payments', 'Email', 'Messaging', 'Accounting', 'Coming'];
+const ORBIT = ['Stripe', 'Gmail', 'Outlook', 'SMS', 'Mapbox', 'CSV', 'QuickBooks · soon', 'Zapier · soon'];
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+const where = (v: string) => (v === 'Both' ? 'Events & cars' : v === 'Cars' ? 'Car rental' : 'Event rental');
+---
+<Page title="Integrations" description="Rent Hatch works with Stripe, your own mail server (Google Workspace, Microsoft 365, Zoho or any SMTP), SMS, Mapbox and CSV, with accounting and Zapier on the way." vertical="auto" nav="dark" active="product">
+  <PageHero eyebrow="Integrations" lede="Your Stripe account, your mail server, your phone number. Money and messages stay yours.">
+    Works with the tools <span class="v">you already pay for.</span>
+    <div slot="art" class="orbit">
+      <span class="hub"><Logo size={92} /></span>
+      {ORBIT.map((t, n) => { const a = (n / ORBIT.length) * Math.PI * 2; return <span class="sat" style={`left:${50 + Math.cos(a) * 42}%;top:${50 + Math.sin(a) * 42}%;animation-delay:${-n * 0.5}s`}>{t}</span>; })}
+    </div>
+  </PageHero>
+
+  <section class="wrap dir" data-dir>
+    <div class="bar">
+      <div class="cats" role="group" aria-label="Filter integrations">{CATS.map((c, n) => <button type="button" class="fchip" aria-pressed={n === 0 ? 'true' : 'false'} data-cat={c}>{c}</button>)}</div>
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="#535C6B" stroke-width="2" stroke-linecap="round" /></svg><span class="sr-only">Search integrations</span><input type="search" data-q placeholder="Search, e.g. Stripe" /></label>
+    </div>
+    <p class="sr-only" aria-live="polite" data-status></p>
+    <ul class="grid">
+      {INTEGRATIONS.map((x) => (
+        <li data-cat={x.cat} data-status={x.status} data-text={`${x.name} ${x.text}`.toLowerCase()}>
+          <button type="button" class="icard" data-open={slug(x.name)} aria-haspopup="dialog">
+            <span class="between"><span class="ini" style={`background:${x.color}`}>{x.name[0]}</span><span class:list={['st', { live: x.status === 'Live' }]}>{x.status}</span></span>
+            <strong class="iname">{x.name}</strong>
+            <span class="itext">{x.text}</span>
+            <span class="imeta">{x.cat} · {where(x.vertical)}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+    <div class="none" data-none hidden>Nothing matches that search.</div>
+    <div class="ask"><span><strong>Missing a tool you rely on?</strong> Tell us. Requests decide what we build next.</span><a href="/contact?topic=partners" class="btn btn-ink" style="height:44px">Request an integration</a></div>
+  </section>
+
+  {INTEGRATIONS.map((x) => (
+    <dialog class="drawer" id={`int-${slug(x.name)}`} aria-labelledby={`int-h-${slug(x.name)}`}>
+      <div class="dr-in">
+        <div class="between"><span class="ini big" style={`background:${x.color}`}>{x.name[0]}</span><button type="button" class="x" data-close aria-label="Close">✕</button></div>
+        <h2 id={`int-h-${slug(x.name)}`} class="dname">{x.name}</h2>
+        <span class:list={['st', { live: x.status === 'Live' }]} style="align-self:flex-start">{x.status} · {where(x.vertical)}</span>
+        <p style="margin:0;font-size:16px;line-height:1.6;color:#353C48">{x.long}</p>
+        <strong>How to connect</strong>
+        <ol class="steps">{(x.status === 'Live' ? ['Open Settings → Integrations', `Choose ${x.name} and enter your details`, 'Send a test and save'] : ['Ask us for this integration', 'We email you when it is ready', 'Connect it in one click']).map((s) => <li>{s}</li>)}</ol>
+        {x.status === 'Live' ? <a href="/help" class="btn btn-ink">Read the setup guides</a> : <a href="/contact?topic=partners" class="btn btn-ink">Ask for {x.name}</a>}
+      </div>
+    </dialog>
+  ))}
+</Page>
+
+<script>
+  const dir = document.querySelector<HTMLElement>('[data-dir]')!;
+  const q = dir.querySelector<HTMLInputElement>('[data-q]')!;
+  let cat = 'All';
+  const apply = () => {
+    const term = q.value.trim().toLowerCase();
+    let n = 0;
+    dir.querySelectorAll<HTMLElement>('li[data-cat]').forEach((li) => {
+      const ok = (cat === 'All' || li.dataset.cat === cat || (cat === 'Coming' && li.dataset.status === 'Coming')) && (!term || li.dataset.text!.includes(term));
+      li.hidden = !ok;
+      if (ok) n++;
+    });
+    dir.querySelector<HTMLElement>('[data-none]')!.hidden = n > 0;
+    dir.querySelector<HTMLElement>('[data-status]')!.textContent = `${n} integrations shown`;
+  };
+  q.addEventListener('input', apply);
+  dir.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    const chip = t.closest<HTMLButtonElement>('.fchip');
+    if (chip) {
+      cat = chip.dataset.cat!;
+      dir.querySelectorAll('.fchip').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      return apply();
+    }
+    const card = t.closest<HTMLElement>('[data-open]');
+    if (card) document.querySelector<HTMLDialogElement>(`#int-${card.dataset.open}`)?.showModal();
+  });
+  // Native <dialog>: Escape closes; also the ✕ and a click on the backdrop.
+  document.querySelectorAll<HTMLDialogElement>('dialog.drawer').forEach((d) => {
+    d.addEventListener('click', (e) => { if (e.target === d || (e.target as Element).closest('[data-close]')) d.close(); });
+  });
+</script>
+
+<style>
+  .orbit { position: relative; width: 380px; height: 300px; }
+  .hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 22px; border-radius: 40px; background: rgba(212, 255, 58, .1); box-shadow: 0 0 0 18px rgba(212, 255, 58, .05); }
+  .sat { position: absolute; transform: translate(-50%, -50%); padding: 8px 14px; border-radius: 999px; background: #141821; border: 1px solid #2E3442; font-size: 13px; font-weight: 600; white-space: nowrap; animation: floaty 4s ease-in-out infinite; }
+  .dir { padding-top: 56px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 24px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; }
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fchip { height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #E3E5DC; background: #fff; color: #353C48; font: 600 14px var(--font-ui); cursor: pointer; }
+  .fchip[aria-pressed="true"] { background: #0B0D12; color: #fff; border-color: #0B0D12; }
+  .search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; border-radius: 999px; background: #fff; border: 1.5px solid #E3E5DC; min-width: min(100%, 300px); }
+  .search:focus-within { border-color: #2C4FE0; }
+  .search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 15px; }
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+  .icard { width: 100%; height: 100%; text-align: left; border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; padding: 22px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; font: inherit; color: inherit; transition: transform .25s var(--ease-out), box-shadow .25s, border-color .25s; }
+  .icard:hover { transform: translateY(-4px); box-shadow: 0 26px 40px -28px rgba(11, 13, 18, .45); border-color: #C9CED6; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .ini { width: 40px; height: 40px; border-radius: 12px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
+  .ini.big { width: 56px; height: 56px; border-radius: 16px; font-size: 22px; }
+  .st { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #F1F2EA; color: #535C6B; }
+  .st.live { background: #E3F5EC; color: #0B6145; }
+  .iname { font: 800 19px/1.2 var(--font-display); }
+  .itext { font-size: 14px; line-height: 1.5; color: #535C6B; }
+  .imeta { margin-top: auto; font-size: 12.5px; color: #6B7383; }
+  .none { padding: 40px; text-align: center; border-radius: 22px; border: 1.5px dashed #C9CED6; color: #535C6B; }
+  .ask { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 22px; background: #F1F2EA; font-size: 15.5px; }
+  .drawer { margin: 0 0 0 auto; height: 100dvh; max-height: 100dvh; width: min(460px, 100%); border: none; padding: 0; background: #fff; color: #10131A; box-shadow: -40px 0 80px -30px rgba(11, 13, 18, .5); }
+  .drawer[open] { animation: slidein .35s var(--ease-out) both; }
+  .drawer::backdrop { background: rgba(11, 13, 18, .45); }
+  .dr-in { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+  .dname { margin: 0; font: 800 34px/1.05 var(--font-display); }
+  .x { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #E3E5DC; background: #fff; cursor: pointer; font-size: 16px; }
+  .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: #353C48; }
+</style>

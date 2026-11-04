@@ -75,6 +75,6 @@ export function inboxFor(kind: FormKind, data: Record<string, unknown>): string 
   const inbox = FORMS[kind].inbox;
   if (!inbox) return null;
   const key = inbox === 'topic' ? String(data.topic ?? 'sales') : inbox;
-  const env = import.meta.env as Record<string, string | undefined>;
+  const env = process.env;
   return env[`INBOX_${key.toUpperCase()}`] || env.INBOX_SALES || 'sales@renthatch.com';
 }

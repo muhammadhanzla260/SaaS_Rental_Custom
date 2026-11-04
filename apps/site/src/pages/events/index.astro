@@ -112,7 +112,7 @@ const app = {
               <div class="win">
                 <div class="win-bar"><span style="background:#FF5F57"></span><span style="background:#FEBC2E"></span><span style="background:#28C840"></span><span class="mono">app.renthatch.com/orders/{h.no}</span></div>
                 <div class="win-body">
-                  <div class="between"><span class="stack" style="gap:3px"><span class="mono" style="font-size:12px;color:#6B7383">{h.no}</span><strong style="font-size:20px">{h.cust}</strong></span><span class="chip" style="background:#1F3A2C;color:#3DD39A;font-size:12px;padding:6px 12px">Booked</span></div>
+                  <div class="between"><span class="stack" style="gap:3px"><span class="mono" style="font-size:12px;color:#8A93A3">{h.no}</span><strong style="font-size:20px">{h.cust}</strong></span><span class="chip" style="background:#1F3A2C;color:#3DD39A;font-size:12px;padding:6px 12px">Booked</span></div>
                   <div style="font-size:13px;color:#8A93A3">{h.when}</div>
                   <div class="order">
                     {h.lines.map(([k, v], i) => <div class="row" style={`animation:slidein .5s var(--ease-out) both;animation-delay:${200 + i * 120}ms`}><span>{k}</span><span class="mono">{v}</span></div>)}
@@ -124,7 +124,7 @@ const app = {
               {FLOATS[g.id]!.map(([t, s, icon, bg, fg, ib, ic], i) => (
                 <div class="cyc float" aria-hidden="true" style={`--d:${i * 3}s;left:${FLOAT_POS[i]![0]};top:${FLOAT_POS[i]![1]};background:${bg};color:${fg}`}>
                   <span class="float-ic" style={`background:${ib}`}><Icon d={icon} size={18} stroke={ic} width={2.4} /></span>
-                  <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.65">{s}</span></span>
+                  <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.85">{s}</span></span>
                 </div>
               ))}
             </div>
@@ -147,7 +147,7 @@ const app = {
     </div>
     <div class="flips">
       {PAINS.map(([pain, painSub, fix, fixSub, where]) => (
-        <button type="button" class="flip rv" aria-pressed="false" aria-label={`Problem: ${pain} Fixed: ${fix}. ${fixSub}`}>
+        <button type="button" class="flip rv" aria-pressed="false">
           <span class="flip-in" style="display:block">
             <span class="face" style="background:#fff;border:1px solid #E3E5DC">
               <span class="between"><span class="chip tag-bad">✕ PROBLEM</span><span style="font-size:13px;color:#6B7383">Tap to fix →</span></span>
@@ -199,7 +199,7 @@ const app = {
           <div role="tabpanel" id="tour-p0" aria-labelledby="tour-t0" data-when="tab:0" class="mock mock-card">
             <div class="between" style="margin-bottom:6px"><strong style="font-size:17px">New order · Sat, Nov 7</strong><span class="chip" style="background:#E6ECFF;color:#233FB8;font-size:12px;padding:5px 10px">Auto-priced</span></div>
             <div style="font-size:13px;color:#535C6B;margin-bottom:10px">1:00–6:00 PM · Cedar Park · 18.4 mi from warehouse</div>
-            {ORDER_ROWS.map(([k, s, v], i) => <div class="row" style={`animation:slidein .5s both;animation-delay:${200 + i * 160}ms`}><span>{k}<span style="display:block;font-size:12px;color:#6B7383">{s}</span></span><span class="mono">{v}</span></div>)}
+            {ORDER_ROWS.map(([k, s, v], i) => <div class="row" style={`animation:slidein .5s both;animation-delay:${200 + i * 160}ms`}><span>{k}<span style="display:block;font-size:12px;color:#596170">{s}</span></span><span class="mono">{v}</span></div>)}
             <div class="total"><strong>Total</strong><strong class="mono" style="font-size:32px;animation:countin .8s 1.4s both">$618.11</strong></div>
             <div class="refused">✕ Third Castle Bounce House refused: 2 of 2 already booked that afternoon</div>
           </div>

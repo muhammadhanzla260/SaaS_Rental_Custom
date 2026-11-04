@@ -64,8 +64,9 @@ const turnstile = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
     {vertical === 'events' || vertical === 'cars'
       ? <script is:inline define:vars={{ v: vertical }}>document.cookie='rh_vertical='+v+'; Max-Age=31536000; Path=/; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'');document.documentElement.dataset.v=v;</script>
       : <script is:inline>(function(){var m=document.cookie.match(/(?:^|; )rh_vertical=(events|cars)/);if(m)document.documentElement.dataset.v=m[1];})();</script>}
-    <Font cssVariable="--font-display" preload={[{ weight: '500 800' }]} />
-    <Font cssVariable="--font-ui" preload={[{ weight: '400 700' }]} />
+    {/* No font preloads: with font-display: swap text paints at once, and preloads would compete with first paint. */}
+    <Font cssVariable="--font-display" />
+    <Font cssVariable="--font-ui" />
     <Font cssVariable="--font-mono" />
     <script type="application/ld+json" set:html={JSON.stringify([org, ...jsonLd])} />
     <slot name="head" />

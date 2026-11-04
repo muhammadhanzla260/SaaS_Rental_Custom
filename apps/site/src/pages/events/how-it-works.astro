@@ -216,7 +216,7 @@ const calc = demoRows(DEMO_DEFAULT);
   .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: #A3ABB9; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 10px; height: 10px; border-radius: 3px; }
-  .board-scroll { overflow-x: auto; }
+  .board-scroll { overflow-x: auto; min-width: 0; max-width: 100%; }
   .board-grid { min-width: 760px; display: flex; flex-direction: column; gap: 8px; }
   .hours { display: grid; grid-template-columns: 220px repeat(7, minmax(0, 1fr)); font-size: 12px; color: #8A93A3; }
   .unit { display: grid; grid-template-columns: 220px 1fr; align-items: center; }
@@ -229,7 +229,7 @@ const calc = demoRows(DEMO_DEFAULT);
   [data-refused="true"] .refused { display: inline-flex; }
 
   .flow { background: #11141B; color: #fff; padding: 100px 0; }
-  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; }
+  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; min-width: 0; max-width: 100%; }
   .stops { position: relative; min-width: 760px; display: flex; gap: 8px; }
   .track, .track-on { position: absolute; left: 6%; top: 23px; height: 2px; }
   .track { right: 6%; background: #232835; }
@@ -253,7 +253,7 @@ const calc = demoRows(DEMO_DEFAULT);
   .togb { height: 38px; padding: 0 14px; border-radius: 10px; border: none; font: 600 14px var(--font-ui); cursor: pointer; background: transparent; color: #353C48; }
   .togb[aria-checked="true"] { background: #0B0D12; color: #fff; }
   .calc-out { border-radius: 18px; background: #F7F8F3; padding: 6px 18px 16px; }
-  .calc-out :global(.sub) { display: block; font-size: 12px; color: #6B7383; }
+  .calc-out :global(.sub) { display: block; font-size: 12px; color: #596170; }
   .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 2px solid #10131A; }
   .total > strong:first-child { font: 800 22px var(--font-display); }
 

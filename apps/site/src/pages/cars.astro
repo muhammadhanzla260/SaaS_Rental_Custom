@@ -109,7 +109,7 @@ const FAQS: [string, string][] = [
         {FLOATS.map(([t, s, icon, bg, fg, ib, ic], i) => (
           <div class="cyc float" aria-hidden="true" style={`--d:${i * 3}s;left:${FLOAT_POS[i]![0]};top:${FLOAT_POS[i]![1]};background:${bg};color:${fg}`}>
             <span class="float-ic" style={`background:${ib}`}><Icon d={icon} size={18} stroke={ic} width={2.4} /></span>
-            <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.65">{s}</span></span>
+            <span class="stack" style="gap:1px">{t}<span style="font-size:12px;font-weight:500;opacity:.85">{s}</span></span>
           </div>
         ))}
       </div>
@@ -126,7 +126,7 @@ const FAQS: [string, string][] = [
     <div class="rv sec-head"><div class="stack" style="gap:16px;max-width:740px"><span class="eyebrow">Sound familiar?</span><h2 class="h2">Every car rental headache, <span class="vio">handled.</span></h2></div><button type="button" class="btn btn-line" data-flip-all data-on="Show the problems" data-off="Fix them all">Fix them all</button></div>
     <div class="flips">
       {PAINS.map(([pain, painSub, fix, fixSub, where]) => (
-        <button type="button" class="flip rv" aria-pressed="false" aria-label={`Problem: ${pain} Fixed: ${fix}. ${fixSub}`}>
+        <button type="button" class="flip rv" aria-pressed="false">
           <span class="flip-in" style="display:block">
             <span class="face" style="background:#fff;border:1px solid #E3E5DC"><span class="between"><span class="chip tag-bad">✕ PROBLEM</span><span style="font-size:13px;color:#6B7383">Tap to fix →</span></span><strong class="flip-t">{pain}</strong><span class="flip-s">{painSub}</span></span>
             <span class="face back" style="background:#1B1530;color:#fff"><span class="between"><span class="chip tag-good">✓ FIXED</span><span style="font-size:13px;color:#9A93B5">{where}</span></span><strong class="flip-t">{fix}</strong><span class="flip-s" style="color:#B9B2D0">{fixSub}</span></span>
@@ -271,7 +271,7 @@ const FAQS: [string, string][] = [
 
 <script>
   const money = (c: number) => (c < 0 ? '−' : '') + '$' + (Math.abs(c) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const row = (k: string, s: string, v: string, color = '#10131A') => `<div class="row" style="font-size:14.5px"><span>${k}<span style="display:block;font-size:12px;color:#6B7383">${s}</span></span><span class="mono" style="color:${color}">${v}</span></div>`;
+  const row = (k: string, s: string, v: string, color = '#10131A') => `<div class="row" style="font-size:14.5px"><span>${k}<span style="display:block;font-size:12px;color:#596170">${s}</span></span><span class="mono" style="color:${color}">${v}</span></div>`;
 
   // Inspection demo: tap zones in Return mode; fuel and mileage settle the $300 hold.
   const insp = document.querySelector<HTMLElement>('[data-insp]');
@@ -363,7 +363,7 @@ const FAQS: [string, string][] = [
   .hero :global(.hero-form .form-error) { flex-basis: 100%; color: #FF8A8E; }
   .hero-ok { display: none; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; background: #1B1530; border: 1px solid #3B2D66; color: #E4DAFF; font-weight: 600; animation: pop .45s both; align-self: flex-start; }
   .hero-ok span { width: 28px; height: 28px; border-radius: 50%; background: #6D3FD6; display: inline-flex; align-items: center; justify-content: center; }
-  [data-state="sent"] > :global(form) { display: none !important; }
+  [data-state="sent"] :global(form[data-form]) { display: none !important; }
   [data-state="sent"] .hero-ok, [data-state="sent"] .ea-ok { display: flex; }
   .hero-vis { flex: 1 1 480px; min-width: 0; position: relative; min-height: 520px; }
   .hero-fleet { position: absolute; inset: 0; }
@@ -394,7 +394,7 @@ const FAQS: [string, string][] = [
   .flip-s { font-size: 15px; line-height: 1.5; color: #535C6B; }
 
   .journey { background: #0D0A18; color: #fff; padding: 100px 0; margin-top: 90px; scroll-margin-top: 76px; }
-  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; }
+  .stops-scroll { position: relative; overflow-x: auto; padding-bottom: 6px; min-width: 0; max-width: 100%; }
   .stops { position: relative; min-width: 760px; display: flex; gap: 8px; }
   .track, .track-on { position: absolute; left: 6%; top: 23px; height: 2px; }
   .track { right: 6%; background: #2E2450; }

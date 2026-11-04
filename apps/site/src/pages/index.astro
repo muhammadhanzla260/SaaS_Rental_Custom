@@ -34,7 +34,7 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
       </div>
 
       <div class="gate">
-        <a href="/events" class="door door-e rise" data-set-vertical="events" style="--d:200ms" aria-label="Event and equipment rental. Open the event rental site.">
+        <a href="/events" class="door door-e rise" data-set-vertical="events" style="--d:200ms">
           <div class="art" aria-hidden="true">
             {confetti.map((c) => <span class="conf" style={`left:${c.x};width:${c.w}px;background:${c.c};animation-duration:${c.t}s;animation-delay:${c.d}s`}></span>)}
             {balloons.map(([x, c, t, d]) => (
@@ -57,7 +57,7 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
           </div>
         </a>
 
-        <a href="/cars" class="door door-c rise" data-set-vertical="cars" style="--d:300ms" aria-label="Car and vehicle rental. Open the car rental site.">
+        <a href="/cars" class="door door-c rise" data-set-vertical="cars" style="--d:300ms">
           <div class="art" aria-hidden="true">
             <div class="road"></div>
             <div class="dashes">{Array.from({ length: 16 }, () => <span></span>)}</div>
