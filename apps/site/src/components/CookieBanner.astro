@@ -1,0 +1,55 @@
+---
+/** First-visit consent banner (S11). Hidden by default; scripts/consent.ts shows it when no choice is stored. */
+const cats = [
+  ['e', 'Essential', 'Sign-in, security and your event or car choice. Always on.', true],
+  ['a', 'Analytics', 'Anonymous visits so we can improve the site.', false],
+  ['m', 'Advertising', 'Meta and Google ad measurement.', false],
+] as const;
+---
+<div id="cookie-banner" class="cb" role="dialog" aria-labelledby="cb-h" aria-describedby="cb-d" hidden>
+  <div class="cb-top">
+    <span class="cb-copy"><strong id="cb-h">Cookies, briefly</strong><span id="cb-d">We use essential cookies to run the site. With your OK, we also measure visits and ads. <a href="/legal/cookies">Cookie policy</a></span></span>
+    <span class="cb-btns">
+      <button type="button" data-cb="prefs" aria-expanded="false" aria-controls="cb-prefs" class="cb-line">Choose</button>
+      <button type="button" data-cb="reject" class="cb-line">Reject all</button>
+      <button type="button" data-cb="accept" class="cb-volt">Accept all</button>
+    </span>
+  </div>
+  <div id="cb-prefs" class="cb-prefs" data-prefs hidden>
+    {cats.map(([k, t, s, locked]) => (
+      <div class="cb-cat">
+        <span><strong>{t}</strong><span>{s}</span></span>
+        <button type="button" class="tg" role="switch" aria-checked={locked ? 'true' : 'false'} aria-label={t} data-switch={locked ? undefined : k} disabled={locked}><span></span></button>
+      </div>
+    ))}
+    <button type="button" data-cb="save" class="cb-save">Save choices</button>
+  </div>
+</div>
+<style>
+  .cb { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 60; width: min(760px, calc(100% - 32px)); background: #0B0D12; color: #EEF0F4; border: 1px solid #232835; border-radius: 22px; padding: 20px 22px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .6); display: flex; flex-direction: column; gap: 14px; animation: cbin .45s var(--ease-out) both; }
+  .cb[hidden] { display: none; }
+  @keyframes cbin { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translateX(-50%); } }
+  .cb :focus-visible { outline-color: #D4FF3A; }
+  .cb-top { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+  .cb-copy { display: flex; flex-direction: column; gap: 4px; max-width: 440px; }
+  .cb-copy strong { font-size: 16px; }
+  .cb-copy > span { font-size: 14px; color: #A3ABB9; line-height: 1.5; }
+  .cb-copy a { color: #D4FF3A; }
+  .cb-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cb button:not(.tg) { cursor: pointer; font: 650 14px var(--font-ui); height: 42px; padding: 0 16px; border-radius: 999px; }
+  .cb-line { background: transparent; color: #EEF0F4; border: 1.5px solid #2E3442; }
+  .cb-volt { background: #D4FF3A; color: #0B0D12; border: none; }
+  .cb-save { align-self: flex-end; background: #fff; color: #0B0D12; border: none; }
+  .cb-prefs { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #232835; padding-top: 14px; }
+  .cb-prefs[hidden] { display: none; }
+  .cb-cat { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
+  .cb-cat > span { display: flex; flex-direction: column; gap: 2px; }
+  .cb-cat strong { font-size: 14.5px; }
+  .cb-cat > span > span { font-size: 13px; color: #8A93A3; }
+  .tg { position: relative; width: 44px; height: 26px; border-radius: 999px; border: none; padding: 0; flex: none; background: #3A4150; cursor: pointer; transition: background-color .2s; }
+  .tg span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .2s; }
+  .tg[aria-checked="true"] { background: #0B7A55; }
+  .tg[aria-checked="true"] span { left: 21px; }
+  .tg:disabled { opacity: .6; cursor: default; }
+  @media (max-width: 520px) { .cb { bottom: 8px; padding: 16px; } .cb-btns { width: 100%; } .cb-btns button { flex: 1; padding: 0 10px !important; } }
+</style>

@@ -1,0 +1,22 @@
+---
+/** FAQ accordion on native <details> (works without JS) plus FAQPage structured data. */
+interface Props { items: [string, string][]; openFirst?: boolean }
+const { items, openFirst = true } = Astro.props;
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: items.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+};
+---
+<div class="faqs">
+  {items.map(([q, a], i) => (
+    <details class="faq" name="faq" open={openFirst && i === 0}>
+      <summary>{q}<span class="plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span></summary>
+      <p>{a}</p>
+    </details>
+  ))}
+</div>
+<script type="application/ld+json" set:html={JSON.stringify(ld)} />
+<style>
+  .faqs :global(.faq[open] p) { animation: rise .35s both; }
+</style>

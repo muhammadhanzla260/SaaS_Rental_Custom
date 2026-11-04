@@ -1,0 +1,74 @@
+---
+import Logo from './Logo.astro';
+import NewsletterForm from './NewsletterForm.astro';
+import { NAV, SOCIAL, type Vertical } from '~/lib/site';
+
+interface Props { vertical: Vertical | 'auto' }
+const { vertical } = Astro.props;
+const variants: Vertical[] = vertical === 'auto' ? ['events', 'cars'] : [vertical];
+const year = new Date().getFullYear();
+---
+{variants.map((v) => {
+  const n = NAV[v];
+  const f = n.footer;
+  const pricing = v === 'cars' ? '/cars#pricing' : '/events/pricing';
+  return (
+    <footer class:list={['rh-foot', vertical === 'auto' && `v-${v}`]}>
+      <div class="rh-fin">
+        <div class="rh-ftop">
+          <div class="rh-fbrand">
+            <a href={n.home} aria-label="Rent Hatch home" class="rh-flogo"><Logo size={38} /><span>Rent Hatch</span></a>
+            <p>{f.tagline}</p>
+            <NewsletterForm id={`news-${v}`} source="footer" dark />
+          </div>
+          <nav aria-label="Footer" class="rh-fcols">
+            <div><h2>Product</h2>{f.product.map((l) => <a href={l.href}>{l.t}</a>)}</div>
+            <div>
+              <h2>{n.solutionsLabel}</h2>{f.solutions.map((l) => <a href={l.href}>{l.t}</a>)}
+              <a href={f.other.href} style={`color:${f.other.color}`} data-set-vertical={v === 'cars' ? 'events' : 'cars'}>{f.other.t} →</a>
+            </div>
+            <div><h2>Resources</h2><a href="/help">Help center</a><a href="/blog">Blog</a><a href="/blog/switching-from-spreadsheets">Switching guide</a><a href="/integrations">API docs</a><a href="/security">Security</a></div>
+            <div><h2>Company</h2><a href="/about">About</a><a href="/changelog">Changelog</a><a href="/integrations">Integrations</a><a href="/customers">Customers</a><a href="/contact?topic=partners">Partners</a><a href="/careers">Careers</a><a href="/demo">Contact sales</a><a href={pricing}>Pricing</a></div>
+          </nav>
+        </div>
+        <div class="rh-fbot">
+          <div class="rh-flegal">
+            <span>© {year} Rent Hatch</span>
+            <a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/cookies">Cookies</a><a href="/legal/dpa">DPA</a>
+            <button type="button" class="rh-flink" data-cookie-settings>Cookie settings</button>
+            <span class="rh-status"><span class="dot" aria-hidden="true"></span>All systems normal</span>
+          </div>
+          {SOCIAL.length > 0 && (
+            <div class="rh-social">
+              {SOCIAL.map((s) => <a href={s.href} aria-label={s.label} rel="noopener" target="_blank"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d={s.d} fill="none" stroke="#A3ABB9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></a>)}
+            </div>
+          )}
+        </div>
+      </div>
+    </footer>
+  );
+})}
+
+<style>
+  .rh-foot { background: #07080B; color: #EEF0F4; padding: 72px max(16px, env(safe-area-inset-left, 0px)) 32px; }
+  .rh-fin { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  .rh-ftop { display: flex; flex-wrap: wrap; gap: 48px; justify-content: space-between; }
+  .rh-fbrand { flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: 18px; }
+  .rh-fbrand p { margin: 0; font-size: 15px; line-height: 1.6; color: #A3ABB9; }
+  .rh-flogo { display: inline-flex; align-items: center; gap: 10px; color: #fff; font: 800 24px var(--font-display); letter-spacing: -.03em; }
+  .rh-fcols { flex: 999 1 560px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 32px; }
+  .rh-fcols div { display: flex; flex-direction: column; gap: 12px; }
+  .rh-fcols h2 { margin: 0 0 4px; font: 700 12px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: #8A93A3; }
+  .rh-foot a { color: #A3ABB9; font-size: 14px; transition: color .2s; }
+  .rh-foot a:hover { color: #fff; }
+  .rh-foot :focus-visible { outline-color: #D4FF3A; }
+  .rh-fbot { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid #1C212C; }
+  .rh-flegal { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; font-size: 13px; color: #8A93A3; }
+  .rh-flegal a, .rh-flink { font-size: 13px; }
+  .rh-flink { background: none; border: none; padding: 0; color: #A3ABB9; cursor: pointer; }
+  .rh-flink:hover { color: #fff; }
+  .rh-status { display: inline-flex; align-items: center; gap: 6px; }
+  .rh-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #3DD39A; animation: blink 1.6s ease-in-out infinite; }
+  .rh-social { display: flex; gap: 10px; }
+  .rh-social a { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #232835; display: inline-flex; align-items: center; justify-content: center; }
+</style>

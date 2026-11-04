@@ -1,0 +1,31 @@
+---
+import Form from './Form.astro';
+interface Props { id: string; source: string; dark?: boolean; label?: string }
+const { id, source, dark = false, label = "The rental operator's newsletter · monthly" } = Astro.props;
+---
+<div class:list={['nl', { dark }]} data-form-root>
+  <Form kind="newsletter" id={id} source={source}>
+    <label for={`${id}-email`} class="nl-l">{label}</label>
+    <div class="nl-row">
+      <input id={`${id}-email`} name="email" type="email" required autocomplete="email" placeholder="you@yourbusiness.com" />
+      <button type="submit">Subscribe</button>
+    </div>
+  </Form>
+  <p class="nl-ok" data-success tabindex="-1">Subscribed ✓ Check your inbox for a welcome note.</p>
+</div>
+<style>
+  .nl form { display: flex; flex-direction: column; gap: 8px; }
+  .nl-l { font-size: 13px; font-weight: 600; }
+  .nl-row { display: flex; gap: 8px; background: #fff; border: 1px solid #E3E5DC; border-radius: 999px; padding: 5px; }
+  .nl input { flex: 1; min-width: 0; height: 40px; border: none; background: transparent; padding: 0 14px; font-size: 14px; outline: none; }
+  .nl button { height: 40px; padding: 0 18px; border-radius: 999px; border: none; background: #D4FF3A; color: #0B0D12; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .nl.dark .nl-l { color: #EEF0F4; }
+  .nl.dark .nl-row { background: #11141B; border-color: #232835; }
+  .nl.dark input { color: #fff; }
+  .nl.dark input::placeholder { color: #8A93A3; }
+  .nl-row:focus-within { border-color: #D4FF3A; }
+  .nl-ok { display: none; margin: 0; font-weight: 650; color: #0B7A55; }
+  .nl.dark .nl-ok { color: #3DD39A; }
+  .nl[data-state="sent"] form { display: none; }
+  .nl[data-state="sent"] .nl-ok { display: block; }
+</style>

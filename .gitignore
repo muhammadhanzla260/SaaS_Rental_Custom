@@ -13,3 +13,7 @@ next-env.d.ts
 .data/
 .screenshots/
 *.log
+
+# marketing site
+.astro/
+.vercel/

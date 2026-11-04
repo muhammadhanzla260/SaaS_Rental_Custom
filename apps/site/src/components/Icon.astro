@@ -1,0 +1,6 @@
+---
+/** One stroke icon from a 24-px path. Decorative unless a label is given. */
+interface Props { d: string; size?: number; stroke?: string; width?: number; label?: string; class?: string; style?: string }
+const { d, size = 20, stroke = 'currentColor', width = 2, label, class: cls, style } = Astro.props;
+---
+<svg width={size} height={size} viewBox="0 0 24 24" class={cls} style={style} aria-hidden={label ? undefined : 'true'} role={label ? 'img' : undefined} aria-label={label}><path d={d} fill="none" stroke={stroke} stroke-width={width} stroke-linecap="round" stroke-linejoin="round" /></svg>
