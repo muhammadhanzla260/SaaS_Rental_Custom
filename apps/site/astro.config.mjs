@@ -18,6 +18,8 @@ export default defineConfig({
   // Vercel in CI/deploys; the Node adapter for local builds (the Vercel one needs symlinks Windows refuses).
   adapter: process.env.VERCEL ? vercel({ webAnalytics: { enabled: false } }) : node({ mode: 'standalone' }),
   trailingSlash: 'never',
+  // The old plans page; pricing is now one line on each home page.
+  redirects: { '/events/pricing': '/events#pricing' },
   build: { format: 'directory', inlineStylesheets: 'always' },
   prefetch: { prefetchAll: false, defaultStrategy: 'hover' },
   integrations: [sitemap({ filter: (page) => !page.includes('/404') && !page.includes('/api/') && (hasStories || !page.endsWith('/customers')) }), verticalRedirect()],

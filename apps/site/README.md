@@ -32,13 +32,32 @@ Locally, form emails are written to `.data/outbox/` at the repo root instead of 
   CRM webhook and the team inbox, and the visitor gets a thank-you email. Demo bookings include a
   calendar invite.
 - **Tracking** (GA4, Google Ads, Meta Pixel) loads only after cookie consent; see `src/scripts/track.ts`.
-  Events: `view_events`, `view_cars`, `start_trial`, `join_waitlist`, `book_demo`, `quiz_result`, `pricing_toggle`.
+  Events: `view_events`, `view_cars`, `start_trial`, `join_waitlist`, `book_demo`, `quiz_result`.
+
+## Product videos (/demo)
+
+The demo page plays four videos: the 4-minute tour in three looks (aurora, sunrise, lagoon) and the
+full training. The files live in the app's **private** R2 bucket under `site/videos/<id>.mp4`.
+`/api/video/<id>` redirects to a signed link that expires after an hour, so the bucket stays
+private. Posters are in `public/video/`, and the list is in `src/data/videos.ts`.
+
+To publish or replace them:
+
+```sh
+# web copies (index moved to the front so playback starts at once) in <repo>/.data/video/site/
+ffmpeg -i .data/video/out/aurora.mp4 -c copy -movflags +faststart .data/video/site/tour-aurora.mp4
+# then upload with the app's R2 settings
+R2_ENDPOINT=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=… node apps/site/scripts/upload-videos.mjs
+```
+
+Set the same four `R2_*` variables on the site's Vercel project. Without them (local preview) the
+endpoint streams from `.data/video/site/`, or from `VIDEO_LOCAL_DIR`.
 
 ## Editing content
 
 | What | Where |
 |------|-------|
-| Plans and prices (home, pricing, quiz, structured data) | `src/data/plans.ts`. Set `PRICES_FINAL = true` once prices are confirmed |
+| The one pricing line ("Start from as small as $20…", shown on E1, C1 and the quiz) | `src/data/plans.ts` (`STARTING_PRICE`) and `src/components/PriceLine.astro` |
 | Feature list | `src/data/features.ts` |
 | Integrations | `src/data/integrations.ts` |
 | Company facts, emails, sub-processors | `src/data/company.ts` |

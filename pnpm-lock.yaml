@@ -130,6 +130,9 @@ importers:
       astro:
         specifier: 7.4.5
         version: 7.4.5(@types/node@24.19.2)(@vercel/functions@3.10.6(@aws-sdk/credential-provider-web-identity@3.972.82)(ws@8.22.0))(aws4fetch@1.0.20)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      aws4fetch:
+        specifier: 1.0.20
+        version: 1.0.20
       nodemailer:
         specifier: 7.0.9
         version: 7.0.9

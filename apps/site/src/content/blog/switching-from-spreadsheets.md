@@ -22,7 +22,7 @@ Each product needs its units, its price per service type (staffed, drop-off, pic
 
 Re-price a handful of recent orders in the new system and compare them with what you actually charged. Differences point at a missing rule: travel, overtime, a surface fee.
 
-> On Growth and Scale, we do this step with you and check every price before you go live.
+> We can do this step with you and check every price before you go live.
 
 ## 4. Go live on a quiet day
 

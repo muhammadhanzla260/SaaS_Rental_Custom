@@ -14,7 +14,7 @@ const hasStories = (await getCollection('stories', (s) => s.data.approved)).leng
 {variants.map((v) => {
   const n = NAV[v];
   const f = n.footer;
-  const pricing = v === 'cars' ? '/cars#pricing' : '/events/pricing';
+  const pricing = v === 'cars' ? '/cars#pricing' : '/events#pricing';
   return (
     <footer class:list={['rh-foot', vertical === 'auto' && `v-${v}`]}>
       <div class="rh-fin">

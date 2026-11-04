@@ -1,0 +1,39 @@
+---
+/** The one pricing line, shared by the event home (E1), the car page (C1) and the quiz result. */
+import { STARTING_PRICE } from '~/data/plans';
+import { SIGN_UP } from '~/lib/site';
+
+/** compact: a light card without buttons, for beside another call to action (quiz result). */
+interface Props { vertical: 'events' | 'cars'; compact?: boolean }
+const { vertical, compact = false } = Astro.props;
+const cars = vertical === 'cars';
+---
+<div class:list={['rv pl', { cars, compact }]}>
+  {!compact && <div class="glow pl-glow" aria-hidden="true"></div>}
+  <span class="eyebrow pl-eye">Pricing</span>
+  <p class="pl-line">Start from as small as <span class="pl-amt mono">${STARTING_PRICE}</span> with unlimited users and locations.</p>
+  {!compact && <div class="pl-btns">
+    {cars
+      ? <><a href="#access" class="btn pl-cta">Join early access</a><a href="/demo?rents=cars" class="btn btn-ghost">Talk to us</a></>
+      : <><a href={SIGN_UP} class="btn pl-cta" data-track="start_trial" data-where="pricing">Start free trial</a><a href="/demo" class="btn btn-ghost">Book a demo</a></>}
+  </div>}
+</div>
+
+<style>
+  .pl { --acc: #D4FF3A; --acc-fg: #0B0D12; position: relative; overflow: hidden; border-radius: 32px; background: #0B0D12; color: #fff; padding: clamp(32px, 6vw, 72px); display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
+  .pl.cars { --acc: #C9B4FF; --acc-fg: #1B1530; background: #1B1530; }
+  .pl :focus-visible { outline-color: var(--acc); }
+  .pl-glow { width: 520px; height: 520px; background: #2C4FE0; opacity: .45; right: -160px; top: -220px; animation: drift 14s ease-in-out infinite; }
+  .cars .pl-glow { background: #6D3FD6; }
+  .pl-eye { position: relative; color: var(--acc); }
+  .pl-line { position: relative; margin: 0; max-width: 22ch; font: 800 clamp(34px, 5.2vw, 68px)/1.04 var(--font-display); letter-spacing: -.03em; text-wrap: balance; }
+  .pl-amt { display: inline-block; padding: 0 .18em; border-radius: .18em; background: var(--acc); color: var(--acc-fg); font-weight: 700; letter-spacing: -.04em; rotate: -2deg; }
+  .pl-btns { position: relative; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+  .pl.compact { background: #fff; color: #10131A; border: 1px solid #E3E5DC; justify-content: center; }
+  .compact .pl-eye { color: #535C6B; }
+  .compact .pl-amt { background: #D4FF3A; color: #0B0D12; }
+  .pl-cta { background: var(--acc); color: var(--acc-fg); }
+  @media (prefers-reduced-motion: no-preference) {
+    .pl-amt { animation: pop .6s var(--ease-out) .2s both; }
+  }
+</style>

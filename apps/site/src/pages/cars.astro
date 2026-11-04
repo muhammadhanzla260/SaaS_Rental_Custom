@@ -3,6 +3,7 @@
 import Page from '~/layouts/Page.astro';
 import Icon from '~/components/Icon.astro';
 import Faq from '~/components/Faq.astro';
+import PriceLine from '~/components/PriceLine.astro';
 import Form from '~/components/Form.astro';
 import { IC } from '~/lib/site';
 
@@ -40,7 +41,6 @@ const CLASSES = { eco: ['Economy', 4500, 20000], suv: ['SUV', 7900, 30000], van:
 const EXTRAS: [string, string, number, 'day' | 'once', number?][] = [['seat', 'Child seat', 800, 'day', 5600], ['gps', 'GPS unit', 600, 'day'], ['driver', 'Extra driver', 1000, 'day'], ['cover', 'Full damage cover', 2200, 'day'], ['young', 'Driver under 25', 2500, 'day'], ['oneway', 'One-way return', 7500, 'once']];
 const FEATS = [['Fleet calendar by vehicle', 'See every car and class by the hour, with cleaning and service time held.', I.cal, '#F1EAFE', '#5B2DB0'], ['Online booking widget', 'Real availability, rates and extras on your own website.', I.globe, '#E6ECFF', '#233FB8'], ['Licence & ID checks', 'Customers upload before pickup; age and expiry are checked.', I.id, '#E3F5EC', '#0B6145'], ['Digital rental agreement', 'E-signed with the condition report attached.', I.doc, '#FFF1DC', '#8A4A00'], ['Deposit holds', 'Held by class, released automatically after return.', I.card, '#F1EAFE', '#5B2DB0'], ['Pickup & return photos', 'Tap-to-mark damage with side-by-side comparison.', I.cam, '#FDE7E8', '#A31F25'], ['Mileage & fuel charges', 'Included miles per day, extra miles and fuel priced.', I.fuel, '#E0F2F7', '#0A5566'], ['Extras & cover', 'Child seats, GPS, extra drivers and damage cover.', I.star, '#FFF1DC', '#8A4A00'], ['Maintenance by mileage', 'Services due by date or miles block new bookings.', I.wrench, '#E6ECFF', '#233FB8'], ['Multi-location & one-way', 'Pick up in one branch, return to another.', I.pin, '#E3F5EC', '#0B6145'], ['Reminders & extensions', 'Return reminders, online extensions and late fees.', I.bell, '#F1EAFE', '#5B2DB0'], ['Fleet reports', 'Utilisation, revenue per vehicle and damage history.', I.chart, '#E0F2F7', '#0A5566']];
 const KINDS = [['Car rental', 'Economy to premium, by the day, week or month.', I.car, '#6D3FD6', ['Classes', 'Weekly rates', 'Airport pickup']], ['Vans & trucks', 'Moving vans, cargo vans and box trucks for people and businesses.', I.van, '#2C4FE0', ['Per-mile pricing', 'Business accounts', 'One-way']], ['Luxury & exotic', 'High-value cars with bigger holds and stricter checks.', I.star, '#B0306A', ['Large deposits', 'ID checks', 'Photo proof']], ['Long-term & subscription', 'Monthly rentals for rideshare drivers and businesses.', I.key, '#0B7A55', ['Monthly billing', 'Auto-charge', 'Service schedule']]] as const;
-const PLANS = [['Fleet 15', 'Up to 15 vehicles', '$59', '/ month', ['1 location · 3 users', 'Bookings & fleet calendar', 'Licence checks & e-sign', 'Pickup & return inspections', 'Deposit holds'], false, 'Join early access', '#access'], ['Fleet 60', 'Up to 60 vehicles', '$149', '/ month', ['3 locations · 10 users', 'Everything in Fleet 15', 'Online booking widget', 'Maintenance by mileage', 'SMS reminders & extensions'], true, 'Join early access', '#access'], ['Fleet 200', 'Up to 200 vehicles', '$349', '/ month', ['Unlimited locations', 'Everything in Fleet 60', 'One-way rentals', 'Fleet reports', 'Priority support'], false, 'Join early access', '#access'], ['Enterprise', '200+ vehicles', 'Custom', '', ['Everything in Fleet 200', 'Telematics when released', 'SSO & custom roles', 'Dedicated manager', 'Data migration'], false, 'Talk to us', '/demo?rents=cars']] as const;
 const ROAD = [['1', 'Designing with operators', 'Now', 'We are shaping inspections, rates and checks with real fleet owners.', true], ['2', 'Private beta', 'Next', 'Early-access members run real rentals with us on hand to help.', false], ['3', 'Public launch', 'Later', 'Open sign-up, with launch pricing locked in for beta members.', false]] as const;
 const FAQS: [string, string][] = [
   ['When does car rental launch?', 'It is in design now with a small group of operators. Early-access members join a private beta first, then we open it up. Join the list and we will keep you posted with real dates, not guesses.'],
@@ -218,21 +218,8 @@ const FAQS: [string, string][] = [
   </section>
 
   <!-- PRICING -->
-  <section id="pricing" class="wrap sec" style="padding-top:110px;gap:32px">
-    <div class="rv sec-head"><div class="stack" style="gap:14px"><span class="eyebrow">Launch pricing</span><h2 class="h2">Priced by fleet size</h2></div><span class="chip" style="background:#F1EAFE;color:#5B2DB0">Locked in for early-access members</span></div>
-    <div class="grid-auto" style="--min:260px;--gap:14px">
-      {PLANS.map(([name, who, price, per, feats, pop, cta, href]) => (
-        <div class:list={['rv plan', { pop }]}>
-          {pop && <span class="chip pop-tag">Most fleets</span>}
-          <strong style="font:800 26px var(--font-display)">{name}</strong>
-          <span style="font-size:14px;opacity:.7">{who}</span>
-          <span style="display:flex;align-items:baseline;gap:6px"><strong class="mono" style={`font-size:${price === 'Custom' ? 40 : 52}px;letter-spacing:-.03em`}>{price}</strong><span style="font-size:14px;opacity:.65">{per}</span></span>
-          <a href={href} class="btn plan-btn">{cta}</a>
-          <ul class="ticks">{feats.map((f) => <li><span aria-hidden="true">✓</span>{f}</li>)}</ul>
-        </div>
-      ))}
-    </div>
-    <span class="rv" style="font-size:13.5px;color:#6B7383">Sample launch prices. Final pricing confirmed before the beta. Card processing billed by Stripe at their standard rates.</span>
+  <section id="pricing" class="wrap" style="padding-top:110px;scroll-margin-top:90px">
+    <PriceLine vertical="cars" />
   </section>
 
   <!-- EARLY ACCESS -->
@@ -448,16 +435,6 @@ const FAQS: [string, string][] = [
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .tags .chip { background: #F1F2EA; font-size: 12.5px; padding: 5px 10px; }
   .core { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 22px; background: #fff; border: 1px solid #E3E5DC; }
-  .plan { border-radius: 26px; padding: 28px; display: flex; flex-direction: column; gap: 14px; background: #fff; color: #10131A; border: 1px solid #E3E5DC; position: relative; }
-  .plan.pop { background: #1B1530; color: #fff; border-color: #1B1530; }
-  .plan.pop :focus-visible { outline-color: #C9B4FF; }
-  .pop-tag { position: absolute; top: -14px; left: 28px; background: #C9B4FF; color: #1B1530; font-size: 12px; padding: 5px 12px; font-weight: 800; }
-  .plan-btn { background: #1B1530; color: #fff; }
-  .plan.pop .plan-btn { background: #C9B4FF; color: #1B1530; }
-  .ticks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .ticks li { display: flex; gap: 10px; font-size: 14.5px; }
-  .ticks span { color: #6D3FD6; font-weight: 800; }
-  .plan.pop .ticks span { color: #C9B4FF; }
   .access { border-radius: 36px; background: #0D0A18; color: #fff; padding: clamp(28px, 5vw, 64px); display: flex; flex-wrap: wrap; gap: 48px; position: relative; overflow: hidden; }
   .road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
   .road li { display: flex; gap: 16px; align-items: flex-start; }

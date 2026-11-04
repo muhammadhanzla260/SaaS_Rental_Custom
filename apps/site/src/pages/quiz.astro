@@ -1,10 +1,10 @@
 ---
-/** E5 · Which plan fits? Four questions, auto-advance, back, a "matching" beat, then a result. */
+/** E5 · Which setup fits? Four questions, auto-advance, back, a "matching" beat, then a result. */
 import Page from '~/layouts/Page.astro';
 import Icon from '~/components/Icon.astro';
 import Form from '~/components/Form.astro';
 import { SIGN_UP } from '~/lib/site';
-import { PLANS } from '~/data/plans';
+import PriceLine from '~/components/PriceLine.astro';
 
 const I = {
   party: 'M12 3 21 20H3zM12 3v17', tent: 'M3 20 12 5l9 15M8 20l4-7 4 7M12 5V3', av: 'M3 6h18v11H3zM8 21h8M12 17v4', tool: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
@@ -19,23 +19,18 @@ const QS: { key: string; title: string; sub: string; opts: Opt[] }[] = [
   { key: 'crew', title: 'Do you deliver and set up?', sub: 'This decides whether we switch on the crew portal, travel fees and live GPS.', opts: [['yes', 'Yes, our crews deliver and set up', 'Drivers, setup crews, event staff', I.truck], ['some', 'Some delivery, mostly pickup', 'Drop-offs on request', I.box], ['no', 'Customers pick up and return', 'Counter or yard pickup only', I.hand]] },
   { key: 'vol', title: 'Roughly how many bookings a month?', sub: 'A busy season month is a good guide.', opts: [['<30', 'Fewer than 30', 'Getting started', I.cal], ['30-150', '30 to 150', 'Busy weekends', I.cal], ['150-500', '150 to 500', 'Every day is busy', I.chart], ['500+', 'More than 500', 'High volume', I.chart]] },
 ];
-const WHY: Record<string, [string, string[]]> = {
-  starter: ['You run one location without delivery crews, so you get everything you need to quote, book and get paid.', ['1 location · 3 users', 'Quotes, bookings & calendar', 'E-sign & online deposits', 'Email automations']],
-  growth: ['Crews on the road or a few branches: you need SMS heads-ups, the crew portal and live GPS.', ['3 locations · 10 users', 'SMS reminders & lead follow-ups', 'Crew portal with live GPS', 'All 32 reports']],
-  scale: ['With this many locations or bookings, unlimited users and done-for-you migration pay for themselves.', ['Unlimited locations & users', 'Data migration done for you', 'Priority support', 'API & webhooks when released']],
-};
 const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking', 'Pickup & return photo checks', 'Security deposit holds', 'Mileage & fuel tracking', 'Insurance & add-ons'];
 ---
 <Page
-  title="Which plan fits? A 30-second quiz"
-  description="Answer four quick questions about your rental business and get the Rent Hatch setup and plan that fits."
+  title="Which setup fits? A 30-second quiz"
+  description="Answer four quick questions about your rental business and get the Rent Hatch setup that fits."
   vertical="auto"
   active="quiz"
 >
   <div class="quiz" data-quiz data-step="0">
     <div class="glow qglow" aria-hidden="true"></div>
     <div class="wrap stack" style="position:relative;padding-top:56px;padding-bottom:96px;gap:36px">
-      <noscript><p class="lede">This quiz needs JavaScript. <a href="/events/pricing" style="color:#2C4FE0;font-weight:600">Compare the plans</a> instead.</p></noscript>
+      <noscript><p class="lede">This quiz needs JavaScript. <a href="/events/how-it-works" style="color:#2C4FE0;font-weight:600">See how it works</a> instead.</p></noscript>
 
       <div class="stack q-only" style="gap:14px;max-width:760px">
         <div style="display:flex;align-items:center;gap:14px">
@@ -79,18 +74,9 @@ const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking',
               <span class="eyebrow" style="color:#8A93A3">We'll switch these on for you</span>
               <div class="mods" data-mods></div>
             </div>
-            <div class="btns" style="position:relative;margin-top:8px"><a href={SIGN_UP} class="btn btn-volt" data-signup data-track="start_trial" data-where="quiz">Start free trial on <span data-pname></span></a><a href="/demo" class="btn btn-ghost">Book a demo</a></div>
+            <div class="btns" style="position:relative;margin-top:8px"><a href={SIGN_UP} class="btn btn-volt" data-signup data-track="start_trial" data-where="quiz">Start free trial</a><a href="/demo" class="btn btn-ghost">Book a demo</a></div>
           </div>
-          {PLANS.map((p) => (
-            <div class="mock res-plan" data-plan-card={p.id} hidden>
-              <span class="eyebrow">Recommended plan</span>
-              <strong style="font:800 40px var(--font-display)">{p.name}</strong>
-              <span style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap"><strong class="mono" style="font-size:48px">${p.yearly}</strong><span style="color:#535C6B">/ month, billed yearly</span></span>
-              <span style="font-size:15px;color:#535C6B;line-height:1.5">{WHY[p.id]![0]}</span>
-              <ul class="ticks">{WHY[p.id]![1].map((f) => <li><span aria-hidden="true">✓</span>{f}</li>)}</ul>
-              <a href="/events/pricing" style="margin-top:auto;font-weight:650;color:#2C4FE0">Compare all plans →</a>
-            </div>
-          ))}
+          <div class="res-plan"><PriceLine vertical="events" compact /></div>
         </div>
         <button type="button" class="chip back" data-restart style="align-self:flex-start">↺ Start over</button>
       </div>
@@ -122,7 +108,6 @@ const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking',
 </Page>
 
 <script>
-  import { quizPlan, PLANS } from '~/data/plans';
   import { track } from '~/scripts/track';
 
   const root = document.querySelector<HTMLElement>('[data-quiz]')!;
@@ -152,16 +137,6 @@ const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking',
       thinking.hidden = true;
       const res = root.querySelector<HTMLElement>(`[data-result="${cars ? 'cars' : 'events'}"]`)!;
       if (!cars) {
-        const id = quizPlan({
-          locations: { '1': 1, '2-3': 2, '4-10': 4, '10+': 11 }[a.locs!] ?? 1,
-          crews: a.crew === 'yes',
-          bookings: { '<30': 20, '30-150': 100, '150-500': 300, '500+': 600 }[a.vol!] ?? 0,
-        });
-        const plan = PLANS.find((p) => p.id === id)!;
-        root.querySelectorAll<HTMLElement>('[data-plan-card]').forEach((c) => { c.hidden = c.dataset.planCard !== id; });
-        res.querySelector('[data-pname]')!.textContent = plan.name;
-        const su = res.querySelector<HTMLAnchorElement>('[data-signup]')!;
-        su.href = `${su.href.split('?')[0]}?plan=${id}`;
         res.querySelector('[data-line]')!.textContent = `Built for ${WHAT[a.what!] ?? 'your rentals'}${a.crew === 'yes' ? ', with crews that deliver and set up' : a.crew === 'no' ? ', with counter pickup and returns' : ''}. Here is the setup we recommend from your answers.`;
         const mods = ['Live availability by unit', 'E-sign + online deposits', 'Auto-charged balances'];
         if (a.crew === 'yes' || a.crew === 'some') mods.push('Travel fees by distance');
@@ -169,9 +144,9 @@ const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking',
         if (a.locs && a.locs !== '1') mods.push('Multi-location setup');
         if (a.vol === '150-500' || a.vol === '500+') mods.push('Lead follow-ups', 'Ops board alerts');
         res.querySelector('[data-mods]')!.innerHTML = mods.map((m, i) => `<span class="chip" style="animation-delay:${200 + i * 80}ms"><span>✓</span>${m}</span>`).join('');
-        track('quiz_result', { plan: id, what: a.what!, locations: a.locs!, crews: a.crew!, bookings: a.vol! });
+        track('quiz_result', { what: a.what!, locations: a.locs!, crews: a.crew!, bookings: a.vol! });
       } else {
-        track('quiz_result', { plan: 'cars_early_access', what: 'cars' });
+        track('quiz_result', { what: 'cars' });
       }
       res.hidden = false;
       res.querySelector<HTMLElement>('[data-result-h]')?.focus({ preventScroll: true });
@@ -235,10 +210,9 @@ const CAR_FEAT = ['Fleet calendar by vehicle', 'Licence & ID upload at booking',
   .mods :global(.chip) { background: #141821; border: 1px solid #2E3442; color: #fff; animation: pop .45s both; }
   .mods :global(.chip span) { color: #D4FF3A; }
   .btns { display: flex; flex-wrap: wrap; gap: 12px; }
-  .res-plan { flex: 1 1 320px; min-width: 0; border-radius: 32px; background: #fff; border: 1px solid #E3E5DC; padding: 32px; display: flex; flex-direction: column; gap: 14px; animation-delay: 150ms; }
-  .ticks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .ticks li { display: flex; gap: 10px; font-size: 15px; }
-  .ticks span { color: #2C4FE0; font-weight: 800; }
+  .res-plan { flex: 1 1 320px; min-width: 0; display: flex; animation: rise .6s var(--ease-out) .15s both; }
+  .res-plan > :global(.pl) { flex: 1; border-radius: 32px; padding: 36px; }
+  .res-plan :global(.pl-line) { font-size: clamp(30px, 3.2vw, 42px); }
   .cars { border-radius: 32px; background: #120F1E; color: #fff; padding: clamp(28px, 4vw, 56px); display: flex; flex-wrap: wrap; gap: 40px; position: relative; overflow: hidden; border: 1.5px dashed #4A3A80; }
   .cars :focus-visible { outline-color: #C9B4FF; }
   .cfeat { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }

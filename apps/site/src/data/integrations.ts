@@ -16,6 +16,6 @@ export const INTEGRATIONS: Integration[] = [
   i('Xero', 'Accounting', 'Sync invoices and payments to Xero.', 'Coming', 'Both', '#0E7EA8', 'Planned alongside QuickBooks.'),
   i('Google Calendar', 'Calendar', 'See bookings and crew jobs in your calendar.', 'Coming', 'Both', '#188038', 'Planned: one calendar per location or per crew member.'),
   i('Zapier', 'Automation', 'Connect Rent Hatch to thousands of apps.', 'Coming', 'Both', '#D93F00', 'Planned triggers: new lead, order booked, payment received.'),
-  i('API & webhooks', 'Developers', 'Build your own connections.', 'Coming', 'Both', '#0B0D12', 'Planned for the Scale plan: REST API and signed webhooks.'),
+  i('API & webhooks', 'Developers', 'Build your own connections.', 'Coming', 'Both', '#0B0D12', 'Planned: a REST API and signed webhooks.'),
   i('Telematics & GPS trackers', 'Cars', 'Mileage and location from vehicle trackers.', 'Coming', 'Cars', '#6D3FD6', 'Planned for car rental after launch; early-access members choose which providers come first.'),
 ];

@@ -4,7 +4,8 @@ import Page from '~/layouts/Page.astro';
 import Icon from '~/components/Icon.astro';
 import Faq from '~/components/Faq.astro';
 import { IC, SIGN_UP } from '~/lib/site';
-import { PLANS, PRICES_FINAL, offersJsonLd } from '~/data/plans';
+import PriceLine from '~/components/PriceLine.astro';
+import { offersJsonLd } from '~/data/plans';
 
 const GEARS = [
   { id: 'party', label: 'Party & inflatables', icon: IC.event, glow: '#2C4FE0' },
@@ -61,8 +62,8 @@ const SEC = [['Your data, walled off', 'Every business is isolated from every ot
 const INTEG = ['Stripe', 'Google Workspace', 'Microsoft 365', 'Zoho Mail', 'Any SMTP server', 'SMS provider', 'Mapbox maps', 'CSV import & export', 'API & webhooks · soon'];
 const FAQS: [string, string][] = [
   ['Does it work for tents, AV and equipment, not just bounce houses?', 'Yes. Every product can be priced as staffed, drop-off or customer pickup, with its own included hours, overtime, cleaning buffer and number of units. Tents, chairs, AV and tools work the same way.'],
-  ['Can I bring my products and customers from another system?', 'Yes. Import products, prices and customers from a spreadsheet. On Growth and Scale we help you move your data and check that prices match your old system to the cent.'],
-  ['Do I need a contract?', 'No. Plans are month to month, or yearly with 20% off. Cancel any time from your settings and export your data.'],
+  ['Can I bring my products and customers from another system?', 'Yes. Import products, prices and customers from a spreadsheet. We can help you move your data and check that prices match your old system to the cent.'],
+  ['Do I need a contract?', 'No. Pay month to month and cancel any time from your settings. Your data is yours to export.'],
   ['Can emails come from my own address and domain?', 'Yes. Connect your own mail server once (Google Workspace, Microsoft 365, Zoho or any SMTP) and every quote, receipt and reminder comes from you. Quote and pay links can use your own domain.'],
   ['Do my crews need to install an app?', 'No install needed. Crews open the crew portal on their phone browser and add it to the home screen. GPS is only on while they are driving to a job.'],
   ['How do card payments work?', 'Payments run through your own Stripe account, so money goes straight to you. Card numbers never touch our servers. Stripe charges its standard processing fees.'],
@@ -308,32 +309,9 @@ const app = {
     <div class="rv tags" style="align-items:center;margin-top:10px;gap:10px"><span style="font-size:14px;color:#535C6B;margin-right:6px">Works with</span>{INTEG.map((i) => <a href="/integrations" class="chip integ">{i}</a>)}</div>
   </section>
 
-  <!-- PRICING TEASER -->
-  <section class="wrap sec" style="padding-top:100px;padding-bottom:40px" data-scope data-billing="yearly">
-    <div class="rv sec-head">
-      <div class="stack" style="gap:16px"><span class="eyebrow">Pricing</span><h2 class="h2">Simple plans that grow with your business</h2></div>
-      <div class="seg light" role="radiogroup" aria-label="Billing period" data-choice="billing" data-track-toggle>
-        <button type="button" class="segb" role="radio" aria-checked="false" data-value="monthly" style="height:42px">Monthly</button>
-        <button type="button" class="segb" role="radio" aria-checked="true" data-value="yearly" style="height:42px">Yearly<span class="soon" style="background:#0B7A55">Save 20%</span></button>
-      </div>
-    </div>
-    <div class="grid-auto" style="--min:280px">
-      {PLANS.map((p) => (
-        <div class:list={['rv plan', { pop: p.popular }]}>
-          {p.popular && <span class="chip pop-tag">Most popular</span>}
-          <strong style="font:800 26px var(--font-display)">{p.name}</strong>
-          <span style="font-size:14.5px;opacity:.7;line-height:1.45">{p.who}</span>
-          <span style="display:flex;align-items:baseline;gap:6px"><strong class="mono" style="font-size:52px;letter-spacing:-.03em"><span data-when="billing:yearly">${p.yearly}</span><span data-when="billing:monthly" hidden>${p.monthly}</span></strong><span style="font-size:14px;opacity:.65">/ month</span></span>
-          <span style="font-size:13px;opacity:.6;margin-top:-10px"><span data-when="billing:yearly">billed yearly</span><span data-when="billing:monthly" hidden>billed monthly</span></span>
-          <a href={`${SIGN_UP}?plan=${p.id}`} class="btn plan-btn" data-track="start_trial" data-where={`plan-${p.id}`}>Start free trial</a>
-          <ul class="ticks">{p.highlights.map((f) => <li><span aria-hidden="true">✓</span>{f}</li>)}</ul>
-        </div>
-      ))}
-    </div>
-    <div class="rv between" style="flex-wrap:wrap;gap:14px">
-      <span style="font-size:13.5px;color:#6B7383">{PRICES_FINAL ? 'Prices in USD.' : 'Sample prices. Final pricing to be confirmed.'} Card processing billed by Stripe at their standard rates.</span>
-      <a href="/events/pricing" style="font-weight:650;color:#2C4FE0">Compare every plan →</a>
-    </div>
+  <!-- PRICING -->
+  <section id="pricing" class="wrap" style="padding-top:64px;padding-bottom:40px;scroll-margin-top:90px">
+    <PriceLine vertical="events" />
   </section>
 
   <!-- FAQ -->
@@ -353,7 +331,6 @@ const app = {
 </Page>
 
 <script>
-  import { track } from '~/scripts/track';
   // Revenue leak calculator.
   const roi = document.querySelector<HTMLElement>('[data-roi]');
   if (roi) {
@@ -373,10 +350,6 @@ const app = {
     roi.addEventListener('input', calc);
     calc();
   }
-  document.addEventListener('rh:choice', (e) => {
-    const d = (e as CustomEvent).detail;
-    if (d.key === 'billing' && d.user) track('pricing_toggle', { billing: d.value, location: 'home' });
-  });
 </script>
 
 <style>
@@ -482,15 +455,6 @@ const app = {
   .secu { display: flex; gap: 16px; padding: 22px; border-radius: 20px; background: #F1F2EA; }
   .secu-ic { width: 44px; height: 44px; border-radius: 14px; background: #0B0D12; flex: none; display: inline-flex; align-items: center; justify-content: center; }
   .integ { background: #fff !important; border: 1px solid #E3E5DC; font-size: 14px !important; }
-  .plan { border-radius: 24px; padding: 30px; display: flex; flex-direction: column; gap: 16px; background: #fff; color: #10131A; border: 1px solid #E3E5DC; position: relative; }
-  .plan.pop { background: #0B0D12; color: #fff; border-color: #0B0D12; }
-  .pop-tag { position: absolute; top: -14px; left: 30px; background: #D4FF3A; color: #0B0D12; font-size: 12px; padding: 5px 12px; font-weight: 800; }
-  .plan-btn { background: #0B0D12; color: #fff; }
-  .plan.pop .plan-btn { background: #D4FF3A; color: #0B0D12; }
-  .ticks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .ticks li { display: flex; gap: 10px; font-size: 14.5px; }
-  .ticks span { color: #2C4FE0; font-weight: 800; }
-  .plan.pop .ticks span { color: #D4FF3A; }
   .faq-sec { padding-top: 100px; padding-bottom: 110px; display: flex; flex-wrap: wrap; gap: 48px; }
   .final { position: relative; overflow: hidden; border-radius: 36px; background: #D4FF3A; color: #0B0D12; padding: clamp(36px, 6vw, 80px); display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end; justify-content: space-between; }
   .final-mark { position: absolute; right: -60px; top: -90px; opacity: .14; }
