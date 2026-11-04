@@ -948,12 +948,13 @@ export function cancelOrder(
 
     const outcome = cancelOutcomeText(c.outcome, { credit, extra, refunded, money });
     const diff: Record<string, { from: string; to: string }> = { Status: { from: order.status, to: c.outcome === 'rain_check' ? 'rained out' : 'cancelled' }, Outcome: { from: '', to: outcome } };
+    if (!c.notifyCustomer) diff['Customer emailed'] = { from: '', to: 'No (staff chose not to notify)' };
     for (const r of made) diff[`Refund ${r.number}`] = { from: '', to: `${money(r.amountCents)} · ${r.gateway === 'manual' ? `${r.method}, handed back` : 'to the card'}` };
     await recordVersion(tx, tenantId, actor, after!, 'cancel', diff, why);
     await audit(tx, tenantId, actor, { type: 'order', id }, 'order.cancel', {
-      number: order.number, from: order.status, outcome: c.outcome, credit: credit?.code ?? null, refundedCents: refunded, reason: c.reason,
+      number: order.number, from: order.status, outcome: c.outcome, credit: credit?.code ?? null, refundedCents: refunded, reason: c.reason, notified: c.notifyCustomer,
     });
-    await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: why, outcome } });
+    if (c.notifyCustomer) await enqueueOrderMessage(tx, tenantId, id, 'cancellation', `${id}:cancellation:v${after!.version}`, { automatic: true, meta: { reason: why, outcome } });
     await planOrderMessages(tx, tenantId, id);
     await syncInvoices(tx, tenantId, id);
     return { order: after!, credit, goodwillCredit: extra, refunds: made, outcome };

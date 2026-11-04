@@ -82,6 +82,8 @@ export const messagingSettingsSchema = z.object({
   internal: z.record(z.string(), z.boolean()).default({}),
   replyTo: z.union([z.literal(''), z.email()]).default(''),
   cc: emailList.default([]),
+  /** Which customer emails the CC addresses get a copy of (missing = the default for that type). */
+  ccTypes: z.record(z.string(), z.boolean()).default({}),
   bcc: emailList.default([]),
   /** Declined cards, last-minute bookings, change requests and the daily digest go here. */
   alertsTo: emailList.default([]),
@@ -97,6 +99,11 @@ export const messagingSettingsSchema = z.object({
 });
 export type MessagingSettings = z.infer<typeof messagingSettingsSchema>;
 
+/** Customer emails, the ones the office can be copied on. */
+export const CC_TYPES = MESSAGE_TYPE_KEYS.filter((k) => MESSAGE_TYPES[k].group !== 'internal' && (MESSAGE_TYPES[k].channels as readonly string[]).includes('email'));
+/** Reminders and follow-ups are not copied by default: they would bury the bookings and payments. */
+const CC_OFF_BY_DEFAULT = new Set<string>(['pre_event', 'day_before', 'review_request', 'thank_you', 'survey_reminder']);
+
 /** Settings with every type filled in (defaults for anything not saved yet). */
 export function resolveMessaging(m: MessagingSettings) {
   const instant = Object.fromEntries(INSTANT_TYPES.map((k) => [k, m.instant[k] ?? true])) as Record<string, boolean>;
@@ -106,7 +113,8 @@ export function resolveMessaging(m: MessagingSettings) {
   const internal = Object.fromEntries(
     MESSAGE_TYPE_KEYS.filter((k) => MESSAGE_TYPES[k].group === 'internal').map((k) => [k, m.internal[k] ?? true]),
   ) as Record<string, boolean>;
-  return { ...m, instant, schedules, internal };
+  const ccOn = Object.fromEntries(CC_TYPES.map((k) => [k, m.ccTypes?.[k] ?? !CC_OFF_BY_DEFAULT.has(k)])) as Record<string, boolean>;
+  return { ...m, instant, schedules, internal, ccOn };
 }
 export type ResolvedMessaging = ReturnType<typeof resolveMessaging>;
 

@@ -381,6 +381,8 @@ export const cancelSchema = z.object({
   amount: money.default(0),
   goodwill: money.default(0),
   validUntil: z.union([z.literal(''), z.null(), z.iso.date()]).optional().transform((v) => v || null),
+  /** Off for a duplicate or test order: cancel without telling the customer. */
+  notifyCustomer: z.boolean().default(true),
 });
 export type CancelInput = z.input<typeof cancelSchema>;
 

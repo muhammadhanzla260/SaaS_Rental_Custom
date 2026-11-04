@@ -85,7 +85,8 @@ async function deliver(db: Db, tenantId: string, id: string, hooks: Hooks): Prom
       from: `"${fromName.replace(/"/g, '')}" <${fromEmail}>`,
       to: m.toName ? `"${m.toName.replace(/"/g, '')}" <${m.toAddress}>` : m.toAddress,
       replyTo: ctx.messaging.replyTo || acc?.replyTo || undefined,
-      cc: customer ? ctx.messaging.cc : ((meta.cc as string[] | undefined) ?? []),
+      // The office copy only on the customer emails chosen in Settings (not every reminder and follow-up).
+      cc: customer ? (ctx.messaging.ccOn[m.type] ? ctx.messaging.cc : []) : ((meta.cc as string[] | undefined) ?? []),
       bcc: customer ? ctx.messaging.bcc : [],
       subject: out.subject,
       html: out.html ?? '',
