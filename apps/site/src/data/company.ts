@@ -7,11 +7,11 @@ export const COMPANY = {
   legalName: '', // TODO(owner): registered company name
   address: '', // TODO(owner): registered address
   emails: {
-    hello: 'hello@renthatch.com',
-    sales: 'sales@renthatch.com',
-    support: 'support@renthatch.com',
-    security: 'security@renthatch.com',
-    privacy: 'privacy@renthatch.com',
+    hello: 'hello@renthatch.org',
+    sales: 'sales@renthatch.org',
+    support: 'support@renthatch.org',
+    security: 'security@renthatch.org',
+    privacy: 'privacy@renthatch.org',
   },
   phone: '', // TODO(owner): sales phone, if any
   supportHours: 'Monday to Friday, 8 AM – 6 PM Central',

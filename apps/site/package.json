@@ -6,23 +6,17 @@
   "scripts": {
     "dev": "astro dev --port 4321",
     "build": "astro build",
-    "preview": "node dist/server/entry.mjs",
+    "preview": "astro preview --port 4321",
     "typecheck": "astro check",
     "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",
-    "@astrojs/vercel": "11.0.18",
     "@rental/core": "workspace:*",
-    "astro": "7.4.5",
-    "aws4fetch": "1.0.20",
-    "nodemailer": "7.0.9",
-    "zod": "4.6.5"
+    "astro": "7.4.5"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
-    "@astrojs/node": "11.1.9",
-    "@types/nodemailer": "7.0.2",
     "typescript": "5.9.3",
     "vitest": "5.0.3"
   }

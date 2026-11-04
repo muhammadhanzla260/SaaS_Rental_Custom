@@ -2,8 +2,8 @@
 
 export type Vertical = 'events' | 'cars';
 
-export const SITE_URL = (import.meta.env.PUBLIC_SITE_URL ?? 'https://renthatch.com').replace(/\/$/, '');
-export const APP_URL = (import.meta.env.PUBLIC_APP_URL ?? 'https://app.renthatch.com').replace(/\/$/, '');
+export const SITE_URL = (import.meta.env.PUBLIC_SITE_URL ?? 'https://renthatch.org').replace(/\/$/, '');
+export const APP_URL = (import.meta.env.PUBLIC_APP_URL ?? 'https://app.renthatch.org').replace(/\/$/, '');
 export const SIGN_UP = `${APP_URL}/register`;
 export const SIGN_IN = `${APP_URL}/sign-in`;
 export const BRAND = 'Rent Hatch';

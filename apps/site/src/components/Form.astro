@@ -1,16 +1,16 @@
 ---
 /**
- * Every website form goes through this wrapper: it posts to /api/forms/<kind>, carries the
+ * Every website form goes through this wrapper: it posts to /api/form.php?kind=<kind>, carries the
  * spam-protection fields (honeypot, timing stamp, Turnstile when configured) and an error line.
  * Content inside <slot name="success"> shows once the form's root has data-state="sent".
  */
-import { HONEYPOT } from '~/lib/server/spam';
+const HONEYPOT = 'company_website'; // must match public/api/form.php
 type Kind = 'newsletter' | 'early-access' | 'demo' | 'contact';
 interface Props { kind: Kind; id: string; track?: string; class?: string; style?: string; source?: string }
 const { kind, id, track, class: cls, style, source } = Astro.props;
 const turnstile = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
 ---
-<form id={id} data-form={kind} data-form-id={id} data-track={track} action={`/api/forms/${kind}`} method="post" class={cls} style={style}>
+<form id={id} data-form={kind} data-form-id={id} data-track={track} action={`/api/form.php?kind=${kind}`} method="post" class={cls} style={style}>
   <input type="hidden" name="_t" value="" />
   <input type="hidden" name="_fid" value={id} />
   {source && <input type="hidden" name="source" value={source} />}

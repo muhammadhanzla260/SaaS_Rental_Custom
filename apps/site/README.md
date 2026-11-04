@@ -1,6 +1,6 @@
 # Rent Hatch marketing site (`apps/site`)
 
-The public website at renthatch.com. The product itself lives on app.renthatch.com (`apps/web`).
+The public website at renthatch.org. The product itself lives on app.renthatch.org (`apps/web`).
 
 ## Run it
 
@@ -8,50 +8,41 @@ The public website at renthatch.com. The product itself lives on app.renthatch.c
 pnpm install
 pnpm site                      # dev server on http://localhost:4321 (shows drafts)
 pnpm site:build                # production build
-pnpm --filter @rental/site preview   # serve the build on :4321
+pnpm --filter @rental/site preview   # serve the build on :4321 (forms need PHP, so they only work once uploaded)
 pnpm --filter @rental/site test      # E2 calculator vs. the pricing engine
 ```
 
-Locally, form emails are written to `.data/outbox/` at the repo root instead of being sent.
 
 ## How it is built
 
-- **Astro, static first.** Every page is prerendered HTML with inlined CSS and self-hosted fonts.
-  JavaScript is one shared ~4 KB script plus a small island per interactive page. The only server
-  code is `src/pages/api/forms/[kind].ts`.
+- **Astro, fully static.** Every page is prebuilt HTML with inlined CSS and self-hosted fonts, so it
+  runs on any web host. JavaScript is one shared ~4 KB script plus a small island per interactive
+  page. The only server code is `public/api/form.php` (PHP, for the forms).
 - **Two businesses, one site.** `src/lib/site.ts` holds the nav, footer and calls to action for
   `events` and `cars`. `Nav` and `Footer` take a `vertical` prop. Vertical pages set the
   `rh_vertical` cookie. Shared pages render both variants, and an inline head script shows the
-  right one before first paint. Return visitors to `/` are redirected at the Vercel edge
-  (`integrations/vertical-redirect.mjs`). `/?choose=1` always shows the start screen.
+  right one before first paint. Return visitors to `/` are redirected by Apache
+  (`public/.htaccess`). `/?choose=1` always shows the start screen.
 - **Real pricing.** The E2 calculator imports `@rental/core/pricing`, the same engine the app uses.
   `src/lib/price-demo.test.ts` checks the $618.11 reference and 10 random inputs.
-- **Forms** (newsletter, early access, demo, contact) post to `/api/forms/<kind>`. They work
+- **Forms** (newsletter, early access, demo, contact) post to `/api/form.php?kind=<kind>`. They work
   without JavaScript, and with it they post in place. Spam protection: a honeypot, a timing check,
-  a per-IP rate limit, and Cloudflare Turnstile when its keys are set. Each submission goes to the
-  CRM webhook and the team inbox, and the visitor gets a thank-you email. Demo bookings include a
-  calendar invite.
+  a per-IP rate limit, and Cloudflare Turnstile when its keys are set. Every lead is emailed to
+  `lead_email` in `public/api/config.php`, and the visitor gets a thank-you email. Demo bookings
+  include a calendar invite.
 - **Tracking** (GA4, Google Ads, Meta Pixel) loads only after cookie consent; see `src/scripts/track.ts`.
   Events: `view_events`, `view_cars`, `start_trial`, `join_waitlist`, `book_demo`, `quiz_result`.
 
 ## Product videos (/demo)
 
 The demo page plays four videos: the 4-minute tour in three looks (aurora, sunrise, lagoon) and the
-full training. The files live in the app's **private** R2 bucket under `site/videos/<id>.mp4`.
-`/api/video/<id>` redirects to a signed link that expires after an hour, so the bucket stays
-private. Posters are in `public/video/`, and the list is in `src/data/videos.ts`.
-
-To publish or replace them:
+full training. They are plain files in `public/video/<id>.mp4` (git-ignored because of their size,
+about 265 MB) next to their posters, and ship with the build. The list is in `src/data/videos.ts`.
+To recreate them from the recordings, with the index moved to the front so playback starts at once:
 
 ```sh
-# web copies (index moved to the front so playback starts at once) in <repo>/.data/video/site/
-ffmpeg -i .data/video/out/aurora.mp4 -c copy -movflags +faststart .data/video/site/tour-aurora.mp4
-# then upload with the app's R2 settings
-R2_ENDPOINT=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=… node apps/site/scripts/upload-videos.mjs
+ffmpeg -i .data/video/out/aurora.mp4 -c copy -movflags +faststart apps/site/public/video/tour-aurora.mp4
 ```
-
-Set the same four `R2_*` variables on the site's Vercel project. Without them (local preview) the
-endpoint streams from `.data/video/site/`, or from `VIDEO_LOCAL_DIR`.
 
 ## Editing content
 
@@ -70,9 +61,13 @@ footer until a story is approved.
 After adding a page, add it to `scripts/og.py` and run `python apps/site/scripts/og.py` to make its
 Open Graph card.
 
-## Deploy (Vercel)
+## Deploy (Namecheap shared hosting)
 
-Create a second Vercel project from this repo with **Root Directory `apps/site`** (framework: Astro)
-and point renthatch.com at it. Environment variables are listed in `.env.example`. At minimum set
-`PUBLIC_SITE_URL`, `PUBLIC_APP_URL`, `PLATFORM_SMTP_URL`, `SITE_MAIL_FROM` and `CRM_WEBHOOK_URL`.
-Set `NEXT_PUBLIC_SITE_URL` on the app project too, so its sign-up page links back here.
+1. Copy `.env.example` to `.env` and check `PUBLIC_APP_URL` (the product app on Vercel).
+2. `pnpm site:build`. Everything to upload is in `apps/site/dist/`, including `.htaccess`, `api/` and `video/`.
+3. Upload the **contents** of `dist/` into `public_html/` (cPanel File Manager: upload a zip and
+   extract it, or FTP). Show hidden files so `.htaccess` goes too.
+4. In cPanel, create the mailbox `hello@renthatch.org` (the sender in `public/api/config.php`), and
+   turn on SSL for the domain.
+
+Lead emails go to `lead_email` in `api/config.php`; change it there on the server any time.

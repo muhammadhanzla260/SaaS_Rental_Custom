@@ -88,7 +88,7 @@ const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 
     <div class="rv sec-head"><div class="stack" style="gap:14px"><span class="eyebrow">Watch first</span><h2 class="h2">Rather watch than talk? Start here.</h2></div><span style="font-size:15px;color:#535C6B;max-width:40ch">A real workspace, recorded end to end. Pick the tour in the look you like, or the full training.</span></div>
     <div class="vids" data-vids>
       <div class="rv player">
-        <video controls preload="none" playsinline width="1280" height="720" poster={`/video/${VIDEOS[0]!.id}.jpg`} src={`/api/video/${VIDEOS[0]!.id}`} data-player aria-label={`${VIDEOS[0]!.title}, ${VIDEOS[0]!.look} look`}></video>
+        <video controls preload="none" playsinline width="1280" height="720" poster={`/video/${VIDEOS[0]!.id}.jpg`} src={`/video/${VIDEOS[0]!.id}.mp4`} data-player aria-label={`${VIDEOS[0]!.title}, ${VIDEOS[0]!.look} look`}></video>
       </div>
       <ul class="vlist">
         {VIDEOS.map((v, i) => (
@@ -113,7 +113,7 @@ const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 
     if (!b || b.getAttribute('aria-pressed') === 'true') return;
     vids.querySelectorAll('[data-video]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     player.poster = `/video/${b.dataset.video}.jpg`;
-    player.src = `/api/video/${b.dataset.video}`;
+    player.src = `/video/${b.dataset.video}.mp4`;
     player.setAttribute('aria-label', b.dataset.label!);
     void player.play().catch(() => {});
     if (matchMedia('(max-width: 900px)').matches) player.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -233,7 +233,7 @@ const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 
     box.querySelector('[data-when-line]')!.textContent = `${fmtLong(chosen)} · 20 min`;
     box.querySelector('[data-email]')!.textContent = (form.elements.namedItem('email') as HTMLInputElement).value;
     box.querySelector<HTMLAnchorElement>('[data-gcal]')!.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Rent Hatch demo')}&dates=${f(chosen)}/${f(end)}&details=${encodeURIComponent('20-minute Rent Hatch walkthrough. The video link arrives by email.')}`;
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Rent Hatch//Demo//EN', 'BEGIN:VEVENT', `UID:${f(chosen)}@renthatch.com`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(chosen)}`, `DTEND:${f(end)}`, 'SUMMARY:Rent Hatch demo', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Rent Hatch//Demo//EN', 'BEGIN:VEVENT', `UID:${f(chosen)}@renthatch.org`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(chosen)}`, `DTEND:${f(end)}`, 'SUMMARY:Rent Hatch demo', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     box.querySelector<HTMLAnchorElement>('[data-ics]')!.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
     box.dataset.step = '2';
   });

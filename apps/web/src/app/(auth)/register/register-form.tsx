@@ -23,7 +23,7 @@ export function RegisterForm({ domain, signedIn }: { domain: string; signedIn: {
   // The marketing site links here with ?vertical=cars; car businesses get early access instead of a trial.
   const [rents, setRents] = useState<'events' | 'cars'>('events');
   useEffect(() => { if (new URLSearchParams(location.search).get('vertical') === 'cars') setRents('cars'); }, []);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://renthatch.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://renthatch.org';
   const set = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV((x) => ({ ...x, [k]: val }));
 
   useEffect(() => { if (!slugTouched) set('slug', slugify(v.businessName)); }, [v.businessName, slugTouched]);

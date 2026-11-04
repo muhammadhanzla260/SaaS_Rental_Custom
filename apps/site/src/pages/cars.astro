@@ -91,7 +91,7 @@ const FAQS: [string, string][] = [
         {Object.entries(FLEETS).map(([id, f], fi) => (
           <div class="hero-fleet" data-when={`fleet:${id}`} hidden={fi !== 0} role="img" aria-label={`Preview of a car rental fleet calendar: ${f.title}`}>
             <div class="win">
-              <div class="win-bar"><span style="background:#FF5F57"></span><span style="background:#FEBC2E"></span><span style="background:#28C840"></span><span class="mono">app.renthatch.com/fleet · preview</span></div>
+              <div class="win-bar"><span style="background:#FF5F57"></span><span style="background:#FEBC2E"></span><span style="background:#28C840"></span><span class="mono">app.renthatch.org/fleet · preview</span></div>
               <div class="stack" style="padding:22px;gap:12px">
                 <div class="between"><strong style="font-size:19px">{f.title}</strong><span class="mono" style="font-size:12px;color:#9A93B5">Mon – Sun</span></div>
                 <div class="mono wk"><span></span>{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => <span>{d}</span>)}</div>
