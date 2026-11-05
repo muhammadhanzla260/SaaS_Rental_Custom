@@ -116,7 +116,7 @@ export function Segmented<T extends string>({
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(o.value)}
             className={cx(
-              'min-w-0 flex-1 whitespace-nowrap rounded-[var(--radius-control)] px-2.5 font-semibold transition-[background-color,color,box-shadow] duration-200',
+              'min-w-fit flex-1 whitespace-nowrap rounded-[var(--radius-control)] px-2.5 font-semibold transition-[background-color,color,box-shadow] duration-200',
               size === 'sm' ? 'h-7 text-xs' : 'h-8 text-[13px] max-sm:h-10',
               on ? 'bg-surface text-fg shadow-[0_1px_3px_rgb(16_19_26/0.15)]' : 'text-fg-2 hover:text-fg',
             )}

@@ -5,7 +5,7 @@ import { db } from '@/server/db';
 import { LocationsSettings, type LocationRow } from './locations-settings';
 
 export const metadata = { title: 'Locations' };
-const TABS = ['general', 'tax', 'area', 'email', 'payments'] as const;
+const TABS = ['general', 'tax', 'area', 'payments'] as const;
 
 export default async function LocationsPage({ params, searchParams }: { params: Promise<{ tenant: string }>; searchParams: Promise<{ id?: string; tab?: string; new?: string }> }) {
   const { tenant: slug } = await params;
@@ -23,7 +23,6 @@ export default async function LocationsPage({ params, searchParams }: { params: 
       address: { line1: l.line1 ?? '', line2: l.line2 ?? '', city: l.city ?? '', region: l.region ?? '', postalCode: l.postalCode ?? '', country: l.country, lat: l.lat ?? undefined, lng: l.lng ?? undefined },
       loadingNotes: l.loadingNotes ?? '', isPrimary: l.isPrimary, isActive: l.isActive, settings: parseLocationSettings(l.settings),
       taxPercent: l.taxRate ? Number(l.taxRate.rate) : 0,
-      mail: mail ? { host: mail.host ?? '', port: mail.port, security: mail.security as 'starttls', username: mail.username ?? '', fromName: mail.fromName ?? '', fromEmail: mail.fromEmail ?? '', provider: mail.provider as 'other', hasSecret: mail.hasSecret } : null,
       payments: pay ? { provider: pay.provider as 'stripe', publishableKey: pay.publishableKey ?? '', merchantId: pay.merchantId ?? '', hasSecret: pay.hasSecret, keyMode: pay.keyMode } : null,
       ready: !!mail || orgMailReady,
     };
