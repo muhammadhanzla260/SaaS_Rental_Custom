@@ -5,25 +5,24 @@ import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  documentNumberingSchema, exampleNumber, LOCATION_PILL_COLORS, locationSchema, mailAccountSchema, parseZipList, paymentAccountSchema,
+  documentNumberingSchema, exampleNumber, LOCATION_PILL_COLORS, locationSchema, parseZipList, paymentAccountSchema,
   type DocumentNumbering, type LocationSettings,
 } from '@rental/core';
 import { AffixInput, Button, Card, cx, Field, Input, LinkButton, Modal, PageTitle, Pill, SaveBar, Tabs, Textarea, Toggle, useToast } from '@/components/kit';
 import { AddressBlock } from '@/components/fields/address';
 import { scope } from '@/components/fields/scope';
 import { localTime, TimezoneSelect, zoneLabel } from '@/components/fields/timezone-select';
-import { MailFields, PaymentFields } from '@/components/settings/connect-fields';
+import { PaymentFields } from '@/components/settings/connect-fields';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { useForm } from '@/lib/form';
 import { zodFieldErrors } from '@/lib/result';
-import { deleteLocationAction, saveLocationAction, saveLocationMailAction, saveLocationPaymentsAction, saveNumberingAction } from '@/server/actions/settings';
+import { deleteLocationAction, saveLocationAction, saveLocationPaymentsAction, saveNumberingAction } from '@/server/actions/settings';
 
-type Tab = 'general' | 'tax' | 'area' | 'email' | 'payments';
+type Tab = 'general' | 'tax' | 'area' | 'payments';
 
 export type LocationRow = {
   id: string; name: string; code: string; timezone: string; phone: string; email: string; address: Record<string, unknown>;
   loadingNotes: string; isPrimary: boolean; isActive: boolean; settings: LocationSettings; taxPercent: number;
-  mail: { host: string; port: number; security: 'starttls' | 'ssl' | 'none'; username: string; fromName: string; fromEmail: string; provider: 'google' | 'microsoft' | 'zoho' | 'other'; hasSecret: boolean } | null;
   payments: { provider: 'manual' | 'stripe' | 'ipos'; publishableKey: string; merchantId: string; hasSecret: boolean; keyMode: string | null } | null;
   ready: boolean;
 };
@@ -38,7 +37,7 @@ type Props = {
 const blankRow = (tz: string): LocationRow => ({
   id: '', name: '', code: '', timezone: '', phone: '', email: '', address: { country: 'US' }, loadingNotes: '', isPrimary: false, isActive: true,
   settings: { freeTravelMiles: null, travelRateStaffed: null, travelRateDropoff: null, servedZips: [], pillColor: '#0B0D12', paused: false, ownMailServer: false },
-  taxPercent: 0, mail: null, payments: null, ready: false,
+  taxPercent: 0, payments: null, ready: false,
 });
 
 function StatusPill({ r }: { r: LocationRow }) {
@@ -69,7 +68,7 @@ export function LocationsSettings(props: Props) {
         actions={<LinkButton href={`/${slug}/settings/locations?new=1`} icon={<Plus className="size-4" />}><span className="max-sm:hidden">Add location</span><span className="sm:hidden">Add</span></LinkButton>}
       />
       <PageBody wide>
-        <PageTitle title="Locations" sub="Each branch has its own timezone, tax, travel rules, mail server and payment gateway." />
+        <PageTitle title="Locations" sub="Each branch has its own timezone, tax, travel rules and payment gateway. Mail servers are in Email & SMS." />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
           <ul className="no-scrollbar flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Locations">
             {rows.map((r, i) => {
@@ -118,7 +117,6 @@ function LocationPanel(props: Props & { row: LocationRow; tab: Tab; isNew?: bool
     { value: 'general', label: 'General' },
     { value: 'tax', label: 'Tax & numbering' },
     { value: 'area', label: 'Service area' },
-    { value: 'email', label: 'Email (SMTP)' },
     { value: 'payments', label: 'Payments' },
   ] as const;
   const tz = row.timezone || props.orgTimezone;
@@ -140,7 +138,6 @@ function LocationPanel(props: Props & { row: LocationRow; tab: Tab; isNew?: bool
       <div key={tab} className="anim-rise p-5 sm:p-6">
         {(tab === 'general' || tab === 'area' || isNew) && <LocationForm {...props} section={isNew ? 'general' : tab === 'area' ? 'area' : 'general'} />}
         {tab === 'tax' && !isNew && <TaxNumbering {...props} />}
-        {tab === 'email' && !isNew && <LocationMail {...props} />}
         {tab === 'payments' && !isNew && <LocationPayments {...props} />}
       </div>
     </Card>
@@ -320,35 +317,6 @@ function TaxNumbering({ slug, row, numbering, nextNumbers, readOnly }: Props & {
           ))}
         </div>
       </div>
-      {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
-      <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial)} readOnly={readOnly} />
-    </div>
-  );
-}
-
-function LocationMail({ slug, row, orgName, readOnly }: Props & { row: LocationRow }) {
-  const after = useAfterSave();
-  const initial = useMemo(() => ({
-    own: !!row.mail,
-    mail: {
-      mode: 'smtp' as const, provider: row.mail?.provider ?? 'google', host: row.mail?.host ?? 'smtp.gmail.com', port: row.mail?.port ?? 587, security: row.mail?.security ?? 'starttls',
-      username: row.mail?.username ?? '', password: '', fromName: row.mail?.fromName ?? '', fromEmail: row.mail?.fromEmail ?? '', hasSecret: !!row.mail?.hasSecret,
-    },
-  }), [row]);
-  const form = useForm(initial);
-  const v = form.values;
-  const save = () => {
-    const mail = { ...v.mail, password: v.mail.password || undefined };
-    if (v.own) {
-      const p = mailAccountSchema.safeParse(mail);
-      if (!p.success) { form.setErrors(Object.fromEntries(Object.entries(zodFieldErrors(p.error)).map(([k, m]) => [`mail.${k}`, m]))); return; }
-    }
-    form.submit(() => saveLocationMailAction(slug, row.id, { own: v.own, mail: v.own ? mail : undefined }), (r) => { form.reset({ ...v, mail: { ...v.mail, password: '' } }); after(r.message); });
-  };
-  return (
-    <div className="flex flex-col gap-6">
-      <Toggle checked={v.own} onChange={(x) => form.set('own', x)} label="Use this location's own mail server" sub="Off: emails for this location go through the organization's mail server (Settings → Email & SMS)." />
-      {v.own && <MailFields s={scope(form, 'mail')} orgName={orgName} platformOption={false} />}
       {form.status?.kind === 'error' && <p role="alert" className="text-sm font-medium text-danger">{form.status.text}</p>}
       <SaveBar dirty={form.dirty} pending={form.pending} onSave={save} onDiscard={() => form.reset(initial)} readOnly={readOnly} />
     </div>

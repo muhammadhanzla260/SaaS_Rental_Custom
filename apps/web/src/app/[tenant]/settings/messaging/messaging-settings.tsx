@@ -9,9 +9,10 @@ import {
 } from '@rental/core';
 import { scope } from '@/components/fields/scope';
 import {
-  Button, Card, cx, Drawer, EmptyState, Field, FilterChips, Input, Notice, PageTitle, Pill, SaveBar, Select, Spinner, Tabs, Toggle, useToast,
+  Button, Card, cx, Drawer, EmptyState, Field, FilterChips, Input, Modal, Notice, PageTitle, Pill, SaveBar, Select, Spinner, Tabs, Toggle, useToast,
 } from '@/components/kit';
 import { MailFields, SmsFields, type ConnectDraft } from '@/components/settings/connect-fields';
+import { LocationMailForm, type LocationMailAccount } from '@/components/settings/location-mail';
 import { PageBody, Topbar } from '@/components/shell/app-shell';
 import { timeAgo } from '@/lib/audit-text';
 import { useForm } from '@/lib/form';
@@ -35,7 +36,7 @@ export function MessagingSettings({
   slug, tab, orgName, timezone, readOnly, outbox, settings, server, locations, customTemplates, log,
 }: {
   slug: string; tab: Tab; orgName: string; timezone: string; readOnly: boolean; outbox: boolean; settings: ResolvedMessaging; server: ServerDraft;
-  locations: { id: string; name: string; code: string; own: { fromEmail: string | null; verified: boolean } | null }[];
+  locations: LocationMailRow[];
   customTemplates: string[]; log: { rows: LogRow[]; counts: { all: number; upcoming: number; sent: number; failed: number; skipped: number }; status: string; q: string };
 }) {
   const verified = !!server.mail.verifiedAt && server.mail.mode === 'smtp';
@@ -96,9 +97,12 @@ export function MessagingSettings({
 
 // --- Mail server & SMS ---------------------------------------------------------------------------------
 
-function ServerTab({ slug, orgName, initial, locations, readOnly }: { slug: string; orgName: string; initial: ServerDraft; locations: { id: string; name: string; code: string; own: { fromEmail: string | null; verified: boolean } | null }[]; readOnly: boolean }) {
+type LocationMailRow = { id: string; name: string; code: string; own: { fromEmail: string | null; verified: boolean } | null; mail: LocationMailAccount | null };
+
+function ServerTab({ slug, orgName, initial, locations, readOnly }: { slug: string; orgName: string; initial: ServerDraft; locations: LocationMailRow[]; readOnly: boolean }) {
   const toast = useToast();
   const router = useRouter();
+  const [editing, setEditing] = useState<LocationMailRow | null>(null);
   const form = useForm<ServerDraft>(initial);
   const v = form.values;
   const [testTo, setTestTo] = useState('');
@@ -186,7 +190,8 @@ function ServerTab({ slug, orgName, initial, locations, readOnly }: { slug: stri
 
       <div className="flex flex-col gap-6">
         <Card className="p-5 sm:p-6">
-          <h2 className="mb-3 text-lg font-semibold text-fg">Per location</h2>
+          <h2 className="text-lg font-semibold text-fg">Per location</h2>
+          <p className="mb-3 text-[13px] text-fg-2">Each location sends through the workspace mail server unless you give it its own.</p>
           <ul className="flex flex-col gap-3">
             {locations.map((l) => (
               <li key={l.id} className="flex items-center gap-3">
@@ -195,13 +200,19 @@ function ServerTab({ slug, orgName, initial, locations, readOnly }: { slug: stri
                   <span className="block text-sm font-semibold text-fg">{l.name}</span>
                   <span className="block truncate text-fg-2">{l.own ? `Own account · ${l.own.fromEmail ?? ''}${l.own.verified ? ' · verified' : ''}` : 'Uses the workspace mail server'}</span>
                 </span>
-                <Link href={`/${slug}/settings/locations?id=${l.id}&tab=email`} className="shrink-0 rounded-[var(--radius-control)] border border-control px-3 py-1.5 text-[13px] font-semibold text-fg hover:bg-hover">
-                  {l.own ? 'Use workspace' : 'Use own account'}
-                </Link>
+                <Button size="sm" variant="secondary" onClick={() => setEditing(l)}>{l.own ? 'Change' : 'Use own server'}</Button>
               </li>
             ))}
           </ul>
         </Card>
+        <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `${editing.name} mail server` : ''} sub="Customers of this location get emails from this server." width={640}>
+          {editing && (
+            <LocationMailForm
+              key={editing.id} slug={slug} locationId={editing.id} mail={editing.mail} orgName={orgName} readOnly={readOnly}
+              onSaved={(msg) => { if (msg) toast(msg); setEditing(null); router.refresh(); }}
+            />
+          )}
+        </Modal>
         <Card className="flex flex-col gap-4 p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-fg">Text messages</h2>
           <fieldset disabled={readOnly}><SmsFields s={scope(form, 'sms')} /></fieldset>
@@ -438,11 +449,11 @@ function LogTab({ slug, log, readOnly, timezone }: { slug: string; log: { rows: 
         ) : (
           <ul className="divide-y divide-subtle">
             {log.rows.map((m) => (
-              <li key={m.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-5 py-3.5 lg:grid-cols-[110px_minmax(0,1.3fr)_minmax(0,2fr)_110px_minmax(0,1.2fr)_auto] lg:items-center">
+              <li key={m.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-5 py-3.5 lg:grid-cols-[110px_minmax(0,1.3fr)_minmax(0,2fr)_110px_minmax(0,1.2fr)_72px] lg:items-center">
                 <span className="flex items-center gap-2"><Pill tone={STATUS_TONE[m.status] ?? 'neutral'}>{STATUS_LABEL[m.status] ?? m.status}</Pill></span>
-                <span className="min-w-0 text-sm text-fg max-lg:order-3 max-lg:col-span-2">
-                  <span className="mr-1.5 rounded bg-sunken px-1.5 py-0.5 text-[10px] font-bold uppercase text-fg-2">{m.channel}</span>
-                  <span className="truncate">{m.toAddress ?? '—'}</span>
+                <span className="flex min-w-0 items-center text-sm text-fg max-lg:order-3 max-lg:col-span-2">
+                  <span className="mr-1.5 shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] font-bold uppercase text-fg-2">{m.channel}</span>
+                  <span className="min-w-0 truncate" title={m.toAddress ?? undefined}>{m.toAddress ?? '—'}</span>
                 </span>
                 <span className="min-w-0 max-lg:order-2 max-lg:col-span-2">
                   <span className="block truncate text-sm font-semibold text-fg">{m.subject ?? MESSAGE_TYPES[m.type]?.label ?? m.type}</span>

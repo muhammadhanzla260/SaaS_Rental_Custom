@@ -59,7 +59,10 @@ export default async function MessagingPage({
       }}
       locations={locations.map((l) => {
         const own = integrations.mail.find((x) => x.locationId === l.id);
-        return { id: l.id, name: l.name, code: l.code, own: own ? { fromEmail: own.fromEmail, verified: !!own.verifiedAt } : null };
+        return {
+          id: l.id, name: l.name, code: l.code, own: own ? { fromEmail: own.fromEmail, verified: !!own.verifiedAt } : null,
+          mail: own ? { host: own.host ?? '', port: own.port, security: own.security as 'starttls', username: own.username ?? '', fromName: own.fromName ?? '', fromEmail: own.fromEmail ?? '', provider: own.provider as 'other', hasSecret: own.hasSecret } : null,
+        };
       })}
       customTemplates={custom.map((c) => `${c.type}:${c.channel}`)}
       log={{ rows, counts: log.counts, status, q: sp.q ?? '' }}
