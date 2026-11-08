@@ -8,6 +8,10 @@ export const VIDEO = resolve(import.meta.dirname, '../../../../.data/video');
 export const PROJECTS = {
   walkthrough: { script: 'narration-script.md', clips: 'clips', frames: 'frames', tts: 'tts', out: 'out', state: 'state.json' },
   training: { script: 'training-script.md', clips: 'training/clips', frames: 'training/frames', tts: 'training/tts', out: 'training/out', state: 'training/state.json' },
+  // The website's generic versions (Lakeside Party Rentals, no client or staff names): record with VIDEO_PROJECT=<name>.
+  'web-tour': { script: 'web-tour-script.md', clips: 'web/tour/clips', frames: 'web/tour/frames', tts: 'web/tour/tts', out: 'web/tour/out', state: 'web/tour/state.json' },
+  'web-training': { script: 'web-training-script.md', clips: 'web/training/clips', frames: 'web/training/frames', tts: 'web/training/tts', out: 'web/training/out', state: 'web/training/state.json' },
+  'web-onboarding': { script: 'web-onboarding-script.md', clips: 'web/onboarding/clips', frames: 'web/onboarding/frames', tts: 'web/onboarding/tts', out: 'web/onboarding/out', state: 'web/onboarding/state.json' },
 };
 /** The project named on the command line (walkthrough when none is). */
 export const projectArg = (args) => args.find((a) => PROJECTS[a]) ?? 'walkthrough';

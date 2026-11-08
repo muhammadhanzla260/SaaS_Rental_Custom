@@ -1,5 +1,5 @@
 /**
- * Off-camera helpers for the walkthrough video (Freedom Fun USA, Tim Masters):
+ * Off-camera helpers for the walkthrough video (Lakeside Party Rentals, Taylor Brooks):
  *   orders <customerEmail>     two ready-to-book orders for chapters 4 and 5
  *   email-invoice <orderId>    emails that order's invoice now (chapter 6)
  *   quote-url <orderId>        a fresh customer link for the quote (chapter 7)
@@ -15,9 +15,9 @@ config({ path: resolve(import.meta.dirname, '../../../../.env'), quiet: true });
 const { db, client: app } = createDb(process.env.DATABASE_URL!, { max: 2 });
 const { client: owner } = createDb(process.env.DATABASE_URL_OWNER!, { max: 1 });
 try {
-  const [t] = await owner<{ id: string; settings: unknown }[]>`select id, settings from tenants where slug = 'freedom-fun-demo'`;
-  const [tim] = await owner<{ id: string }[]>`select id from users where email = 'tim@demo.tentpole.test'`;
-  if (!t || !tim) throw new Error('Freedom Fun USA and Tim Masters are needed (seed-video-user.ts).');
+  const [t] = await owner<{ id: string; settings: unknown }[]>`select id, settings from tenants where slug = 'lakeside-party'`;
+  const [tim] = await owner<{ id: string }[]>`select id from users where email = 'taylor@lakesideparty.test'`;
+  if (!t || !tim) throw new Error('Lakeside Party Rentals and Taylor Brooks are needed (seed-video-user.ts).');
   const actor = { type: 'user' as const, userId: tim.id };
   const prefs = parsePreferences(t.settings);
   const [cmd, arg] = process.argv.slice(2);
@@ -42,7 +42,9 @@ try {
       }), prefs);
       return { id: o.id, number: o.number };
     };
-    out = { b: await make('2026-11-22', [picks[2]!.id]), c: await make('2026-11-28', [picks[3]!.id, picks[0]!.id]) };
+    // FIXTURE_DATES lets a second video book on other days, so its orders never compete with the first one's for stock.
+    const [dayB, dayC] = (process.env.FIXTURE_DATES ?? '2026-11-22,2026-11-28').split(',');
+    out = { b: await make(dayB!, [picks[2]!.id]), c: await make(dayC!, [picks[3]!.id, picks[0]!.id]) };
   } else if (cmd === 'email-invoice') {
     const [inv] = await orderInvoices(db, t.id, arg!);
     if (!inv) throw new Error('That order has no invoice yet.');
@@ -94,7 +96,13 @@ try {
       and not exists (select 1 from orders o where o.tenant_id = c.tenant_id and o.customer_id = c.id) returning c.id`;
     for (const g of gone) await owner`delete from audit_log where tenant_id = ${t.id} and entity_id = ${g.id}`;
     out = { removed: gone.length };
-  } else throw new Error('Use: orders <email> | email-invoice <orderId> | quote-url <orderId> | reset-customer <email>');
+  } else if (cmd === 'wipe-onboarding') {
+    // The onboarding video's throwaway sign-up: its workspace and its owner go before and after each recording.
+    const email = process.argv[4]!;
+    const gone = await owner<{ id: string }[]>`delete from tenants where slug = ${arg!} returning id`;
+    const users = await owner<{ id: string }[]>`delete from users where email = ${email} returning id`;
+    out = { tenants: gone.length, users: users.length };
+  } else throw new Error('Use: orders <email> | email-invoice <orderId> | quote-url <orderId> | reset-customer <email> | wipe-onboarding <slug> <email>');
   console.log(JSON.stringify(out));
 } finally {
   await app.end();

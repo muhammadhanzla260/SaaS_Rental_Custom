@@ -1,6 +1,6 @@
 /**
- * Records the walkthrough video's screen, one silent clip per chapter, as Tim
- * Masters in Freedom Fun USA (customer: Muhammad Hanzla). Each chapter is a list
+ * Records the walkthrough video's screen, one silent clip per chapter, as Taylor
+ * Brooks in Lakeside Party Rentals (customer: Daniel Rivera). Each chapter is a list
  * of steps that match the narration script's [pause] marks; each step has one or
  * more shots, and each shot a 16:9 crop of the 1600x900 screen (recorded at 2x),
  * so the assembly can zoom in and stay readable on a phone.
@@ -12,20 +12,23 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { action, newPage, paymentsHeading, point, recorder, setValue, sleep, stripeCard, tap, typeCard, typeIn, waitText } from './kit.mjs';
+import { PROJECTS, VIDEO } from './script.mjs';
+import { action, log, newPage, paymentsHeading, point, recorder, setValue, sleep, stripeCard, tap, typeCard, typeIn, waitText } from './kit.mjs';
 
-const BASE = 'http://localhost:3000';
-const S = `${BASE}/freedom-fun-demo`;
+const BASE = process.env.VIDEO_BASE ?? 'http://localhost:3001';
+const S = `${BASE}/lakeside-party`;
 const ROOT = resolve(import.meta.dirname, '../../../..');
-const OUT = join(ROOT, '.data/video/clips');
-const FRAMES = join(ROOT, '.data/video/frames');
-const STATE = join(ROOT, '.data/video/state.json');
+// VIDEO_PROJECT=web-tour records the website's generic tour into its own folders.
+const P = PROJECTS[process.env.VIDEO_PROJECT ?? 'walkthrough'];
+const OUT = join(VIDEO, P.clips);
+const FRAMES = join(VIDEO, P.frames);
+const STATE = join(VIDEO, P.state);
 // The office screen is 1440x810 at 4/3 scale: frames come out exactly 1920x1080 (sharp, and fast enough to be smooth).
 const W = 1440;
 const H = 810;
 const SCALE = 4 / 3;
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const CUSTOMER = { first: 'Muhammad', last: 'Hanzla', email: 'muhammadhanzla260+video@gmail.com', phone: '(512) 555-0418', street: '1100 Congress Ave' };
+const CUSTOMER = { first: 'Daniel', last: 'Rivera', email: 'daniel.rivera@example.com', phone: '(512) 555-0482', street: '1100 Congress Ave' };
 const EVENT_DAY = '2026-11-21';
 const state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 const save = () => writeFileSync(STATE, JSON.stringify(state, null, 2));
@@ -39,7 +42,7 @@ const card = (title, sub) => `<!doctype html><html><head><meta charset="utf-8"><
   .b{display:flex;align-items:center;gap:22px;margin-bottom:34px}.l{width:84px;height:84px;border-radius:22px;background:#c2410c;display:grid;place-items:center;font-weight:800;font-size:34px}
   h1{font-size:84px;line-height:1.02;margin:0 0 22px;letter-spacing:-.02em;max-width:1200px}p{font-size:30px;color:#d4d4d8;margin:0}
   .w{animation:in .9s cubic-bezier(.2,.8,.2,1) both}@keyframes in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-</style></head><body><div class="w"><div class="b"><div class="l">FF</div><div style="font-size:32px;font-weight:700">Freedom Fun USA</div></div><h1>${title}</h1><p>${sub}</p></div></body></html>`;
+</style></head><body><div class="w"><div class="b"><div class="l">LP</div><div style="font-size:32px;font-weight:700">Lakeside Party Rentals</div></div><h1>${title}</h1><p>${sub}</p></div></body></html>`;
 
 // --- chapters ------------------------------------------------------------------------------------
 const CHAPTERS = {
@@ -52,7 +55,7 @@ const CHAPTERS = {
 
   async 1({ desk }) {
     fixture(`reset-customer ${CUSTOMER.email}`);
-    await desk.goto(S, { waitUntil: 'networkidle2' });
+    await desk.goto(S, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(1, 'Add a customer', { desk }, async (c) => {
       await c.step('Customers → Add customer', async () => {
         await c.shot('desk', 'full');
@@ -95,14 +98,14 @@ const CHAPTERS = {
       save();
     }
     await desk.bringToFront();
-    await desk.goto(S, { waitUntil: 'networkidle2' });
+    await desk.goto(S, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(2, 'Build an order', { desk }, async (c) => {
       await c.step('New order → pick the customer', async () => {
         await c.shot('desk', 'full');
         await tap(desk, 'New order', 'nav');
         await desk.waitForSelector('#ob-date', { visible: true });
         await c.shot('desk', ['h2', 'input[placeholder="Search by name, email or phone"]'], { min: 1000 });
-        await typeIn(desk, 'input[placeholder="Search by name, email or phone"]', 'Muhammad H', 70);
+        await typeIn(desk, 'input[placeholder="Search by name, email or phone"]', 'Daniel R', 70);
         await desk.waitForFunction((e) => [...document.querySelectorAll('[role=option], li button, [role=listbox] *')].some((x) => x.innerText?.includes(e)), { timeout: 15000 }, CUSTOMER.email);
         const opt = await desk.evaluateHandle((e) => [...document.querySelectorAll('[role=option], li button, button')].find((x) => x.innerText?.includes(e)), CUSTOMER.email);
         await tap(desk, opt);
@@ -187,7 +190,7 @@ const CHAPTERS = {
     }
     state.orderBUsed = true;
     save();
-    await desk.goto(`${S}/orders/${state.orderB}`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/orders/${state.orderB}`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(4, 'Option two: book without payment', { desk }, async (c) => {
       await c.step('Submit Order Without Payment', async () => {
         await c.shot('desk', 'main aside', { min: 1000 });
@@ -212,7 +215,7 @@ const CHAPTERS = {
         await sleep(1800);
         await tap(desk, 'Keep editing', 'dialog[open]');
         await sleep(1200);
-        await desk.goto(`${S}/actions`, { waitUntil: 'networkidle2' });
+        await desk.goto(`${S}/actions`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
         await overlay(desk);
         await c.shot('desk', ['h1', 'Deposit needed'], { min: 1200 });
         await sleep(2500);
@@ -231,7 +234,7 @@ const CHAPTERS = {
     fixture(`forget-cards ${CUSTOMER.email}`);
     state.orderCUsed = true;
     save();
-    await desk.goto(`${S}/orders/${state.orderC}`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/orders/${state.orderC}`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(5, 'Option three: record the payment', { desk }, async (c) => {
       await c.step('Record Payment Received', async () => {
         await c.shot('desk', 'main aside', { min: 1000 });
@@ -287,7 +290,7 @@ const CHAPTERS = {
 
   async 6({ desk }) {
     fixture(`email-invoice ${state.orderC}`);
-    await desk.goto(`${S}/settings/messaging?tab=log`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/settings/messaging?tab=log`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     const view = async (c, num, label) => {
       const row = await desk.evaluateHandle((n, l) => [...document.querySelectorAll('li, tr, [role=row]')].find((r) => r.innerText.includes(n) && r.innerText.includes(l) && r.querySelector('[aria-label="View message"]')), num, label);
       const btn = await row.evaluateHandle((r) => r.querySelector('[aria-label="View message"]'));
@@ -326,8 +329,8 @@ const CHAPTERS = {
     // The phone has its own browser at 2x, so its frames stay sharp when shown at full height.
     const phoneBrowser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--force-device-scale-factor=2'], protocolTimeout: 180000 });
     const phone = await newPage(phoneBrowser, { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    await desk.goto(`${S}/orders/${state.orderA}`, { waitUntil: 'networkidle2' });
-    await phone.goto(url, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/orders/${state.orderA}`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
+    await phone.goto(url, { waitUntil: 'domcontentloaded' }); await phone.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await phone.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(7, 'How the customer pays online', { phone, desk }, async (c) => {
       await c.step('What your customer sees, on a phone', async () => {
         await c.shot('phone', 'full');
@@ -348,7 +351,7 @@ const CHAPTERS = {
       });
       await c.step('Sign by typing your name · pay by card', async () => {
         await c.shot('phone', 'full');
-        await typeIn(phone, '#q-name', 'Muhammad Hanzla', 70);
+        await typeIn(phone, '#q-name', 'Daniel Rivera', 70);
         await tap(phone, 'I agree', 'section');
         await tap(phone, 'Sign and continue');
         await waitText(phone, 'Pay to book');
@@ -380,7 +383,7 @@ const CHAPTERS = {
   },
 
   async 8({ desk }) {
-    await desk.goto(`${S}/products`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/products`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(8, 'Products, categories and inventory', { desk }, async (c) => {
       await c.step('Products: photo, category and prices', async () => {
         await c.shot('desk', 'main', { min: 1300 });
@@ -423,14 +426,17 @@ const CHAPTERS = {
   },
 
   async 9({ desk }) {
-    await desk.goto(`${S}/settings/messaging`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/settings/messaging`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(9, 'Settings: your email server', { desk }, async (c) => {
       await c.step('Your own mail server · send a test', async () => {
+        // Recording only: local dev runs with MESSAGING_DELIVERY=outbox so test emails aren't really sent;
+        // the app's own "Development mode" notice about that is real but must not appear in the public video.
+        await desk.evaluate(() => { document.querySelectorAll('[role="status"]').forEach((e) => { if (/Development mode/.test(e.textContent ?? '')) e.remove(); }); });
         await c.shot('desk', 'main', { min: 1300 });
         await sleep(1500);
         const test = await desk.$('input[placeholder="you@yourbusiness.com"]');
         if (test) {
-          await typeIn(desk, test, 'muhammadhanzla260@gmail.com', 35);
+          await typeIn(desk, test, 'office@lakesideparty.test', 35);
           await tap(desk, 'Send test email', 'main', 'button');
           await sleep(1500);
           await desk.waitForFunction(() => !/Sending a test email/.test(document.querySelector('main')?.innerText ?? ''), { timeout: 60000 }).catch(() => {});
@@ -441,7 +447,7 @@ const CHAPTERS = {
   },
 
   async 10({ desk }) {
-    await desk.goto(`${S}/settings/messaging?tab=auto`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/settings/messaging?tab=auto`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(10, 'Settings: email templates and automations', { desk }, async (c) => {
       await c.step('Automations: which emails, and when', async () => {
         await c.shot('desk', 'main', { min: 1300 });
@@ -462,7 +468,7 @@ const CHAPTERS = {
   },
 
   async 11({ desk }) {
-    await desk.goto(`${S}/settings/team`, { waitUntil: 'networkidle2' });
+    await desk.goto(`${S}/settings/team`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
     await chapter(11, 'Settings: team and roles', { desk }, async (c) => {
       await c.step('Invite people · pick a role', async () => {
         await c.shot('desk', 'main', { min: 1300 });
@@ -470,7 +476,7 @@ const CHAPTERS = {
         await sleep(900);
         await c.shot('desk', 'dialog[open] > div', { min: 1000 });
         const email = await desk.$('dialog[open] input[type="email"]');
-        if (email) await typeIn(desk, email, 'new.teammate@freedomfunusa.com', 30);
+        if (email) await typeIn(desk, email, 'new.teammate@lakesideparty.test', 30);
         const role = await desk.$('dialog[open] select');
         if (role) await point(desk, role);
         await sleep(2000);
@@ -479,7 +485,7 @@ const CHAPTERS = {
       await c.step('Each role sees what it needs · the activity log', async () => {
         await c.shot('desk', 'main', { min: 1300 });
         await sleep(1500);
-        await desk.goto(`${S}/settings/activity`, { waitUntil: 'networkidle2' });
+        await desk.goto(`${S}/settings/activity`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
         await overlay(desk);
         await c.shot('desk', 'main', { min: 1300 });
         await sleep(2500);
@@ -500,8 +506,8 @@ const want = process.argv.slice(2).map(Number);
 const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: [`--force-device-scale-factor=${SCALE}`], protocolTimeout: 180000 });
 const desk = await newPage(browser, { width: W, height: H, deviceScaleFactor: SCALE });
 try {
-  await desk.goto(`${BASE}/sign-in`, { waitUntil: 'networkidle2' });
-  await desk.type('#si-email', 'tim@demo.tentpole.test');
+  await desk.goto(`${BASE}/sign-in`, { waitUntil: 'domcontentloaded' }); await desk.waitForSelector('main h1, main h2, h1', { visible: true, timeout: 60000 }); await desk.waitForNetworkIdle({ idleTime: 500, timeout: 8000 }).catch(() => {});
+  await desk.type('#si-email', 'taylor@lakesideparty.test');
   await desk.keyboard.press('Enter');
   await desk.waitForSelector('#si-pass', { visible: true });
   await desk.type('#si-pass', 'Tentpole-2026!');

@@ -10,7 +10,7 @@ import {
   type BrandSettings, type Corners, type OnboardingProgress, type Role,
 } from '@rental/core';
 import {
-  AffixInput, Button, cx, Field, Input, Notice, RadioCards, Segmented, Select, Textarea, useToast,
+  AffixInput, Button, cx, Field, Input, Notice, Segmented, Select, Textarea, useToast,
 } from '@/components/kit';
 import { LogoEditor, type LogoValue } from '@/components/brand/logo-editor';
 import { logoImgStyle } from '@/components/brand/logo-mark';
@@ -567,18 +567,7 @@ function StepLaunch({ form, logo, go, connected }: { form: Form; logo: boolean; 
         ))}
       </ul>
       <h2 className="eyebrow mb-3 mt-8">Plan</h2>
-      <RadioCards
-        label="Plan"
-        columns={3}
-        value={v.plan}
-        onChange={(p) => form.set('plan', p)}
-        options={[
-          { value: 'starter', label: 'Starter', sub: '1 location · 5 users' },
-          { value: 'growth', label: 'Growth', sub: '3 locations · 25 users' },
-          { value: 'scale', label: 'Scale', sub: 'Unlimited locations and users' },
-        ]}
-      />
-      <p className="mt-3 text-[13px] text-fg-2">Free during the trial. Prices and billing arrive with self-serve plans (Phase 6).</p>
+      <p className="text-[13px] text-fg-2">One plan, unlimited users and locations. Free during the trial; billing details arrive before you're charged.</p>
     </>
   );
 }

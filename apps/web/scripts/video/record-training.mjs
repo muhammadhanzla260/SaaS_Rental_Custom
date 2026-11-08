@@ -1,7 +1,7 @@
 /**
  * Records the training video's screen (training-script.md): every feature, one step per sentence, each
  * step held for as long as its sentence takes to say (speak it first: tts.mjs training ava).
- * Signed in as Tim Masters in Freedom Fun USA; the customer is a training customer, Sarah Mitchell,
+ * Signed in as Taylor Brooks in Lakeside Party Rentals; the customer is a training customer, Sarah Mitchell,
  * and everything made for her is removed again at the end (wipe), so no test data stays behind.
  *   node apps/web/scripts/video/record-training.mjs           all chapters, then wipe
  *   node apps/web/scripts/video/record-training.mjs 5 6       some chapters (no wipe)
@@ -15,16 +15,16 @@ import puppeteer from 'puppeteer-core';
 import { action, find, log, newPage, opts, paymentsHeading, point, recorder, setValue, sleep, stripeCard, tap, typeCard, typeIn, waitText } from './kit.mjs';
 import { PROJECTS, VIDEO } from './script.mjs';
 
-const BASE = 'http://localhost:3000';
-const S = `${BASE}/freedom-fun-demo`;
+const BASE = process.env.VIDEO_BASE ?? 'http://localhost:3001';
+const S = `${BASE}/lakeside-party`;
 const ROOT = join(VIDEO, '../..');
-const P = PROJECTS.training;
+const P = PROJECTS[process.env.VIDEO_PROJECT ?? 'training'];
 const STATE = join(VIDEO, P.state);
 const W = 1440;
 const H = 810;
 const SCALE = 4 / 3;
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const CUSTOMER = { first: 'Sarah', last: 'Mitchell', email: 'muhammadhanzla260+training@gmail.com', phone: '(512) 555-0476', street: '1100 Congress Ave' };
+const CUSTOMER = { first: 'Sarah', last: 'Mitchell', email: 'sarah.mitchell@example.com', phone: '(512) 555-0476', street: '1100 Congress Ave' };
 const EVENT_DAY = '2026-11-14';
 const state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 const save = () => writeFileSync(STATE, JSON.stringify(state, null, 2));
@@ -62,7 +62,7 @@ const CHAPTERS = {
     await chapter(1, 'Getting around', { desk }, async (c) => {
       await c.step('Sign in with your email and password', async () => {
         await c.shot('desk', 'full');
-        await typeIn(desk, '#si-email', 'tim@demo.tentpole.test', 40);
+        await typeIn(desk, '#si-email', 'taylor@lakesideparty.test', 40);
         await desk.keyboard.press('Enter');
         await desk.waitForSelector('#si-pass', { visible: true });
         await sleep(500);
@@ -870,10 +870,16 @@ const CHAPTERS = {
     await go(desk, '/settings/messaging');
     await chapter(14, 'Settings: email, SMS and automations', { desk }, async (c) => {
       await c.step('Four steps to go live', async () => {
+        // Local dev runs with MESSAGING_DELIVERY=outbox so test emails aren't really sent; the app's own
+        // "Development mode" notice about that is real but must not appear in the public video.
+        await desk.evaluate(() => { document.querySelectorAll('[role="status"]').forEach((e) => { if (/Development mode/.test(e.textContent ?? '')) e.remove(); }); });
         await c.shot('desk', 'main', { min: 1300 });
         for (const t of ['Connect mail server', 'Choose what to send', 'Review templates', 'Go live']) await soft(point(desk, t, 'main', 'p, span, div'));
       });
       await c.step('Your own mail server · test it · per location', async () => {
+        // Local dev runs with MESSAGING_DELIVERY=outbox so test emails aren't really sent; the app's own
+        // "Development mode" notice about that is real but must not appear in the public video.
+        await desk.evaluate(() => { document.querySelectorAll('[role="status"]').forEach((e) => { if (/Development mode/.test(e.textContent ?? '')) e.remove(); }); });
         await soft(point(desk, 'Mail server (SMTP)', 'main', 'h2, h3'));
         await c.shot('desk', 'main', { min: 1300 });
         await soft(point(desk, 'Send test email', 'main', 'button'));
@@ -978,7 +984,7 @@ const desk = await newPage(browser, { width: W, height: H, deviceScaleFactor: SC
 try {
   if (want.length && !want.includes(1)) {
     await desk.goto(`${BASE}/sign-in`, { waitUntil: 'networkidle2' });
-    await desk.type('#si-email', 'tim@demo.tentpole.test');
+    await desk.type('#si-email', 'taylor@lakesideparty.test');
     await desk.keyboard.press('Enter');
     await desk.waitForSelector('#si-pass', { visible: true });
     await desk.type('#si-pass', 'Tentpole-2026!');

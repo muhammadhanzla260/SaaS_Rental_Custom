@@ -47,6 +47,25 @@ const COPY = {
     outro: ["You're all set!", 'Everything you need to run your rental business, in one place.'],
     chips: ['Customers', 'Products', 'Orders', 'Payments', 'Settings'], button: 'Book it · Get paid · Grow',
   },
+  // The website's generic versions: the product's own name only, never a client's.
+  'web-tour': {
+    bar: 'Rent Hatch', brand: 'Rent Hatch', mark: 'RH',
+    intro: ['Run your rental business', 'step by step', 'A 4-minute tour · from the first phone call to a paid booking'],
+    outro: ["That's Rent Hatch", 'Quotes, deposits, invoices, receipts and reminders, handled for you.'],
+    chips: ['Quotes', 'Deposits', 'Invoices', 'Receipts', 'Reminders'], button: 'Start your free trial · renthatch.org',
+  },
+  'web-training': {
+    bar: 'Rent Hatch', brand: 'Rent Hatch', mark: 'RH',
+    intro: ['Learn Rent Hatch', 'step by step', 'The complete training guide · customers, orders, payments and settings'],
+    outro: ["You're all set!", 'Everything you need to run your rental business, in one place.'],
+    chips: ['Customers', 'Products', 'Orders', 'Payments', 'Settings'], button: 'Book it · Get paid · Grow',
+  },
+  'web-onboarding': {
+    bar: 'Rent Hatch', brand: 'Rent Hatch', mark: 'RH',
+    intro: ['Set up your business', 'in minutes', 'Sign up, then make Rent Hatch look and work like your company'],
+    outro: ["You're ready to take bookings", 'Your brand, your locations, your email, your team.'],
+    chips: ['Sign up', 'Brand', 'Locations', 'Email', 'Team'], button: 'Start your free trial · renthatch.org',
+  },
 }[PROJECT];
 
 const THEMES = {

@@ -339,7 +339,7 @@ export const BLOCK_KEYS = new Set<string>(EMAIL_BLOCKS.map((b) => b.key));
 /** The sample order behind every preview in the template editor. */
 export function sampleEmailData(brand: { color: string; onColor: string }, orgName: string, stage: 'quote' | 'deposit' | 'paid' | 'unpaid' = 'deposit'): EmailData {
   const d: EmailData = {
-    currency: 'USD', brand, orgName, status: 'booked', orderNumber: 'Q-AUS-01043', preparedBy: 'Sam Ortiz', signed: false,
+    currency: 'USD', brand, orgName, status: 'booked', orderNumber: 'Q-AUS-01043', preparedBy: 'Jordan Blake', signed: false,
     event: { date: 'Saturday, November 7, 2026', time: '1:00 PM to 6:00 PM CT', typeLabel: 'Birthday Party', street: '1890 Ranch Shopping Center', cityLine: 'Cedar Park, TX 78613', surface: 'Grass', mode: 'staffed' },
     customer: { name: 'Maria Gonzalez', email: 'maria@example.com', phone: '(512) 555-0142' },
     contact: { name: 'Maria', mobile: '(512) 555-0198', email: 'maria@example.com' },
