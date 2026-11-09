@@ -67,11 +67,10 @@ const turnstile = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
     {/* No font preloads: with font-display: swap text paints at once, and preloads would compete with first paint. */}
     <Font cssVariable="--font-display" />
     <Font cssVariable="--font-ui" />
-    <Font cssVariable="--font-mono" />
     <script type="application/ld+json" set:html={JSON.stringify([org, ...jsonLd])} />
     <slot name="head" />
   </head>
-  <body class={bodyClass} data-view-event={viewEvent}>
+  <body id="top" class={bodyClass} data-view-event={viewEvent}>
     <a href="#main" class="skip">Skip to content</a>
     <slot />
     <CookieBanner />

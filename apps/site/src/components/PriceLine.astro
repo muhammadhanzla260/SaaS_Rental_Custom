@@ -18,6 +18,7 @@ const cars = vertical === 'cars';
       : <><a href={SIGN_UP} class="btn pl-cta" data-track="start_trial" data-where="pricing">Start free trial</a><a href="/demo" class="btn btn-ghost">Book a demo</a></>}
   </div>}
 </div>
+{!compact && <a href="/agents" class="rv pl-ag"><span class="pl-agm"><span class="pl-pill">AI · 2.0</span>Rent Hatch 2.0 adds AI agents. Agent pricing is announced at launch, and early-access members get it first.</span><span class="pl-more">Meet the agents →</span></a>}
 
 <style>
   .pl { --acc: #D4FF3A; --acc-fg: #0B0D12; position: relative; overflow: hidden; border-radius: 32px; background: #0B0D12; color: #fff; padding: clamp(32px, 6vw, 72px); display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
@@ -33,6 +34,10 @@ const cars = vertical === 'cars';
   .compact .pl-eye { color: #535C6B; }
   .compact .pl-amt { background: #D4FF3A; color: #0B0D12; }
   .pl-cta { background: var(--acc); color: var(--acc-fg); }
+  .pl-ag { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 20px 24px; border-radius: 22px; background: #07080B; color: #fff; }
+  .pl-agm { display: flex; align-items: center; gap: 12px; font-size: 15.5px; flex: 1 1 280px; }
+  .pl-pill { flex: none; background: linear-gradient(90deg, #D4FF3A, #22D3EE); color: #07080B; border-radius: 999px; padding: 3px 9px; font: 800 11px var(--font-ui); }
+  .pl-more { color: #22D3EE; font-weight: 650; font-size: 14.5px; }
   @media (prefers-reduced-motion: no-preference) {
     .pl-amt { animation: pop .6s var(--ease-out) .2s both; }
   }

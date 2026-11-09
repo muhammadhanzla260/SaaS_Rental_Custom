@@ -1,0 +1,338 @@
+---
+/** A1 · Rent Hatch 2.0, Agents as a Service. Cyan and volt are reserved for agent content. */
+import Page from '~/layouts/Page.astro';
+import Form from '~/components/Form.astro';
+import Glyph from '~/components/Glyph.astro';
+import { AGENT_NAMES, CA, COMPARE, EV, FAQS, GUARDS, LEVELS, ROAD, STORY, TASKS } from '~/data/agents';
+
+const ORBIT = ['Front Desk', 'Quotes', 'Collections', 'Messaging', 'Dispatch', 'Weather', 'Inventory', 'Analyst'].map((t, i) => {
+  const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+  const r = i % 2 ? 46 : 33;
+  return { t, x: `${50 + Math.cos(a) * r}%`, y: `${50 + Math.sin(a) * r}%`, d: `${-i * 0.5}s`, c: ['#22D3EE', '#D4FF3A', '#3DD39A', '#6E8BFF', '#FF8FC7', '#F5B04C', '#A78BFA', '#22D3EE'][i]! };
+});
+const ROSTERS = [['events', 'Event rental', EV], ['cars', 'Car rental', CA]] as const;
+const WANTS = EV.slice(0, 7);
+---
+<Page
+  title="Rent Hatch 2.0 · AI agents that run your rental business"
+  description="Rent Hatch is becoming Agents as a Service: AI agents that answer leads, build quotes, chase payments and plan crews inside the rules you set. Join early access."
+  vertical="auto"
+  nav="dark"
+  active="agents"
+>
+  <section class="hero">
+    <div class="grid-bg"></div>
+    <div class="glow" style="width:640px;height:640px;background:#22D3EE;opacity:.22;right:-160px;top:-180px;animation:drift 14s ease-in-out infinite"></div>
+    <div class="glow" style="width:520px;height:520px;background:#D4FF3A;opacity:.14;left:-160px;bottom:-220px"></div>
+    <div class="wrap hero-in">
+      <div class="hero-copy">
+        <span class="chip rise hero-chip"><Glyph color="#22D3EE" />Rent Hatch 2.0 · Agents as a Service · early access</span>
+        <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,6vw,88px)">Stop running software. <span class="grad">Let agents run it for you.</span></h1>
+        <p class="rise hero-lede" style="--d:160ms">SaaS gives you screens to click. AaaS gives you a team of AI agents that answer leads, build quotes, chase payments, plan crews and report back, inside the rules you set.</p>
+        <div class="rise btns" style="--d:240ms"><a href="#access" class="btn btn-cyan">Join 2.0 early access</a><a href="#compare" class="btn btn-ghost">SaaS vs AaaS →</a></div>
+        <span class="rise" style="--d:300ms;font-size:13.5px;color:#8A93A3">Rent Hatch 1.0 runs today. 2.0 agents roll out one by one to early-access members.</span>
+      </div>
+      <div class="rise orbit" style="--d:200ms" role="img" aria-label="Rent Hatch agents working around your business">
+        <span class="core"><svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><g fill="#07080B"><rect x="4" y="4" width="7.2" height="7.2" rx="1.9" /><rect x="12.8" y="4" width="7.2" height="7.2" rx="1.9" /><rect x="4" y="12.8" width="7.2" height="7.2" rx="1.9" /><rect x="12.8" y="12.8" width="7.2" height="7.2" rx="1.9" transform="rotate(24 12.8 20)" /></g></svg></span>
+        <span class="ring r1"></span><span class="ring r2"></span>
+        {ORBIT.map((o) => <span class="node" style={`left:${o.x};top:${o.y};animation-delay:${o.d};border-color:${o.c}`}><Glyph color={o.c} />{o.t}</span>)}
+      </div>
+    </div>
+  </section>
+
+  <section id="compare" class="wrap sec stack" style="gap:32px" data-scope data-task="late">
+    <div class="rv head"><div class="stack" style="gap:16px;max-width:760px"><span class="eyebrow">SaaS vs AaaS</span><h2 class="h2">Same job. <span style="color:#0E9AB0">You stop doing it.</span></h2></div><p class="lede" style="max-width:420px">Pick a real rental moment and compare how it gets done.</p></div>
+    <div class="seg light rv" role="radiogroup" aria-label="Pick a task" data-choice="task" style="align-self:flex-start">
+      {Object.entries(TASKS).map(([id, t], i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={id} style="height:44px">{t[0]}</button>)}
+    </div>
+    {Object.entries(TASKS).map(([id, t], i) => (
+      <div class="two" data-when={`task:${id}`} hidden={i !== 0}>
+        <div class="mock saas">
+          <div class="between"><span class="chip" style="background:#EEF0F3;color:#3F4754">SaaS · you operate it</span><span class="mono" style="font-size:13px;color:#A31F25">{t[2]}</span></div>
+          {t[4].map((x, n) => <div class="step" style={`animation-delay:${n * 80}ms`}><span class="mono num">{n + 1}</span>{x}</div>)}
+          <span class="foot" style="color:#6B7383">You remember, you click, you follow up. Miss a step and it doesn't happen.</span>
+        </div>
+        <div class="mock aaas" style="animation-delay:120ms">
+          <div class="glow" style="width:300px;height:300px;background:#22D3EE;opacity:.25;right:-100px;top:-120px"></div>
+          <div class="between rel"><span class="chip" style="background:rgba(34,211,238,.14);color:#A5F3FC;white-space:normal"><Glyph color="#22D3EE" />AaaS · {t[1]}</span><span class="mono" style="font-size:13px;color:#D4FF3A">{t[3]}</span></div>
+          {t[5].map(([x, who, sym, ib, ic], n) => <div class="step dark-step" style={`animation-delay:${200 + n * 160}ms`}><span class="num" style={`background:${ib};color:${ic};font-weight:800`}>{sym}</span><span class="stack" style="gap:2px">{x}<span style="font-size:12.5px;color:#8A93A3">{who}</span></span></div>)}
+          <span class="foot rel" style="color:#A5F3FC">You get one notification, and approve only what your rules say needs you.</span>
+        </div>
+      </div>
+    ))}
+    <div class="rv card" style="overflow-x:auto" tabindex="0" role="region" aria-label="SaaS and AaaS compared">
+      <table>
+        <thead><tr><th scope="col"><span class="sr-only">Compare</span></th><th scope="col">SaaS (software as a service)</th><th scope="col" class="cy-h">AaaS (agents as a service)</th></tr></thead>
+        <tbody>{COMPARE.map(([k, a, b]) => <tr><th scope="row">{k}</th><td style="color:#535C6B">{a}</td><td class="cy">{b}</td></tr>)}</tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="agents" class="roster" data-scope data-vert="events">
+    <div class="wrap stack" style="gap:32px">
+      <div class="rv head">
+        <div class="stack" style="gap:16px;max-width:760px"><span class="eyebrow" style="color:#8A93A3">Meet the team · Rent Hatch 2.0</span><h2 class="h2">Every feature in Rent Hatch, <span class="grad">run by an agent.</span></h2></div>
+        <div class="seg vert" role="radiogroup" aria-label="Business type" data-choice="vert">
+          {ROSTERS.map(([id, label], i) => <button type="button" class="segb" role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-value={id} style="height:44px">{label}</button>)}
+        </div>
+      </div>
+      {ROSTERS.map(([id, , list], gi) => (
+        <div class="agrid" data-when={`vert:${id}`} hidden={gi !== 0} data-pick-group>
+          {list.map(([, n, mod, s, does, ask, c, icon], i) => (
+            <button type="button" class="agcard" aria-pressed={i === 0 ? 'true' : 'false'} style={`--c:${c};animation-delay:${i * 50}ms`}>
+              <span class="between" style="width:100%"><span class="agic" style={`background:${c}`}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d={icon} fill="none" stroke="#07080B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><span class="mono" style="font-size:11.5px;color:#8A93A3">replaces · {mod}</span></span>
+              <strong style="font:800 22px var(--font-display)">{n}</strong>
+              <span style="font-size:15px;line-height:1.5;color:#B7BFCC">{s}</span>
+              <span class="does">{does.map((t) => <span class="chip">{t}</span>)}</span>
+              <span style="font-size:12.5px;color:#A5F3FC">Needs you for: {ask}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="wrap sec watch" data-feed>
+    <div class="rv stack" style="flex:1 1 380px;min-width:0;gap:18px;align-items:flex-start"><span class="eyebrow">Watch it work</span><h2 class="h2">A booking made while you slept</h2><p class="lede">One enquiry at 9 PM, four agents and one decision left for you in the morning.</p><button type="button" class="btn btn-line" data-replay>↺ Replay</button></div>
+    <div class="feed" aria-label="Example of agents handling a booking">
+      <div class="between" style="color:#8A93A3;font-size:13px;padding:0 4px 6px"><span class="mono">Agent activity · example</span><span style="display:inline-flex;align-items:center;gap:6px;color:#A5F3FC"><Glyph color="#22D3EE" /><span data-feed-status>agents working</span></span></div>
+      {STORY.map(([when, who, t, bg, fg, bd, wc, approve]) => (
+        <div class="fitem" data-feed-item style={`background:${bg};color:${fg};border:1px solid ${bd}`}>
+          <span class="mono when">{when}</span>
+          <span class="stack" style="gap:3px;flex:1;min-width:0"><strong style={`font-size:13px;color:${wc}`}>{who}</strong><span style="font-size:14.5px;line-height:1.45">{t}</span>{approve && <span style="display:flex;gap:8px;margin-top:6px"><span class="chip mini" style="background:#D4FF3A;color:#07080B">Approve</span><span class="chip mini" style="border:1px solid #2E3442;color:#fff">Edit</span></span>}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="wrap sec stack" style="gap:32px" data-autonomy>
+    <div class="rv stack" style="gap:16px;max-width:760px"><span class="eyebrow">You stay in charge</span><h2 class="h2">Decide how much each agent can do on its own</h2></div>
+    <div class="two">
+      <div class="card rv panel">
+        <label class="stack lbl" style="gap:6px">Agent<select data-a-agent>{Object.entries(AGENT_NAMES).map(([id, n]) => <option value={id}>{n}</option>)}</select></label>
+        <div class="stack" style="gap:8px"><span class="lbl">Autonomy</span><div class="seg light" role="group" aria-label="Autonomy level">{Object.entries(LEVELS).map(([id, n]) => <button type="button" class="segb" data-a-level={id} aria-pressed={id === 'ask' ? 'true' : 'false'} style="height:44px">{n}</button>)}</div></div>
+        <div class="stack" style="gap:6px"><div class="between" style="font-size:15px"><label for="ag-lim">Spending or refund limit per action</label><strong class="mono" data-a-show>$250</strong></div><input id="ag-lim" data-a-limit type="range" min="0" max="1000" step="25" value="250" style="width:100%;accent-color:#0E9AB0" /></div>
+        <label class="quiet">Quiet hours (no customer messages 9 PM – 8 AM)<input type="checkbox" data-a-quiet checked style="width:18px;height:18px;accent-color:#0E9AB0;flex:none" /></label>
+      </div>
+      <div class="rv panel dark-panel" aria-live="polite">
+        <span class="chip" style="align-self:flex-start;background:rgba(34,211,238,.14);color:#A5F3FC;white-space:normal"><Glyph color="#22D3EE" /><span data-a-label></span></span>
+        <strong style="font:800 26px/1.15 var(--font-display)" data-a-head></strong>
+        <div class="stack" style="gap:14px" data-a-points></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap sec stack" style="gap:28px">
+    <div class="rv stack" style="gap:16px;max-width:760px"><span class="eyebrow">Guardrails</span><h2 class="h2">Agents that can't go rogue</h2></div>
+    <div class="grid-auto" style="--min:300px;--gap:14px">
+      {GUARDS.map(([t, s, icon]) => <div class="card rv" style="padding:24px;display:flex;gap:16px"><span class="gic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d={icon} fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><span class="stack" style="gap:4px"><strong style="font-size:16.5px">{t}</strong><span style="font-size:14.5px;line-height:1.5;color:#535C6B">{s}</span></span></div>)}
+    </div>
+  </section>
+
+  <section id="access" class="wrap sec" style="padding-bottom:100px">
+    <div class="rv access">
+      <div class="glow" style="width:480px;height:480px;background:#22D3EE;opacity:.25;left:-140px;bottom:-240px"></div>
+      <div class="stack rel" style="flex:1 1 420px;min-width:0;gap:22px">
+        <span class="eyebrow" style="color:#8A93A3">From 1.0 to 2.0</span>
+        <h2 class="h2">Your software becomes your team</h2>
+        <ol class="road">{ROAD.map(([n, t, when, s, bg, fg, cb, cf]) => <li><span class="rn" style={`background:${bg};color:${fg}`}>{n}</span><span class="stack" style="gap:3px"><strong style="font-size:17px">{t} <span class="chip" style={`margin-left:6px;padding:2px 8px;font-size:11px;background:${cb};color:${cf}`}>{when}</span></strong><span style="font-size:14.5px;color:#A3ABB9;line-height:1.5">{s}</span></span></li>)}</ol>
+      </div>
+      <div class="ea rel" data-form-root>
+        <Form kind="agents-access" id="agents-access" track="join_agents_waitlist" source="agents-page" class="stack" style="gap:12px">
+          <strong style="font:800 26px var(--font-display)">Join 2.0 early access</strong>
+          <span style="font-size:14.5px;color:#A3ABB9;line-height:1.5">Existing customers get agents first. Pick the ones you want to try.</span>
+          <label for="ag-mail" class="dl">Work email</label>
+          <input id="ag-mail" name="email" class="input" type="email" required autocomplete="email" placeholder="you@yourbusiness.com" style="border-color:#164E63;background:#07080B" />
+          <span class="dl" id="want-l">Agents you want first</span>
+          <div class="wants" role="group" aria-labelledby="want-l" data-wants>
+            {WANTS.map(([id, n]) => <button type="button" class="chip want" aria-pressed={id === 'collect' || id === 'front' ? 'true' : 'false'} data-name={n}>{n.replace(' Agent', '')}</button>)}
+          </div>
+          <input type="hidden" name="agents" data-wants-value />
+          <button type="submit" class="btn btn-cyan" style="margin-top:6px">Request early access</button>
+        </Form>
+        <div class="ea-ok" data-success tabindex="-1"><span class="tick">✓</span><strong style="font:800 26px var(--font-display)">You're on the 2.0 list</strong><span style="color:#A3ABB9;line-height:1.5">We'll tell you first when <span data-wants-line>the agents you chose</span> open up, and walk you through the guardrails.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap faqs">
+    <div class="rv stack" style="flex:1 1 320px;gap:16px"><span class="eyebrow">Agent questions</span><h2 class="h2" style="font-size:clamp(34px,3.6vw,48px)">What owners ask about AI agents</h2></div>
+    <div style="flex:999 1 560px;min-width:0">
+      {FAQS.map(([q, a], i) => <details class="faq" open={i === 0}><summary>{q}<span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span></summary><p>{a}</p></details>)}
+    </div>
+  </section>
+</Page>
+
+<script>
+  import { AGENT_NAMES, LEVELS, STORY, behaviour } from '~/data/agents';
+
+  // Roster: highlight the card that was picked.
+  document.querySelectorAll<HTMLElement>('[data-pick-group]').forEach((g) => g.addEventListener('click', (e) => {
+    const c = (e.target as Element).closest('.agcard');
+    if (c) g.querySelectorAll('.agcard').forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+  }));
+
+  // "Watch it work": the feed plays once it scrolls into view.
+  const feed = document.querySelector<HTMLElement>('[data-feed]')!;
+  const items = [...feed.querySelectorAll<HTMLElement>('[data-feed-item]')];
+  const status = feed.querySelector<HTMLElement>('[data-feed-status]')!;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let timer = 0;
+  const play = () => {
+    clearInterval(timer);
+    let n = 0;
+    items.forEach((el) => { el.hidden = true; });
+    status.textContent = 'agents working';
+    timer = window.setInterval(() => {
+      items[n++]!.hidden = false;
+      if (n >= STORY.length) { clearInterval(timer); status.textContent = 'done · 1 decision for you'; }
+    }, 1300);
+  };
+  if (still) status.textContent = 'done · 1 decision for you';
+  else {
+    items.forEach((el) => { el.hidden = true; });
+    new IntersectionObserver((en, io) => { if (en[0]!.isIntersecting) { io.disconnect(); play(); } }, { threshold: 0.25 }).observe(feed);
+  }
+  feed.querySelector('[data-replay]')!.addEventListener('click', () => { if (!still) play(); });
+
+  // Autonomy demo.
+  const box = document.querySelector<HTMLElement>('[data-autonomy]')!;
+  const $ = <T extends Element>(s: string) => box.querySelector<T>(s)!;
+  let level = 'ask';
+  const render = () => {
+    const agent = $<HTMLSelectElement>('[data-a-agent]').value;
+    const lim = `$${$<HTMLInputElement>('[data-a-limit]').value}`;
+    const [head, pts] = behaviour(level, lim);
+    const all = $<HTMLInputElement>('[data-a-quiet]').checked ? [...pts, ['☾', 'No customer messages between 9 PM and 8 AM', '#A5F3FC'] as const] : pts;
+    $('[data-a-show]').textContent = lim;
+    $('[data-a-label]').textContent = `${AGENT_NAMES[agent]} · ${LEVELS[level]}`;
+    $('[data-a-head]').textContent = head;
+    $('[data-a-points]').replaceChildren(...all.map(([sym, text, color], i) => {
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex;gap:12px;padding:12px 14px;border-radius:14px;background:#11141B;font-size:15px;line-height:1.45;animation:slidein .35s both;animation-delay:${i * 80}ms`;
+      const s = document.createElement('span');
+      s.style.cssText = `color:${color};font-weight:800`;
+      s.textContent = sym;
+      row.append(s, text);
+      return row;
+    }));
+  };
+  box.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('[data-a-level]');
+    if (!b) return;
+    level = b.dataset.aLevel!;
+    box.querySelectorAll('[data-a-level]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  });
+  box.addEventListener('input', render);
+  render();
+
+  // Early-access form: the chips travel as one comma-separated field.
+  const wants = document.querySelector<HTMLElement>('[data-wants]')!;
+  const value = document.querySelector<HTMLInputElement>('[data-wants-value]')!;
+  const sync = () => { value.value = [...wants.querySelectorAll<HTMLElement>('[aria-pressed="true"]')].map((b) => b.dataset.name!).join(', '); };
+  wants.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest('.want');
+    if (!b) return;
+    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+    sync();
+  });
+  sync();
+  document.getElementById('agents-access')!.addEventListener('rh:sent', () => {
+    if (value.value) document.querySelector('[data-wants-line]')!.textContent = value.value;
+  });
+</script>
+
+<style>
+  .hero { position: relative; overflow: hidden; background: #07080B; color: #fff; }
+  .hero-in { position: relative; padding-top: clamp(56px, 7vw, 100px); padding-bottom: 80px; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .hero-copy { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+  .hero-chip { align-self: flex-start; white-space: normal; background: rgba(34, 211, 238, .12); color: #A5F3FC; border: 1px solid rgba(34, 211, 238, .35); }
+  .hero-lede { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #A3ABB9; max-width: 56ch; }
+  .grad { background: linear-gradient(90deg, #D4FF3A, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn-cyan { background: #22D3EE; color: #07080B; }
+  .hero :focus-visible, .roster :focus-visible, .access :focus-visible { outline-color: #22D3EE; }
+  .orbit { flex: 1 1 440px; min-width: 0; position: relative; height: 460px; }
+  .core { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 34px; background: linear-gradient(135deg, #D4FF3A, #22D3EE); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 18px rgba(34, 211, 238, .08), 0 0 80px rgba(34, 211, 238, .45); z-index: 2; }
+  .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 1px dashed #22403F; }
+  .r1 { width: 300px; height: 300px; }
+  .r2 { width: 440px; height: 440px; }
+  .node { position: absolute; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: #0D1117; border: 1.5px solid; color: #E2E8F0; font: 600 13.5px var(--font-ui); white-space: nowrap; z-index: 3; }
+
+  .sec { padding-top: clamp(72px, 8vw, 110px); padding-bottom: 30px; }
+  .head { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: flex-end; }
+  .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .rel { position: relative; }
+  .two { display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch; }
+  .saas, .aaas { flex: 1 1 420px; min-width: 0; border-radius: 28px; padding: clamp(22px, 3vw, 34px); display: flex; flex-direction: column; gap: 14px; }
+  .saas { background: #fff; border: 1px solid #E3E5DC; }
+  .aaas { position: relative; overflow: hidden; background: #07080B; color: #fff; }
+  .step { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: #F7F8F3; font-size: 15px; animation: slidein .4s both; }
+  .dark-step { background: #11141B; border: 1px solid #1C2733; }
+  .num { width: 26px; height: 26px; border-radius: 8px; background: #E3E5DC; color: #535C6B; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+  .foot { margin-top: auto; font-size: 13.5px; }
+  table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 15px; }
+  thead th { text-align: left; padding: 16px 20px; font: 700 12px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: #535C6B; border-bottom: 1px solid #E3E5DC; }
+  thead .cy-h { color: #07080B; background: #CFFAFE; border-bottom-color: #A5F3FC; }
+  tbody th { text-align: left; padding: 15px 20px; border-bottom: 1px solid #EEF0EA; font-weight: 600; }
+  td { padding: 15px 20px; border-bottom: 1px solid #EEF0EA; }
+  td.cy { background: #F0FDFF; font-weight: 600; border-bottom-color: #CFFAFE; }
+
+  .roster { background: #07080B; color: #fff; padding: clamp(72px, 8vw, 110px) 0; margin-top: 90px; }
+  .vert .segb { color: #C9CED8; }
+  .vert .segb[aria-checked="true"] { color: #07080B; }
+  .vert .segb[data-value="cars"][aria-checked="true"] { background: #C9B4FF; }
+  .agrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+  .agcard { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px; border-radius: 24px; border: 1.5px solid #1C2733; background: #0B0E13; text-align: left; cursor: pointer; font: inherit; color: #fff; transition: transform .25s var(--ease-out), border-color .25s, background-color .25s; animation: rise .45s both; }
+  .agcard:hover { transform: translateY(-4px); }
+  .agcard[aria-pressed="true"] { border-color: var(--c); background: #0D1418; }
+  .agic { width: 52px; height: 52px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .does { display: flex; flex-wrap: wrap; gap: 6px; }
+  .does .chip { background: #11141B; border: 1px solid #1C2733; color: #E2E8F0; font-size: 12.5px; padding: 5px 10px; }
+
+  .watch { display: flex; flex-wrap: wrap; gap: 48px; align-items: center; }
+  .feed { flex: 1 1 520px; min-width: 0; border-radius: 30px; background: #07080B; padding: clamp(18px, 3vw, 30px); display: flex; flex-direction: column; gap: 10px; min-height: 520px; }
+  .fitem { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; animation: slidein .45s var(--ease-out) both; }
+  .when { font-size: 12px; opacity: .6; width: 62px; flex: none; padding-top: 2px; }
+  .mini { font-size: 12.5px; padding: 6px 12px; }
+
+  .panel { flex: 1 1 420px; min-width: 0; padding: clamp(22px, 3vw, 34px); display: flex; flex-direction: column; gap: 18px; }
+  .dark-panel { border-radius: 28px; background: #07080B; color: #fff; gap: 14px; }
+  .lbl { font-size: 13px; font-weight: 600; color: #535C6B; }
+  select { height: 48px; border-radius: 14px; border: 1.5px solid #E3E5DC; padding: 0 14px; font: 600 15px var(--font-ui); color: #10131A; background: #fff; }
+  .quiet { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: #F7F8F3; font-size: 15px; cursor: pointer; }
+  .gic { width: 44px; height: 44px; border-radius: 14px; background: #07080B; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+
+  .access { position: relative; overflow: hidden; border-radius: 36px; background: #07080B; color: #fff; padding: clamp(28px, 5vw, 64px); display: flex; flex-wrap: wrap; gap: 48px; }
+  .road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+  .road li { display: flex; gap: 16px; align-items: flex-start; }
+  .rn { width: 36px; height: 36px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+  .ea { flex: 1 1 360px; min-width: 0; background: #0D1418; border: 1px solid #164E63; border-radius: 26px; padding: 28px; }
+  .ea .input:focus { border-color: #22D3EE; }
+  .ea :global(.form-error) { color: #FCA5A5; }
+  .ea[data-state="sent"] :global(form), .ea:not([data-state="sent"]) .ea-ok { display: none; }
+  .ea-ok { display: flex; flex-direction: column; gap: 12px; animation: pop .45s both; }
+  .tick { width: 56px; height: 56px; border-radius: 50%; background: #22D3EE; color: #07080B; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; }
+  .dl { font-size: 13px; font-weight: 600; color: #CFFAFE; }
+  .wants { display: flex; flex-wrap: wrap; gap: 8px; }
+  .want { cursor: pointer; border: 1.5px solid #1C2733; background: transparent; color: #A3ABB9; font-size: 13px; min-height: 36px; }
+  .want[aria-pressed="true"] { border-color: #22D3EE; background: rgba(34, 211, 238, .14); color: #CFFAFE; }
+
+  .faqs { padding-bottom: 100px; display: flex; flex-wrap: wrap; gap: 48px; }
+  .faq[open] .plus { background: #07080B; color: #22D3EE; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .node { animation: floaty 4s ease-in-out infinite; }
+    .ring { animation: spin 40s linear infinite; }
+    .r2 { animation-duration: 60s; animation-direction: reverse; }
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  }
+  @media (max-width: 640px) {
+    .orbit { height: 380px; flex-basis: 100%; }
+    .core { width: 92px; height: 92px; margin: -46px 0 0 -46px; border-radius: 26px; }
+    .r1 { width: 230px; height: 230px; }
+    .r2 { width: 330px; height: 330px; }
+    .node { padding: 7px 10px; font-size: 12.5px; gap: 6px; }
+  }
+</style>

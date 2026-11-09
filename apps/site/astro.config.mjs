@@ -22,6 +22,5 @@ export default defineConfig({
       // The optical-size axis gives big headlines their tight, condensed look.
       options: { experimental: { variableAxis: { opsz: [['12', '96']] } } } },
     { provider: fontProviders.google(), name: 'Geist', cssVariable: '--font-ui', weights: ['400 700'], subsets: ['latin'], display: 'swap', fallbacks: ['system-ui', 'sans-serif'] },
-    { provider: fontProviders.google(), name: 'Geist Mono', cssVariable: '--font-mono', weights: ['400 600'], subsets: ['latin'], display: 'swap', fallbacks: ['ui-monospace', 'monospace'] },
   ],
 });

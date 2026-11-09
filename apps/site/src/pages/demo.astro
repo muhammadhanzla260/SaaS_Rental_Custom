@@ -290,12 +290,12 @@ const ZONES = [['America/New_York', 'Eastern · New York'], ['America/Chicago', 
   .wk, .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
   .wk span { text-align: center; font-size: 12px; font-weight: 700; color: #6B7383; }
   .days { margin-top: 6px; }
-  .days :global(.day) { height: 48px; border-radius: 12px; border: none; font: 600 14px var(--font-mono); cursor: pointer; background: #F1F2EA; color: #10131A; transition: background-color .2s, color .2s, transform .15s; }
+  .days :global(.day) { height: 48px; border-radius: 12px; border: none; font: 600 14px var(--font-ui); cursor: pointer; background: #F1F2EA; color: #10131A; transition: background-color .2s, color .2s, transform .15s; }
   .days :global(.day:disabled) { background: transparent; color: #9AA2AF; cursor: not-allowed; }
   .days :global(.day[aria-pressed="true"]) { background: #0B0D12; color: #D4FF3A; }
   .days :global(.day:active) { transform: scale(.95); }
   .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
-  .slots :global(.slot) { height: 44px; border-radius: 12px; border: 1.5px solid #E3E5DC; background: #fff; font: 600 14px var(--font-mono); cursor: pointer; animation: rise .3s both; }
+  .slots :global(.slot) { height: 44px; border-radius: 12px; border: 1.5px solid #E3E5DC; background: #fff; font: 600 14px var(--font-ui); cursor: pointer; animation: rise .3s both; }
   .slots :global(.slot[aria-pressed="true"]) { background: #D4FF3A; border-color: #0B0D12; }
   [data-confirm]:disabled { opacity: .4; cursor: not-allowed; }
   .done { display: none; padding: 40px 28px; align-items: center; text-align: center; }

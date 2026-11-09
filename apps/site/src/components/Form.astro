@@ -5,7 +5,7 @@
  * Content inside <slot name="success"> shows once the form's root has data-state="sent".
  */
 const HONEYPOT = 'company_website'; // must match public/api/form.php
-type Kind = 'newsletter' | 'early-access' | 'demo' | 'contact';
+type Kind = 'newsletter' | 'early-access' | 'agents-access' | 'demo' | 'contact';
 interface Props { kind: Kind; id: string; track?: string; class?: string; style?: string; source?: string }
 const { kind, id, track, class: cls, style, source } = Astro.props;
 const turnstile = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;

@@ -64,6 +64,7 @@ const chev = 'M2.5 4.5 6 8l3.5-3.5';
               </div>
             </div>
           ))}
+          <a href="/agents" class="rh-link rh-agents" aria-current={active === 'agents' ? 'page' : undefined}>Agents<span class="rh-ai">AI · 2.0</span></a>
           {n.links.map((l) => <a href={l.href} class="rh-link" aria-current={active === l.id ? 'page' : undefined}>{l.t}</a>)}
         </nav>
         <div class="rh-desk rh-actions">
@@ -146,6 +147,8 @@ const chev = 'M2.5 4.5 6 8l3.5-3.5';
   .rh-txt span { font-size: 13px; color: #535C6B; line-height: 1.4; }
   .rh-tick { color: #0B7A55; font-weight: 800; }
   .rh-back { padding: 10px 12px !important; font-size: 13.5px; color: #2C4FE0; font-weight: 600; }
+  .rh-agents { gap: 8px; }
+  .rh-ai { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: linear-gradient(90deg, #D4FF3A, #22D3EE); color: #07080B; font: 800 10.5px var(--font-ui); letter-spacing: .02em; }
   .rh-burger { margin-left: auto; width: 44px; justify-content: center; padding: 0; color: inherit; }
   .rh-burger :global(.b-close), .rh-burger[aria-expanded="true"] :global(.b-open) { display: none; }
   .rh-burger[aria-expanded="true"] :global(.b-close) { display: block; }

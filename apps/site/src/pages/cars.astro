@@ -4,6 +4,7 @@ import Page from '~/layouts/Page.astro';
 import Icon from '~/components/Icon.astro';
 import Faq from '~/components/Faq.astro';
 import PriceLine from '~/components/PriceLine.astro';
+import AaasBand from '~/components/AaasBand.astro';
 import Form from '~/components/Form.astro';
 import { IC } from '~/lib/site';
 
@@ -67,7 +68,7 @@ const FAQS: [string, string][] = [
     <div class="glow" style="width:380px;height:380px;background:#D4FF3A;opacity:.1;left:-120px;bottom:-160px"></div>
     <div class="wrap hero-in">
       <div class="stack" style="flex:1 1 520px;min-width:0;gap:26px">
-        <a href="#access" class="chip rise ea-chip"><span>EARLY ACCESS</span>Car rental is launching soon. Join the first operators →</a>
+        <a href="#access" class="chip rise ea-chip"><span>EARLY ACCESS</span>Car rental is launching soon, with AI agents built in. Join the first operators →</a>
         <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,5.6vw,80px)">Rent out cars. <span class="v">Not your weekends.</span></h1>
         <p class="rise hero-lede" style="--d:160ms">Car rental software that books every vehicle, checks every licence, photographs every scratch and settles mileage, fuel and deposits for you.</p>
         <div class="rise stack" style="--d:240ms;gap:10px">
@@ -135,6 +136,12 @@ const FAQS: [string, string][] = [
       ))}
     </div>
   </section>
+
+  <AaasBand
+    oldPts={["You check licences and photos by hand at every pickup", "You argue fuel, miles and damage at every return", "You remember which car needs a service"]}
+    newPts={["The Verification Agent checks every licence before pickup", "The Inspection Agent compares photos and drafts the charge", "The Fleet Agent books services before they are missed"]}
+    chips={[["Reservations", "#22D3EE"], ["Verification", "#D4FF3A"], ["Inspection", "#3DD39A"], ["Collections", "#6E8BFF"], ["Fleet", "#FF8FC7"], ["Pricing", "#F5B04C"], ["Analyst", "#A78BFA"]].map(([t, c]) => ({ t, c }))}
+  />
 
   <!-- JOURNEY -->
   <section id="journey" class="journey">

@@ -85,12 +85,12 @@ export const NAV: Record<Vertical, VerticalNav> = {
     ]),
     links: [
       { t: 'Pricing', href: '/events#pricing', id: 'pricing' },
-      { t: 'Which setup fits?', href: '/quiz', id: 'quiz' },
     ],
     cta: { t: 'Start free trial', href: SIGN_UP },
     ctaBg: '#D4FF3A',
     ctaFg: '#0B0D12',
     mobile: [
+      { t: 'AI agents · 2.0', href: '/agents' },
       { t: 'Features', href: '/events/features' },
       { t: 'Event & equipment rental', href: '/events/how-it-works' },
       { t: 'Pricing', href: '/events#pricing' },
@@ -101,6 +101,7 @@ export const NAV: Record<Vertical, VerticalNav> = {
     footer: {
       tagline: 'Rental management software for party, event and equipment rental businesses.',
       product: [
+        { t: 'AI agents · 2.0', href: '/agents' },
         { t: 'All features', href: '/events/features' },
         { t: 'Quotes & bookings', href: '/events/features#book' },
         { t: 'Payments', href: '/events/features#pay' },
@@ -142,12 +143,12 @@ export const NAV: Record<Vertical, VerticalNav> = {
     ]),
     links: [
       { t: 'Pricing', href: '/cars#pricing', id: 'pricing' },
-      { t: 'Early access', href: '/cars#access', id: 'access' },
     ],
     cta: { t: 'Get early access', href: '/cars#access' },
     ctaBg: '#6D3FD6',
     ctaFg: '#FFFFFF',
     mobile: [
+      { t: 'AI agents · 2.0', href: '/agents' },
       { t: 'Features', href: '/cars#features' },
       { t: 'Inspections', href: '/cars#inspect' },
       { t: 'Pricing', href: '/cars#pricing' },
@@ -158,6 +159,7 @@ export const NAV: Record<Vertical, VerticalNav> = {
     footer: {
       tagline: 'Car and vehicle rental software for fleets of every size. Now taking early-access sign-ups.',
       product: [
+        { t: 'AI agents · 2.0', href: '/agents' },
         { t: 'Fleet calendar', href: '/cars#features' },
         { t: 'Licence & ID checks', href: '/cars#journey' },
         { t: 'Inspections', href: '/cars#inspect' },

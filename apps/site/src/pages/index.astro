@@ -21,6 +21,7 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
     (function(){var m=document.cookie.match(/(?:^|; )rh_vertical=(events|cars)/);if(m&&!/[?&]choose=/.test(location.search))location.replace('/'+m[1]);})();
   </script>
   <div class="gate-page" data-glow>
+    <a href="/agents" class="ag-banner"><span class="ag-pill">AI · 2.0</span>Rent Hatch is becoming Agents as a Service. <span class="ag-link">Meet the agents →</span></a>
     <div class="cursor-glow" aria-hidden="true"></div>
     <header class="wrap gate-head">
       <span class="gate-logo"><Logo size={38} animate /><span>Rent Hatch</span></span>
@@ -45,7 +46,7 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
             </div>
           </div>
           <div class="door-body">
-            <span class="chip badge-live"><span class="dot"></span>Available now</span>
+            <span class="chip badge-live"><svg width="9" height="9" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><g fill="currentColor"><rect x="2" y="2" width="9" height="9" rx="2.4"/><rect x="13" y="2" width="9" height="9" rx="2.4"/><rect x="2" y="13" width="9" height="9" rx="2.4"/><rect x="13" y="13" width="9" height="9" rx="2.4" transform="rotate(24 13 22)"/></g></svg>Available now</span>
             <h2 class="disp door-h">Event &amp; equipment rental</h2>
             <span class="door-sub" style="color:#C9D2FF">Bounce houses, tents, tables, AV, concessions and tools. Delivered, set up and picked up.</span>
             <div class="feats">
@@ -111,6 +112,9 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
   :global(.gate-body) { background: #07080B; }
   .gate-page { min-height: 100vh; min-height: 100dvh; background: #07080B; color: #fff; display: flex; flex-direction: column; position: relative; overflow: hidden; }
   .cursor-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 40%), rgba(212, 255, 58, .09), transparent 60%); }
+  .ag-banner { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; width: 100%; padding: 10px 16px; background: linear-gradient(90deg, rgba(212,255,58,.1), rgba(34,211,238,.14)); border-bottom: 1px solid #10242A; color: #CFFAFE; font-size: 13.5px; font-weight: 600; text-align: center; }
+  .ag-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: linear-gradient(90deg, #D4FF3A, #22D3EE); color: #07080B; font: 800 10.5px var(--font-ui); letter-spacing: .02em; }
+  .ag-link { text-decoration: underline; color: #fff; }
   .gate-head { width: 100%; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 8px; }
   .gate-logo { display: inline-flex; align-items: center; gap: 10px; font: 800 24px var(--font-display); letter-spacing: -.03em; white-space: nowrap; }
   .gate-acts { display: flex; gap: 8px; align-items: center; }
@@ -139,7 +143,6 @@ const balloons = [['8%', '#FF5A5F', 9, 0], ['22%', '#F5B04C', 11, -4], ['38%', '
   .feats span { display: flex; gap: 10px; align-items: center; font-size: 15.5px; }
   .feats :global(svg) { flex: none; }
   .badge-live { align-self: flex-start; background: rgba(61, 211, 154, .15); color: #3DD39A; border: 1px solid rgba(61, 211, 154, .35); }
-  .badge-live .dot { width: 8px; height: 8px; border-radius: 50%; background: #3DD39A; animation: blink 1.6s infinite; }
   .badge-soon { align-self: flex-start; background: rgba(201, 180, 255, .15); color: #E4DAFF; border: 1px solid rgba(201, 180, 255, .35); }
   .enter { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 26px; border-radius: 999px; font: 700 17px var(--font-ui); transition: gap .3s, transform .2s; }
   .door:hover .enter { gap: 18px; }

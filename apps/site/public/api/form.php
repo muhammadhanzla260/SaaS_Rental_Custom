@@ -1,6 +1,6 @@
 <?php
 /**
- * POST /api/form.php?kind=<newsletter|early-access|demo|contact> — every website form.
+ * POST /api/form.php?kind=<newsletter|early-access|agents-access|demo|contact> — every website form.
  * Works with and without JavaScript: fetch callers (Accept: application/json) get JSON; plain form
  * posts are redirected back with ?sent=<kind> (or ?error=…) so the page shows its success state.
  * Each lead is emailed to config.php's lead_email, and the visitor gets a thank-you email
@@ -41,6 +41,14 @@ $FORMS = [
       'Thanks for joining early access to Rent Hatch for car and vehicle rental.',
       'We’re onboarding fleets in small groups. We’ll email you before your spot opens, with launch pricing locked in for early-access members.',
       'Reply to this email any time to tell us about your fleet. It helps us shape the launch.',
+    ]],
+  ],
+  'agents-access' => [
+    'list' => '2.0 agents early access',
+    'fields' => ['email' => ['Email', true, 200, 'email'], 'agents' => ['Agents wanted first', false, 300, 'text'], 'source' => ['Form location', false, 40, 'text']],
+    'thanks' => ['You’re on the Rent Hatch 2.0 list', [
+      'Thanks for joining early access to Rent Hatch 2.0.',
+      'Agents roll out one at a time. We’ll email you before the ones you picked open up and walk you through the guardrails. Agent pricing is announced at launch, and early-access members get it first.',
     ]],
   ],
   'demo' => [

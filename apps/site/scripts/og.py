@@ -16,6 +16,7 @@ PAGES = {
     '/events': ('Run your rental business without the chaos.', 'Event & equipment rental software', 'events'),
     '/events/how-it-works': ('Book it. Bill it. Deliver it.', 'How Rent Hatch runs an event rental', 'events'),
     '/events/features': ('Everything a rental business runs on.', 'Features', 'events'),
+    '/agents': ('Stop running software. Let agents run it for you.', 'Rent Hatch 2.0 · early access', 'events'),
     '/quiz': ('Which setup fits?', 'A 30-second quiz', 'events'),
     '/demo': ('See Rent Hatch run your Saturday.', 'Book a 20-minute demo', 'events'),
     '/cars': ('Rent out cars. Not your weekends.', 'Car & vehicle rental · early access', 'cars'),
@@ -43,17 +44,19 @@ LOOK = {
 }
 
 def logo(size):
-    """The Rent Hatch mark: volt tile, ink hatch box and lid."""
-    s = size / 100
+    """The Rent Hatch mark: "the open slot", a 2x2 grid of ink tiles on volt, the last tile rotated open."""
+    s = size / 24
     im = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(26 * s), fill=(212, 255, 58))
-    d.rounded_rectangle([22 * s, 50 * s, 78 * s, 80 * s], radius=int(6 * s), fill=(11, 13, 18))
-    lid = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    ImageDraw.Draw(lid).rounded_rectangle([22 * s, 38 * s, 78 * s, 47 * s], radius=int(4 * s), fill=(11, 13, 18))
-    lid = lid.rotate(22, center=(22 * s, 47 * s), resample=Image.BICUBIC)
-    im.alpha_composite(lid)
-    d.ellipse([45 * s, 59 * s, 55 * s, 69 * s], fill=(212, 255, 58))
+    d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(6.5 * s), fill=(212, 255, 58))
+    t = 6.2 * s
+    r = int(1.7 * s)
+    for x, y in [(5, 5), (12.8, 5), (5, 12.8)]:
+        d.rounded_rectangle([x * s, y * s, x * s + t, y * s + t], radius=r, fill=(11, 13, 18))
+    tile = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).rounded_rectangle([12.8 * s, 12.8 * s, 12.8 * s + t, 12.8 * s + t], radius=r, fill=(11, 13, 18))
+    tile = tile.rotate(-24, center=(12.8 * s + t / 2, 19 * s), resample=Image.BICUBIC)
+    im.alpha_composite(tile)
     return im
 
 def wrap(draw, text, font, width):

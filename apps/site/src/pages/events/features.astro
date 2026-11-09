@@ -2,7 +2,8 @@
 /** E3 · Features: every module, then the full searchable list. */
 import Page from '~/layouts/Page.astro';
 import { SIGN_UP } from '~/lib/site';
-import { CAT_COLORS, FEATURES, MODULES, type FeatureCat } from '~/data/features';
+import Glyph from '~/components/Glyph.astro';
+import { CAT_COLORS, FEATURES, FEATURE_AGENTS, MODULE_AGENTS, MODULES, type FeatureCat } from '~/data/features';
 
 const cats = ['All', ...Object.keys(CAT_COLORS)] as ('All' | FeatureCat)[];
 const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f) => f.cat === c).length);
@@ -20,6 +21,7 @@ const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f
       <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,6vw,86px);max-width:1000px">Everything a rental business runs on. <span style="color:#2C4FE0">Nothing it doesn't.</span></h1>
       <p class="lede rise" style="--d:160ms">Bookings, money, messages, crews and reports, designed together so information flows from the first quote to the last receipt without anyone retyping it.</p>
       <div class="rise btns" style="--d:240ms;justify-content:center"><a href={SIGN_UP} class="btn btn-ink" data-track="start_trial" data-where="e3-hero">Start free trial</a><a href="/demo" class="btn btn-line">Book a demo</a></div>
+      <a href="/agents" class="rise ag-callout" style="--d:300ms"><span class="ag-msg"><span class="ag-pill">AI · 2.0</span>In Rent Hatch 2.0, every feature on this page gets an AI agent that runs it for you.</span><span class="ag-more">How AaaS works →</span></a>
     </div>
   </section>
 
@@ -38,6 +40,7 @@ const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f
           <h2 class="h2" style="font-size:clamp(34px,4vw,54px)">{m.h}</h2>
           <p class="lede">{m.p}</p>
           <ul class="pts">{m.pts.map((p) => <li><span aria-hidden="true" style={`background:${m.fg}`}>✓</span>{p}</li>)}</ul>
+          <a href="/agents#agents" class="agstrip"><Glyph size={12} /><span><span class="agk">In 2.0 · runs itself</span><strong>{MODULE_AGENTS[m.id]![0]} Agent</strong> {MODULE_AGENTS[m.id]![1]}</span></a>
         </div>
         <div class="rv mod-ui" aria-hidden="true">
           <div class="glow" style={`width:320px;height:320px;background:${m.glow};opacity:.4;right:-80px;bottom:-120px`}></div>
@@ -54,7 +57,7 @@ const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f
 
   <section id="all" class="wrap all" data-spy-target data-features>
     <div class="rv between" style="flex-wrap:wrap;gap:20px;align-items:flex-end">
-      <div class="stack" style="gap:14px"><span class="eyebrow">The full list</span><h2 class="h2">All {FEATURES.length} features</h2></div>
+      <div class="stack" style="gap:14px"><span class="eyebrow">The full list</span><h2 class="h2">All {FEATURES.length} features.<br /><span class="aggrad">Every one run by an agent in 2.0.</span></h2></div>
       <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="#535C6B" stroke-width="2" stroke-linecap="round" /></svg><span class="sr-only">Search features</span><input type="search" data-q placeholder="Search features, e.g. rain check" /></label>
     </div>
     <div class="cats" role="group" aria-label="Filter features">
@@ -67,6 +70,7 @@ const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f
           <span class="between"><span class="chip" style={`background:${CAT_COLORS[f.cat][0]};color:${CAT_COLORS[f.cat][1]};font-size:12px;padding:4px 10px`}>{f.cat}</span>{f.soon && <span class="soon" style="background:#E3E5DC;color:#353C48">Coming</span>}</span>
           <strong style="font:750 19px/1.2 var(--font-display)">{f.title}</strong>
           <span style="font-size:14.5px;line-height:1.5;color:#535C6B">{f.text}</span>
+          <span class="agline"><Glyph size={12} /><span><strong>{FEATURE_AGENTS[f.title]![0]} Agent</strong> · {FEATURE_AGENTS[f.title]![1]}</span></span>
         </li>
       ))}
     </ul>
@@ -122,6 +126,19 @@ const count = (c: string) => (c === 'All' ? FEATURES.length : FEATURES.filter((f
 <style>
   .hero { position: relative; padding-top: clamp(56px, 7vw, 100px); padding-bottom: 40px; display: flex; flex-direction: column; gap: 22px; align-items: center; text-align: center; }
   .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .ag-callout { width: min(100%, 860px); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 20px 24px; border-radius: 22px; background: #07080B; color: #fff; text-align: left; }
+  .ag-msg { display: flex; align-items: center; gap: 12px; font-size: 15.5px; }
+  .ag-pill { flex: none; background: linear-gradient(90deg, #D4FF3A, #22D3EE); color: #07080B; border-radius: 999px; padding: 3px 9px; font: 800 11px var(--font-ui); }
+  .ag-more { color: #22D3EE; font-weight: 650; font-size: 14.5px; }
+  .agstrip { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 16px; background: #07080B; color: #C8CED8; font-size: 14.5px; line-height: 1.45; max-width: 560px; border: 1px solid rgba(34, 211, 238, .25); transition: border-color .2s; }
+  .agstrip:hover { border-color: #22D3EE; }
+  .agstrip :global(svg) { margin-top: 4px; color: #22D3EE; }
+  .agstrip strong { color: #fff; }
+  .agk { display: block; font: 700 11px var(--font-ui); letter-spacing: .12em; text-transform: uppercase; color: #22D3EE; margin-bottom: 2px; }
+  .agline { display: flex; gap: 8px; align-items: flex-start; margin-top: auto; padding-top: 12px; border-top: 1px dashed #E3E5DC; font-size: 13px; line-height: 1.4; color: #0E5563; }
+  .agline :global(svg) { margin-top: 2px; color: #0E9AB0; }
+  .agline strong { color: #0B0D12; }
+  .aggrad { background: linear-gradient(90deg, #0B0D12, #0E7490); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .modbar { position: sticky; top: 76px; z-index: 20; background: rgba(250, 250, 246, .92); backdrop-filter: blur(12px); border-bottom: 1px solid #E3E5DC; }
   .modnav { display: flex; gap: 4px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; scrollbar-width: none; }

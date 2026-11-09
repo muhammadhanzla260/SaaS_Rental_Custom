@@ -18,7 +18,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: 90px; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 90px; scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--text); font-family: var(--font-ui); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 img, svg { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
@@ -33,7 +33,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .h2 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; line-height: 1.02; margin: 0; font-size: clamp(36px, 4.6vw, 60px); text-wrap: balance; }
 .lede { font-size: clamp(16px, 1.5vw, 19px); line-height: 1.55; color: var(--text-2); margin: 0; max-width: 62ch; }
 .eyebrow { font: 700 12px var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+html { font-variant-numeric: tabular-nums; }
+.mono { font-variant-numeric: tabular-nums; } /* Geist (the UI font) already has tabular figures; no separate mono font */
 .v { color: var(--volt); }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 24px; border-radius: 999px; font: 650 16px var(--font-ui); border: none; cursor: pointer; white-space: nowrap; transition: transform .15s, box-shadow .25s, background-color .2s; }
 .btn:active { transform: scale(.97); }

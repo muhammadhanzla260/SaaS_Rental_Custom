@@ -5,6 +5,7 @@ import Icon from '~/components/Icon.astro';
 import Faq from '~/components/Faq.astro';
 import { IC, SIGN_UP } from '~/lib/site';
 import PriceLine from '~/components/PriceLine.astro';
+import AaasBand from '~/components/AaasBand.astro';
 import { offersJsonLd } from '~/data/plans';
 
 const GEARS = [
@@ -90,7 +91,7 @@ const app = {
     <div class="glow" style="width:420px;height:420px;background:#D4FF3A;opacity:.12;left:-120px;bottom:-160px"></div>
     <div class="wrap hero-in">
       <div class="hero-copy">
-        <a href="/events/features#crew" class="chip rise new-chip"><span>NEW</span>Crew portal with live GPS &amp; photo checklists →</a>
+        <a href="/agents" class="chip rise new-chip ag-herochip" data-track="view_agents" data-where="e1-hero"><span class="ag-pill">AI · 2.0</span>Meet the AI agents that will run your rental business →</a>
         <h1 class="disp rise" style="--d:80ms;font-size:clamp(46px,5.6vw,80px)">Run your rental business <span class="v">without the chaos.</span></h1>
         <p class="rise hero-lede" style="--d:160ms">Quotes, bookings, e-signatures, deposits, crews and reports in one system, built for rental companies from day one.</p>
         <div class="rise stack" style="--d:240ms;gap:10px">
@@ -165,6 +166,12 @@ const app = {
       ))}
     </div>
   </section>
+
+  <AaasBand
+    oldPts={["You chase the deposit, the card retry and the late balance", "You answer the 9 PM enquiry the next morning", "You build the month-end report on a Sunday"]}
+    newPts={["The Collections Agent gets every deposit and balance in", "The Front Desk Agent replies in minutes and sends the quote", "The Analyst Agent writes your month in plain words"]}
+    chips={[["Front Desk", "#22D3EE"], ["Quote", "#D4FF3A"], ["Collections", "#3DD39A"], ["Messaging", "#6E8BFF"], ["Dispatch", "#FF8FC7"], ["Weather", "#F5B04C"], ["Inventory", "#A78BFA"], ["Analyst", "#22D3EE"]].map(([t, c]) => ({ t, c }))}
+  />
 
   <!-- KINDS -->
   <section class="wrap sec" style="padding-top:100px;padding-bottom:20px">

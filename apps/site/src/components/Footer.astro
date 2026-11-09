@@ -39,13 +39,15 @@ const hasStories = (await getCollection('stories', (s) => s.data.approved)).leng
             <span>© {year} Rent Hatch</span>
             <a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/cookies">Cookies</a><a href="/legal/dpa">DPA</a>
             <button type="button" class="rh-flink" data-cookie-settings>Cookie settings</button>
-            <span class="rh-status"><span class="dot" aria-hidden="true"></span>All systems normal</span>
           </div>
-          {SOCIAL.length > 0 && (
-            <div class="rh-social">
-              {SOCIAL.map((s) => <a href={s.href} aria-label={s.label} rel="noopener" target="_blank"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d={s.d} fill="none" stroke="#A3ABB9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></a>)}
-            </div>
-          )}
+          <div class="rh-fright">
+            <a href="#top" class="rh-totop">Back to top <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></a>
+            {SOCIAL.length > 0 && (
+              <div class="rh-social">
+                {SOCIAL.map((s) => <a href={s.href} aria-label={s.label} rel="noopener" target="_blank"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d={s.d} fill="none" stroke="#A3ABB9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></a>)}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </footer>
@@ -70,8 +72,9 @@ const hasStories = (await getCollection('stories', (s) => s.data.approved)).leng
   .rh-flegal a, .rh-flink { font-size: 13px; }
   .rh-flink { background: none; border: none; padding: 0; color: #A3ABB9; cursor: pointer; }
   .rh-flink:hover { color: #fff; }
-  .rh-status { display: inline-flex; align-items: center; gap: 6px; }
-  .rh-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #3DD39A; animation: blink 1.6s ease-in-out infinite; }
+  .rh-fright { display: flex; align-items: center; gap: 18px; }
+  .rh-totop { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #232835; color: #A3ABB9; font-size: 13px; font-weight: 600; transition: border-color .2s, color .2s; }
+  .rh-totop:hover { border-color: #6B7383; color: #fff; }
   .rh-social { display: flex; gap: 10px; }
   .rh-social a { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #232835; display: inline-flex; align-items: center; justify-content: center; }
 </style>

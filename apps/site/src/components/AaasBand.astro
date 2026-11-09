@@ -1,0 +1,52 @@
+---
+/**
+ * "SaaS makes you click. AaaS does the work." — the Rent Hatch 2.0 teaser band shown on the event
+ * and car homes, after the problems section. Links to /agents. Cyan/volt is reserved for AI content.
+ */
+interface Props { oldPts: string[]; newPts: string[]; chips: { t: string; c: string }[] }
+const { oldPts, newPts, chips } = Astro.props;
+const glyph = (c: string) => `<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><g fill="${c}"><rect x="2" y="2" width="9" height="9" rx="2.4"/><rect x="13" y="2" width="9" height="9" rx="2.4"/><rect x="2" y="13" width="9" height="9" rx="2.4"/><rect x="13" y="13" width="9" height="9" rx="2.4" transform="rotate(24 13 22)"/></g></svg>`;
+---
+<section class="wrap" style="padding-top:100px;padding-bottom:20px">
+  <div class="rv ag-band">
+    <div class="glow" style="width:520px;height:520px;background:#22D3EE;opacity:.22;right:-160px;top:-200px"></div>
+    <div class="ag-top">
+      <div class="stack" style="gap:16px;max-width:720px">
+        <span class="chip ag-eyebrow" set:html={`${glyph('#22D3EE')}Coming in Rent Hatch 2.0 · Agents as a Service`} />
+        <h2 class="h2">SaaS makes you click. <span class="ag-grad">AaaS does the work.</span></h2>
+        <p class="lede" style="max-width:620px;color:#A3ABB9">In 2.0, every feature in Rent Hatch runs itself. Quotes, deposits, reminders, crews, inventory and reports each get their own agent that does the work, and you only step in to approve what matters.</p>
+      </div>
+      <a href="/agents" class="btn ag-cta" data-track="view_agents" data-where="home-band">Meet the agents →</a>
+    </div>
+    <div class="ag-cols">
+      <div class="ag-col ag-old">
+        <span class="ag-label" style="color:#8A93A3">Today · SaaS</span>
+        {oldPts.map((t) => <span class="ag-row"><span style="color:#6B7383">○</span>{t}</span>)}
+      </div>
+      <div class="ag-col ag-new">
+        <span class="ag-label" style="color:#22D3EE">2.0 · AaaS</span>
+        {newPts.map((t, i) => <span class="ag-row rise" style={`--d:${i * 120}ms;color:#E2E8F0`}><span style="color:#D4FF3A;font-weight:800">✓</span>{t}</span>)}
+      </div>
+    </div>
+    <div class="ag-chips">
+      {chips.map((c) => <span class="chip ag-chip" style={`border:1.5px solid ${c.c}`} set:html={`${glyph(c.c)}${c.t} Agent`} />)}
+    </div>
+  </div>
+</section>
+
+<style>
+  .ag-band { position: relative; overflow: hidden; border-radius: 36px; background: #07080B; color: #fff; padding: clamp(28px, 5vw, 64px); display: flex; flex-direction: column; gap: 34px; }
+  .ag-top { position: relative; display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: flex-end; }
+  .ag-eyebrow { align-self: flex-start; background: rgba(34, 211, 238, .12); border: 1px solid rgba(34, 211, 238, .35); color: #A5F3FC; font-weight: 600; }
+  .ag-grad { background: linear-gradient(90deg, #D4FF3A, #22D3EE); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ag-cta { position: relative; background: #22D3EE; color: #07080B; }
+  .ag-cols { position: relative; display: flex; flex-wrap: wrap; gap: 16px; }
+  .ag-col { flex: 1 1 340px; min-width: 0; border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .ag-old { background: #11141B; border: 1px solid #1C212C; }
+  .ag-new { background: #0D1A1F; border: 1px solid #164E63; }
+  .ag-label { font: 700 12px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; }
+  .ag-row { display: flex; gap: 10px; font-size: 15px; color: #C9CED8; }
+  .ag-chips { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
+  .ag-chip { background: #0D1117; color: #E2E8F0; font-size: 13.5px; }
+  @media (prefers-reduced-motion: no-preference) { .ag-chip { animation: floaty 4s ease-in-out infinite; } }
+</style>
