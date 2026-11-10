@@ -2,7 +2,8 @@
 
 Status: proposal, for review. Written 10 Nov 2026 after reading the code on `main` (Phases 0–4b).
 Markets: **United States** and **GCC** (UAE: Dubai and Sharjah; Qatar; Oman).
-Companion docs: [market.md](./market.md) (competitors) and [dev-plan.md](./dev-plan.md) (phases).
+Companion docs: [booking-flow.md](./booking-flow.md) (the configurable car booking flow),
+[market.md](./market.md) (competitors) and [dev-plan.md](./dev-plan.md) (phases).
 
 ---
 
@@ -264,16 +265,69 @@ and plans its messages. The idempotency keys (`order:quote:v7`) stay as they are
 
 ## 6. Car rental domain model
 
+### 6.0 Decision record: what is shared and what is separate
+
+**Decision (10 Nov 2026):**
+
+| Data | Decision | Why |
+| --- | --- | --- |
+| **Users** (logins: email, password, sessions, passkeys) | **One shared table** | One person can belong to an event business and a car business. Splitting breaks sign-in, password reset, invites and platform admin, and gains nothing (the table is tiny). Differences live in memberships: **roles per vertical** (events: coach, crew; cars: counter agent, fleet manager, yard, damage assessor), stored as one role per vertical on the membership so one person can hold different roles in each |
+| **Customers** (parties) | **One shared core** + vertical tables | One customer, card, consent, message history and blacklist flag per business. One place to export or delete data (PDPL, PDPPL, Oman PDPL, US state law). Car-only data (driver profiles, licences, IDs) lives in `cars.*`, encrypted, with its own retention |
+| **Orders** | **Thin shared header `commerce.orders`** + **separate detail tables per vertical** (`events.bookings`; `cars.reservations` → `cars.rental_agreements`) | 15 tables already reference `orders` (payments, invoices, refunds, credits, signatures, messages, lines, versions, reservations, coach tables). A shared header keeps real foreign keys, so payments, invoices, tax and e-invoicing are built once. Separate detail tables keep each vertical's fields strict (`NOT NULL`, CHECKs) and its migrations independent |
+
+**How the database keeps them apart:**
+- The header has `vertical` and a `unique (tenant_id, id, vertical)` key.
+- Each detail table has a `vertical` column with a constant CHECK (`= 'cars'`) and a composite
+  foreign key `(tenant_id, id, vertical)` to the header. A car row cannot attach to an event order.
+- A deferred constraint trigger checks that every header has exactly one detail row.
+
+**Header contents:**
+- `vertical`, number, customer, **bill-to party and payer kind** (customer, company, broker, insurer);
+- location, currency, totals, money status;
+- a coarse **stage** (`draft`, `open`, `confirmed`, `completed`, `cancelled`) and version.
+
+Each vertical owns its detailed status and maps it to the stage in the same transaction.
+
+**Shared code never branches on the vertical.** Each vertical registers a `VerticalAdapter`:
+`documentLines`, `messageFields`, `summary`, `onPaymentSettled`, `cancellationPolicy`, `pageUrl`.
+CI enforces both rules:
+- a lint rule against `vertical ===` in platform code;
+- a schema check that flags new header columns. A column goes on the header only if payments,
+  invoices or reports need it.
+
+**Money lines vs detail lines:**
+- `commerce.order_lines` holds money only (name, quantity, unit, tax, total, kind).
+- Vertical line details reference those money lines: event service mode and hours; car rate
+  breakdown and extra code.
+- JSON is used only for tenant custom fields.
+
+**Migration:**
+- Today's `orders` becomes the header.
+- Event-only columns move to `events.bookings` gradually, behind a compatibility view. The Odoo
+  parity check and event tests stay green at every step.
+- Car tables use the new shape from day one.
+- **Spike first** (start of C2): an end-to-end car reservation → deposit → invoice → refund →
+  report on the header. If it needs a `vertical` branch in shared code or a car column on the
+  header, the boundary is wrong and gets fixed while it's cheap.
+
+**Easy to reverse:** splitting the header later is a copy. Merging two separate order systems later
+would mean merging money history, so the shared header is the safer choice.
+
 ### 6.1 Aggregates and state machines
+
+The reservation flow (gates, parties, documents, rules, channels) is specified in
+[booking-flow.md](./booking-flow.md). The diagram below is the whole lifecycle.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Quoted
-  Quoted --> Reserved: hold class capacity
-  Reserved --> Confirmed: deposit/payment ok + required KYC
-  Reserved --> Expired: hold timeout
-  Confirmed --> OnRent: check-out (agreement opened, VIN assigned)
+  [*] --> Draft
+  Draft --> Held: Gate A (capacity held)
+  Held --> Confirmed: Gate B (payment rule + approvals; policy snapshot locked)
+  Held --> Expired: hold timeout
+  Confirmed --> Ready: hand-over requirements met (computed)
+  Ready --> OnRent: Gate C (verified drivers, signed, deposit, VIN ready)
   Confirmed --> NoShow: grace passed
+  Ready --> NoShow: grace passed
   Confirmed --> Cancelled
   OnRent --> OnRent: extend / swap vehicle (amendment)
   OnRent --> Returned: check-in readings + inspection
@@ -287,7 +341,7 @@ stateDiagram-v2
 | `VehicleClass` | ACRISS code, display group, seats, bags, transmission, fuel/EV, min driver age, deposit policy | Class rules apply to every reservation in the class |
 | `Vehicle` | VIN, plate + plate source (emirate or state), class, branch home, odometer, fuel/charge, status, docs (registration expiry, insurance, Salik tag), telematics link | Cannot be assigned while blocked, expired or overdue for service |
 | `RatePlan` | base rates by period (hour, day, week, month), weekend definition per branch calendar, seasons, LOR tiers, included km, excess km rate, grace minutes, one-way matrix | Pure evaluation. Locked on confirmation (price lock) |
-| `Reservation` | class, pickup/return branch and time, extras, quote, channel, driver refs, holds | Capacity hold exists while Reserved or Confirmed |
+| `Reservation` | booking level (class / model / vehicle), pickup and return (branch, delivery address or airport + flight), times, extras, quote, channel and source (broker voucher, corporate PO), parties (hirer, drivers, contacts, bill-to, booker), readiness, policy snapshot | Capacity hold exists while Held or Confirmed. Gates A, B and C from [booking-flow.md](./booking-flow.md) |
 | `RentalAgreement` | VIN, drivers, readings out/in (km, fuel %, EV SoC), condition reports, amendments, settlement | Opened only if every driver is eligible. Readings are monotonic |
 | `DriverProfile` | licence(s) (country, class, expiry), ID (Emirates ID, QID, passport, visa status), DOB, verification results, risk flags | Eligibility = jurisdiction pack × class rules × tenant overrides |
 | `ConditionReport` | photos, damage marks (zone, severity, size), fuel, km, signatures, AI suggestions (proposed only) | Immutable once signed. Corrections are new reports |
@@ -303,6 +357,18 @@ stateDiagram-v2
 | `class` | car reservations before VIN assignment | Over the requested window at the pickup branch: supply (vehicles in class, minus blocks, plus one-way arrivals before start) minus overlapping holds ≥ qty, under advisory lock on (tenant, class, branch) |
 | `serialized` | a VIN on an agreement, maintenance, transfers | `EXCLUDE USING gist (tenant_id WITH =, vehicle_id WITH =, period WITH &&)` on `vehicle_blocks`. The database rejects any double-assignment |
 
+- **Booking level per class** (from booking research):
+  - `class` ("or similar"), with a configurable **upgrade ladder** (free or paid upgrade when sold out);
+  - `model` (guaranteed model);
+  - `vehicle` (a specific car, common for Dubai luxury and exotic fleets), which takes the serialized
+    lock at hold time.
+- **Overbooking allowance** per class, branch and date: off by default, never for vehicle level.
+  Majors overbook against no-shows; events already has `allow_overbooking` per pool.
+- **Overdue rentals keep their car blocked** until it is checked in. Bookings that depend on that car
+  or on tight class supply are flagged at risk.
+- **Delivery and collection** (hotel, home, DXB) is a main way of handing over cars in Dubai. Pickup
+  and return can be a branch or an address in a delivery zone. That creates a driver task, which
+  reuses the event crew dispatch and live map.
 - **Buffers:** each class and branch has a turnaround time (cleaning, refuel or charge). It is
   stored on the block (`period` includes the buffer), like today's `blocked_until`.
 - **One-way trips:** supply at a branch is a projection of each vehicle's planned position over time.
@@ -323,6 +389,17 @@ settle(agreement, readingsIn, damageCases, lateness)
   → extra km × rate, fuel shortfall × price/litre + service fee (or EV SoC), late return (grace → hourly → day),
     cleaning/smoking fees, confirmed damage (≤ excess when protection bought), minus deposit captured → refund/charge
 ```
+
+Late return and extras follow the industry pattern, with every value configurable and locked at
+confirm:
+- grace minutes (typically 29–59);
+- hourly charges up to a threshold (e.g. 2 h), then a full day;
+- extras and protection with their **own** grace rule (often charged as full days with no grace).
+
+**Monthly and subscription** rate plans are in the first GCC release (a large UAE segment). They
+have recurring billing cycles, a km allowance per month and vehicle swaps. **No-deposit** rentals are
+a deposit strategy with a surcharge. **Cross-border** (UAE → Oman) is a product that is only allowed
+for some vehicles, and it generates the NOC letter.
 
 Golden-case test suites per market (like today's Odoo parity check, using a pilot tenant's real past
 contracts) protect the money paths.
@@ -562,3 +639,5 @@ dependency-cruiser gate stops cross-context shortcuts.
 | D5 | KYC vendor | Veriff · Persona · Onfido · Stripe Identity · UAE Pass for residents | One global vendor + UAE Pass later |
 | D6 | Events migration into modules | big bang · incremental strangler | Incremental. Events keeps working on every merge |
 | D7 | Car pricing baseline | — | Golden cases from the pilot tenant's real past contracts (like the Odoo parity check) |
+| D8 | Shared users, customers, order header | separate per vertical · shared | **Shared** (§6.0), proven by the C2 spike |
+| D9 | Booking flow questions | — | See [booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner) (document lists, WhatsApp intake, chauffeur, insurance replacement, brokers) |

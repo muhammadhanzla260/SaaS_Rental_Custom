@@ -1,299 +1,369 @@
 # Car rental vertical: development plan
 
-Goes with [architecture.md](./architecture.md). Sizes are in weeks for **2–3 engineers working with
-coding agents**. They are planning estimates, not commitments. Each phase follows the repo's existing
-release rule: one branch per phase (`cars/phase-cN`, from the previous phase), a Vercel preview on
-staging, owner QA, then a PR into `main`.
+Goes with [architecture.md](./architecture.md) and [booking-flow.md](./booking-flow.md). Sizes are
+in weeks for **2–3 engineers working with coding agents**. They are planning estimates, not
+commitments. Each phase follows the repo's existing release rule: one branch per phase
+(`cars/phase-cN`, from the previous phase), a Vercel preview on staging, owner QA, then a PR into
+`main`.
+
+Revised 10 Nov 2026 after the booking research. The changes:
+- the configuration engine moves to the front;
+- the booking flow gets its own phase;
+- delivery and collection, monthly rentals, brokers and corporate accounts are in scope before the
+  pilot.
 
 **Ground rules for every phase**
-- Events keeps working on every merge. The e2e scripts, DB tests and Odoo parity
-  (`pnpm --filter @rental/core parity`, 150/150) must stay green.
+- Events keeps its own flow and keeps working on every merge. The e2e scripts, DB tests and Odoo
+  parity (`pnpm --filter @rental/core parity`, 150/150) must stay green.
 - New code goes into the module layout (`contract/ domain/ app/ infra/ ui/`). The boundary check
-  runs in CI from Phase C0 onward.
+  runs in CI from C0 onward.
+- **Nothing car-specific is hard-coded if a business could want it different.** It goes through the
+  settings registry or the rules engine, and gets a preset value.
 - Every money path has golden-case tests. Every invariant that can race has a concurrency test.
 - Feature flags are per tenant and per module (they extend `tenants.rollout_phase`). Car tenants stay
-  in early access until C6.
+  in early access until the pilot.
 
 ---
 
 ## Timeline at a glance
 
 ```
-week   1    4    8    12   16   20   24   28   32
-C0  ████████                                      foundations (refactor, kernel, outbox, i18n base)
-C1          ██████                                fleet & rates
-C2                ████████                        availability & reservations, widget
-C3                ██████                          payments port, GCC gateway, deposits, ledger, tax invoices
-C4                        ██████                  drivers & KYC, agreement
-C5                              ████████          field app: check-out / check-in, settlement
-C6                                      ██████    tolls, fines, maintenance  → pilot (1 US + 1 Dubai)
-C7          ················████████████████      agent platform + agents (parallel track)
-C8          ··········██████······                ME cell, residency, e-invoicing (parallel track)
-C9                                            ███ GA hardening, migration importers, channels
+week    1    4    8    12   16   20   24   28   32   36
+C0   ████████                                            foundations + config/rules kernel + shared header
+C1           ████████                                    fleet, catalog, rates, policies, presets, rule bench
+C2                   ██████████                          booking core: spike, availability levels, reservation, gates, counter
+C3                         ██████                        payments, deposits, ledger, tax invoices, GCC gateway
+C4                               ████████                drivers & documents & KYC, agreement, website + portal
+C5                                       ████████        hand-over & return, delivery/collection, settlement
+C6                                               ██████  monthly, corporate, brokers
+C7                                                 ██████ tolls, fines, maintenance → PILOT (1 US + 1 Dubai)
+C8           ···········████████████████████████         agents (parallel; reservation agent after C4)
+C9           ··········██████████                        ME cell, residency, e-invoicing (parallel)
+C10                                                   ▶  GA hardening
 ```
 
 ---
 
 ## C0 · Foundations (≈ 4 weeks)
 
-**Goal:** add seams without changing behaviour.
+**Goal:** add seams and the configuration kernel without changing event behaviour.
 
-1. **Kernel package** (moved from `@rental/core`; `core` re-exports so events code does not change):
+1. **Kernel package** (moved from `@rental/core`; `core` re-exports, so events code does not change):
    - `Money` with ISO 4217 exponents (USD, AED, QAR, OMR, SAR, KWD, BHD) and one rounding module;
    - a lint rule against `/100` and `*100` outside the kernel;
    - `COUNTRY_DEFAULTS` for QA and OM;
    - branch calendars (weekend days per country, seasons);
    - contract helpers `defineCommand`, `defineQuery`, `defineEvent` (zod, version, permission, risk,
-     dryRun);
-   - a pure policy evaluator (the shape of `permissions.ts`).
-2. **Outbox and inbox.**
-   - Tables `outbox(id, tenant_id, context, type, version, payload, occurred_at, published_at)` and
-     `inbox(consumer, event_id)`, both under RLS.
-   - A relay in the worker (LISTEN/NOTIFY + poll).
-   - Named queues: `critical`, `messaging`, `projections`, `reports`, `ai`.
-3. **Strangle the first coupling.** `orders` emits `OrderBooked`, `QuoteSent` and `OrderCancelled`.
-   Messaging subscribes instead of being called. Message idempotency keys are unchanged, and
-   behaviour is identical in the e2e scripts.
-4. **Boundaries in CI.**
-   - `dependency-cruiser` rules from architecture §5.
-   - `exports` maps on new packages.
-   - Postgres schema per new context.
+     dryRun).
+2. **Configuration kernel** ([booking-flow.md §4–5](./booking-flow.md#4-rules-engine-how-everything-configurable-works)):
+   - `defineSetting` registry;
+   - scoped resolution with provenance;
+   - `platform.settings_values` (versioned, `effective_from`);
+   - rules as data (`platform.rules`), with a pure evaluator: facts, effects, conflict resolution,
+     locked jurisdiction rules and bounds;
+   - `platform.policy_snapshots` (content-addressed).
+
+   Existing tenant and location settings keep working through an adapter.
+3. **Approvals inbox** (`platform.approvals`), one queue for human rule approvals and agent proposals.
+4. **Shared order header** (architecture §6.0):
+   - `orders` gains `vertical`, `stage`, `bill_to_party_id` and `payer_kind`, plus
+     `unique (tenant_id, id, vertical)`;
+   - the `VerticalAdapter` registry, with events registered first;
+   - the lint rule against `vertical ===` in platform code;
+   - a schema check on header columns.
+5. **Outbox and inbox** tables, the relay in the worker, and named queues (`critical`, `messaging`,
+   `projections`, `reports`, `ai`). First strangled coupling: `orders` emits `OrderBooked`,
+   `QuoteSent` and `OrderCancelled`, and messaging subscribes. Idempotency keys are unchanged.
+6. **Boundaries in CI:**
+   - `dependency-cruiser` rules;
+   - `exports` maps;
+   - a Postgres schema per new context;
    - `AGENTS.md` per context.
-5. **Tenancy.**
-   - `tenants.verticals text[]` and `tenants.home_cell`.
-   - The register page's existing `?vertical=cars` path creates a cars-enabled early-access workspace.
-   - Role sets per vertical: cars adds `counter_agent`, `fleet_manager`, `yard` (jockey/driver) and
-     `damage_assessor`. Coach and crew stay events-only.
-6. **i18n base.**
-   - The ICU message catalog is wired in.
-   - `dir` on `<html>`.
-   - The component kit (`components/kit`) is converted to logical properties.
-   - English strings are extracted for the kit and shell first.
-7. **Observability.** OpenTelemetry traces for server actions, the worker and SQL. Error reporting.
-   SLO dashboards for the budgets in architecture §8.
+7. **Tenancy and roles:**
+   - `tenants.verticals text[]` and `home_cell`;
+   - **roles per vertical** on memberships (events: coach, crew; cars: counter agent, fleet manager,
+     yard, damage assessor);
+   - the register page's `?vertical=cars` path creates a cars early-access workspace.
+8. **i18n base:**
+   - the ICU catalog is wired in;
+   - `dir` on `<html>`;
+   - the kit (`components/kit`) is converted to logical properties;
+   - kit and shell strings are extracted first.
+9. **Observability:** OpenTelemetry traces for actions, the worker and SQL. Error reporting. SLO
+   dashboards.
 
 **Exit:**
-- All existing e2e scripts, DB tests and parity pass.
+- All event e2e scripts, DB tests and parity pass.
 - The boundary check is green.
-- One event flows through the outbox to messaging in production.
+- The rule evaluator and settings resolver have property tests (deterministic results, locked rules
+  can't be loosened).
+- One event flows through the outbox.
 - The kit renders correctly in `ar` (RTL screenshot test).
 
-## C1 · Fleet & rates (≈ 3 weeks)
+## C1 · Fleet, catalog, rates, policies, presets (≈ 4 weeks)
 
 - **Fleet:**
-  - vehicle classes (ACRISS code, seats, bags, transmission, fuel/EV, minimum age, deposit policy);
-  - vehicles (VIN check digit, plate + emirate/state, registration and insurance expiry, Salik tag
-    id, odometer, home branch, status lifecycle);
+  - classes (ACRISS, tags, **booking level** class / model / vehicle, upgrade ladder);
+  - models;
+  - vehicles (VIN check digit, plate + emirate/state, registration and insurance expiry, Salik tag,
+    odometer, home branch, photos, status lifecycle);
   - CSV import;
-  - documents with expiry alerts.
-- **Branches:** reuse locations, plus branch type (airport / city / delivery-only), opening hours,
-  after-hours return, and delivery zones (polygons) with fees.
-- **Rate engine** (pure, `cars/rates/domain`):
+  - document expiry alerts.
+- **Branches:**
+  - type (airport, city, delivery-only);
+  - opening hours, after-hours rules;
+  - **delivery zones** (polygons, fee rules, lead time, slots);
+  - one-way matrix.
+- **Catalog:**
+  - extras (tracked, such as child seats, or untracked; per day, per rental, or capped);
+  - protection packages (CDW/SCDW/PAI, excess amounts);
+  - mileage plans, fuel options (full-to-full, same-to-same, prepaid), cross-border products
+    (country, eligible vehicles, NOC template).
+- **Rate engine** (pure):
   - billable periods (24 h + grace) and best-of day/week/month;
   - seasons and weekend days from the branch calendar;
-  - LOR tiers, included km and excess rate;
-  - extras (per day, capped, or per rental), protection products (CDW/SCDW/PAI with excess);
-  - fees (airport, one-way, delivery, young driver);
-  - tax components through the `TaxEngine` port (VAT 5% for AE and OM; Qatar none; US multi-component).
-- **Staff UI:** fleet list, vehicle page, classes, rate plans and extras editor.
+  - LOR tiers; km allowance and excess;
+  - fees (airport, delivery, one-way, after-hours, young driver, extra driver);
+  - **monthly/subscription plans**;
+  - tax through the `TaxEngine` port (AE/OM 5% VAT, QA none, US multi-component).
+- **Policies** as versioned objects: cancellation tiers, no-show, modification and repricing,
+  deposit (strategy, amount, release days, no-deposit surcharge), late return (grace, hourly
+  threshold, rules for extras).
+- **Jurisdiction packs** (AE, AE-DU, AE-SHJ, QA, OM, US + states) with locked legal rules.
+  **Presets:** Dubai standard, Dubai luxury, Monthly UAE, Doha, Muscat, US airport, US neighborhood.
+- **Settings UI generated from the registry**, plus the **rule test bench** with saved test cases.
 
 **Exit:**
-- The golden suite prices 30+ scenarios to the minor unit in USD, AED, QAR and **OMR (3 decimals)**,
-  including a 9-day rental where the weekly rate wins and a one-way with airport fee and VAT.
-- The engine runs in the browser.
+- The golden suite prices 40+ scenarios to the minor unit in USD, AED, QAR and **OMR**. Examples:
+  - a 9-day rental where the weekly rate wins;
+  - a Dubai Marina delivery, free over 3 days;
+  - a monthly plan with excess km;
+  - a one-way with an airport fee and VAT.
+- The bench explains every rule that fires.
+- A locked rule cannot be loosened.
 
-## C2 · Availability & reservations (≈ 4 weeks)
+## C2 · Booking core (≈ 5 weeks)
 
-- **Availability engine:**
-  - the existing pooled strategy is wrapped;
-  - add the `class` strategy (advisory lock per tenant + class + branch, one-way supply projection,
-    turnaround buffers);
-  - add the `serialized` strategy: `vehicle_blocks` with
-    `EXCLUDE USING gist (tenant_id WITH =, vehicle_id WITH =, period WITH &&)`;
-  - maintenance and transfer blocks.
-- **Reservation aggregate** and its state machine (Quoted → Reserved → Confirmed → OnRent → Returned
-  → Settled → Closed; NoShow, Cancelled, Expired). Hold expiry runs as a scheduled job. Prices are
-  locked on confirmation (reusing the price-lock pattern). Versions and audit are recorded.
-- **Staff reservation builder:** class picker with live availability and quote, extras, drivers,
-  pickup and return branch and time. **Fleet calendar** (virtualized Gantt by vehicle and class with
-  drag to assign or swap) is the view the marketing page already shows.
-- **Late VIN assignment:** a pure solver suggests a VIN and staff can override.
-- **Public booking widget + portal:**
-  - a `class_availability` projection with a short cache;
-  - pages are static plus a JSON API;
-  - booking widget pages: quote, then reserve, then pay link (C3).
+1. **Spike (weeks 1–2):** a thin car reservation → deposit → invoice → refund → report on the shared
+   header. Any `vertical` branch needed in shared code, or any car column needed on the header,
+   counts as a finding and gets fixed before going further.
+2. **Availability:**
+   - class strategy (advisory lock, overbooking allowance, upgrade ladder);
+   - model strategy;
+   - vehicle strategy (`EXCLUDE USING gist` on `vehicle_blocks`);
+   - one-way supply, turnaround buffers, maintenance blocks;
+   - **overdue rentals keep their car blocked**, with at-risk flags;
+   - tracked extras use the pooled strategy.
+3. **Reservation aggregate:**
+   - parties (hirer, primary and additional drivers, contacts, bill-to, booker);
+   - pickup and return modes (branch, delivery, airport + flight);
+   - state machine (Draft → Held → PendingApproval → Confirmed → Ready → OnRent; Expired, Declined,
+     Cancelled, NoShow);
+   - **gates A/B/C and the computed readiness checklist**;
+   - policy snapshot at confirm;
+   - hold expiry and no-show jobs (flight-delay-aware grace);
+   - versions and audit.
+4. **Commands with dry run:** `search.offers`, `hold`, `update`, `confirm`, `modify`, `cancel`,
+   `markNoShow`, `readiness`. Every one returns the explained quote and the checklist.
+5. **Staff counter builder:**
+   - one screen with a "Still required" sidebar;
+   - phone/email lookup;
+   - live quote;
+   - approvals in place.
+6. **Fleet calendar:** a virtualized Gantt by vehicle and class, with drag to assign or swap, at-risk
+   and overdue markers.
+7. **Flow definitions per channel** (staff first). Tenant custom fields with show-if rules.
 
 **Exit:**
-- A concurrency test (50 parallel bookings for the last car) produces exactly 1 success.
-- No double VIN assignment is possible (the database rejects it).
-- Widget availability + quote p95 ≤ 400 ms on a 1,000-vehicle seed.
+- A concurrency test (50 parallel holds for the last car) produces exactly 1 success.
+- A vehicle-level double hold is rejected by the database.
+- An overdue return correctly blocks the next booking.
+- A counter booking for a returning customer takes ≤ 90 s in an e2e timing run.
+- Commit p95 ≤ 250 ms.
 
-## C3 · Payments, deposits, ledger, tax invoices (≈ 3 weeks, parallel with C2)
+## C3 · Payments, deposits, ledger, tax invoices (≈ 3 weeks, overlaps C2)
 
-- **`PaymentGateway` port with capability flags.** The current Stripe code (`@rental/payments`)
-  moves behind it with no behaviour change for events.
-- Add authorize / increment / capture / void and merchant-initiated charges.
-- **First GCC adapter.** Which one depends on decision **D1** (merchant onboarding in AE, QA and OM,
-  plus auth-hold support, confirmed with the provider).
-- **Deposit strategies:**
-  - `auth_hold` with automatic re-auth before expiry (`critical` queue);
-  - `charge_and_refund` with a configurable retention window;
-  - `none`.
-- **Ledger** per agreement (double-entry-lite) and reconciliation of ledger = gateway (extends
-  today's `reconcile_payments`).
+- **`PaymentGateway` port with capability flags.** The current Stripe code moves behind it with no
+  change for events. Add authorize / increment / capture / void and merchant-initiated charges.
+- **First GCC adapter** (decision D1, confirmed with the provider for AE, QA and OM onboarding and
+  auth holds).
+- **Payment options:**
+  - pay now (full or partial);
+  - pay at pickup with a card guarantee or without;
+  - broker prepaid;
+  - corporate invoice with credit limit;
+  - cash (counter only).
+- **Deposit strategies:** `auth_hold` with re-auth, `charge_and_refund` with a release window,
+  `no_deposit` with a surcharge, `none`.
+- **Cancellation and no-show fees** from the locked policy, charged on the guaranteed card.
+- **Ledger** per order (customer, broker and corporate receivables, deposit liability, revenue, VAT,
+  pass-throughs). Reconciliation of ledger = gateway.
 - **Immutable tax invoices + credit/debit notes:**
-  - bilingual EN/AR print template with TRN and the words "Tax Invoice";
-  - per-branch numbering (exists);
-  - VAT-inclusive display for consumers in the UAE.
-- **Events tenants:** move from "re-sync invoices" to issue-and-credit-note behind a flag. Parity of
-  totals is unchanged.
+  - bilingual EN/AR with TRN;
+  - **bill-to** a customer, company or broker;
+  - VAT-inclusive display for UAE consumers;
+  - events moves to issue-and-credit-note behind a flag.
 
 **Exit:**
-- A full money lifecycle in AED and OMR (hold, capture part, release rest, refund, post-rental
-  charge) reconciles to the minor unit against the gateway sandbox.
-- No issued invoice can be updated (DB trigger + test).
+- The money lifecycle in AED and OMR reconciles to the minor unit for each payment option, including
+  a no-show fee and a broker booking with counter extras.
+- Issued invoices cannot change (DB trigger + test).
 
-## C4 · Drivers, KYC, agreement (≈ 3 weeks)
+## C4 · Drivers, documents, KYC, agreement, customer channels (≈ 4 weeks)
 
-- **Driver profiles:** licences (country, class, expiry), ID (Emirates ID, QID, passport, visa
-  type), DOB, additional drivers.
-- **Field-level encryption** and private storage. ID images are purged on schedule.
-- **KYC adapter** (decision **D5**). The portal upload flow (phone camera) and verification results
-  arrive as webhooks.
-- **Eligibility rule packs** are versioned data: UAE (resident vs visitor licence or IDP), Qatar,
-  Oman and US states. Tenant overrides cover minimum ages per class and young-driver surcharges. The
-  pure evaluator explains every rejection.
-- **Rental agreement:**
-  - tenant-edited, versioned and bilingual text;
-  - e-signature (reuse `signatures`: exact text, version, IP, UA);
-  - consent for post-rental charges on the saved card;
-  - cross-border clause (UAE → Oman requires insurance extension).
+- **Driver profiles and identity documents:**
+  - catalog per jurisdiction;
+  - field-level encryption + keyed hash;
+  - private storage, retention purge;
+  - expiry vs `return_at` + buffer.
+- **Declared vs verified facts.** The hand-over gate accepts **verified only**.
+- **Document scan prefill** (MRZ/OCR, through the KYC vendor or the extraction agent with a person
+  confirming).
+- **KYC adapter** (D5). UAE Pass later.
+- **Manual verification screen** for staff, with a permission. A soft blacklist hit goes to approval;
+  a hard hit is denied.
+- **Agreement:**
+  - tenant-edited, versioned, bilingual;
+  - e-signature (reuse `signatures`);
+  - which drivers must sign (setting);
+  - consent for post-rental charges;
+  - cross-border NOC generated when bought.
+- **Website booking widget** (≤ 4 screens to confirm, instant eligibility pre-check from declared
+  facts).
+- **Customer portal "complete your booking"** link: documents, extra drivers, sign, pay.
+- **Reminders** until the booking is `ready_for_pickup` (messaging; email, SMS and WhatsApp
+  templates).
 
 **Exit:**
-- An ineligible driver cannot be put on an agreement (domain + DB test).
-- KYC → eligibility → sign works end to end in a phone e2e run, in EN and AR.
+- An unverified or ineligible driver cannot pass hand-over (domain + DB test).
+- A web booking → portal completion → ready works end to end on a phone, in EN and AR.
+- ≥ 70% of test-pilot bookings reach "ready" before pickup day in a staging dry run.
 
-## C5 · Field app: check-out, check-in, settlement (≈ 4 weeks)
+## C5 · Hand-over & return, delivery & collection, settlement (≈ 4 weeks)
 
 - **The coach portal PWA becomes a shared field-app shell:**
-  - offline queue (IndexedDB) and background photo upload with presigned URLs and retry;
+  - offline queue and background photo upload;
   - client-side resize (reuse `shrink-image`);
   - GPS stamp.
-- **Check-out:** VIN/plate scan or confirm, guided walk-around (8–12 photo angles), tap-to-mark
-  damage diagram (zones exist on the marketing page), fuel/SoC, odometer, customer signature on the
-  condition report, keys handed.
-- **Check-in:** the same flow with side-by-side pickup photos, new-damage marking and readings.
-- **Settlement** (pure `settle()`): extra km, fuel or charge, late return, cleaning, confirmed damage
-  (capped by protection excess), then deposit capture and release, and a receipt with photos.
-- **Extensions and early returns** run from the portal and staff app, re-checked against
-  availability and re-quoted under the price lock.
-- **Yard board:** due out, due in, late, prep queue (cleaning, refuel), blocked vehicles, delivery
-  and collection runs (reuses the crew dispatch and live map).
+- **Check-out** (Gate C → agreement opened):
+  - VIN/plate confirm;
+  - guided walk-around photos;
+  - tap-to-mark damage diagram;
+  - fuel/SoC and odometer;
+  - customer signs the condition report;
+  - keys handed.
+- **Delivery and collection tasks** reuse crew dispatch and the live map: time window, route, proof
+  of hand-over at the address.
+- **Check-in** with side-by-side pickup photos, new damage and readings. **Settlement** (pure):
+  - extra km and fuel;
+  - late return with separate grace for extras;
+  - cleaning;
+  - confirmed damage capped by excess;
+  - deposit capture and release;
+  - receipt with photos.
+- **Extensions, early returns and vehicle swaps** run from the portal and staff app, re-checked
+  against availability under the locked terms or the repricing setting.
+- **Yard board:** due out and due in, late, ready vs incomplete, prep queue, deliveries.
 
 **Exit:**
-- A check-out takes ≤ 2 minutes on a mid-range phone with throttled 3G and works offline.
+- Check-out ≤ 2 min for a ready booking on a mid-range phone, offline-capable.
 - Settlement golden suite passes.
-- A deposit is released automatically after a clean return.
+- Deposit release is automatic after a clean return.
 
-## C6 · Tolls, fines, maintenance → pilot (≈ 3 weeks)
+## C6 · Monthly, corporate, brokers (≈ 3 weeks)
+
+- **Monthly/subscription:**
+  - recurring invoices per cycle;
+  - auto-charge;
+  - km per cycle with excess;
+  - scheduled service swaps;
+  - notice period and auto-renew settings.
+- **Corporate accounts:**
+  - company party, negotiated rate plans, credit limit;
+  - authorised drivers and bookers;
+  - PO required (setting);
+  - monthly statement;
+  - corporate portal flow.
+- **Brokers and marketplaces:**
+  - broker accounts (net vs gross, commission);
+  - voucher import (manual entry first, then email parsing or API per broker the pilots use);
+  - counter collection of deposit and extras;
+  - broker receivable in the ledger.
+
+**Exit:**
+- 3 monthly cycles simulated with excess km and a swap reconcile.
+- A broker voucher → counter → return → broker statement balances.
+
+## C7 · Tolls, fines, maintenance → pilot (≈ 3 weeks)
 
 - **Post-rental charges:**
-  - statement import (Salik and Darb CSV/Excel, police and RTA exports for Dubai, Sharjah and
-    Abu Dhabi, Qatar MOI, Oman ROP, and US toll or partner files);
-  - mapping templates per source;
-  - match by plate + instant;
-  - exceptions queue;
-  - admin fee and tax treatment through the tax engine;
-  - collection from deposit or merchant-initiated charge;
-  - customer notice with evidence;
-  - dispute workflow;
-  - a closing window per tenant.
-  An API adapter is added only where an official API is confirmed.
-- **Maintenance:**
-  - plans by km or date;
-  - work orders and vendors;
-  - due and overdue items block availability;
-  - registration and insurance expiry alerts (extends `maintenance_tickets`).
-- **Reports:** utilization, revenue per available unit, revenue by class and branch, damage and fine
-  recovery rate, fleet age. Exported and scheduled (reuses the reports module).
-- **Pilot:** onboard **1 US + 1 Dubai** operator in early access, with a migration import from
-  CSV/Excel or their current RMS export.
+  - Salik and Darb statement import (VAT on Salik per current rules);
+  - police and RTA fines for Dubai, Sharjah and Abu Dhabi, Qatar MOI, Oman ROP;
+  - US toll and partner files;
+  - match by plate + instant, with an exceptions queue;
+  - admin fee and tax;
+  - collect from deposit or merchant-initiated charge;
+  - notice with evidence, disputes, closing window.
+- **Maintenance:** plans by km or date, work orders, blocks, registration and insurance expiry alerts.
+- **Reports:** utilization, revenue per available unit, by class and branch, no-show rate per channel
+  (feeds the overbooking allowance), damage and fine recovery, readiness rate.
+- **Pilot:** **1 US + 1 Dubai** operator, with real past bookings imported for presets and golden
+  cases.
 
 **Exit:**
-- The pilot tenants run real rentals for 4 weeks.
+- Pilots run real rentals for 4 weeks.
 - ≥ 95% of toll lines auto-match.
-- Nothing is double-charged (idempotency keys per statement line).
+- No double charges (an idempotency key per statement line).
 
-## C7 · Agent platform and agents (parallel track, ≈ 10 weeks, starts after C0)
+## C8 · Agents (parallel track, starts after C0)
 
-1. **Platform** (weeks 1–4):
-   - `agent_principals`, autonomy levels and kill switches (tenant and platform console);
-   - the tool gateway generated from contracts, with risk classes and policy evaluation;
-   - the **proposals inbox** (diff + reason + evidence, one-click approve);
-   - `agent_runs` and `agent_steps` logging with cost;
-   - budgets and rate limits;
-   - subject binding (OTP) for customer channels;
-   - eval harness (golden and adversarial cases, EN/AR) wired into CI;
+1. **Platform** (with C1–C2):
+   - `agent_principals`, autonomy levels, kill switches;
+   - the tool gateway generated from contracts, with risk classes and policy;
+   - proposals use the **same approvals inbox**;
+   - run logging with cost, budgets, subject binding (OTP);
+   - eval harness in CI (EN/AR, adversarial);
    - the `ai-anthropic` adapter with per-cell model routing;
-   - an **MCP server** in `apps/api` with per-key scopes.
-2. **Agents, rolled out in this order** (each goes shadow → L1 → L2 per tenant on measured precision):
-   1. Ops copilot (read-only, staff).
-   2. Reservation agent: web chat, then WhatsApp.
-   3. KYC chaser.
-   4. Fines & tolls matcher (back office).
-   5. Damage assistant (L0/L1 only).
-   6. Fleet & yield advisor (proposals only).
-   7. Collections.
-3. The **events vertical** gets the same agents where they fit (quote agent, ops copilot) at no extra
-   platform cost.
+   - an MCP server with scoped keys.
+2. **Agents, in order:**
+   1. Ops copilot (read-only).
+   2. **Document extraction assistant** (MRZ/OCR proposals, with a person confirming).
+   3. **Reservation agent** on web chat, then **WhatsApp**, after C4. Same flow definition; payment
+      and upload by secure link.
+   4. **Readiness/KYC chaser.**
+   5. Fines & tolls matcher.
+   6. Damage assistant (L0/L1 only).
+   7. Fleet & yield advisor: overdue swaps, repositioning, overbooking suggestions.
+   8. Collections.
 
 **Exit:**
-- No agent can execute a command its policy denies (adversarial eval suite at 100%).
-- Every agent action is traceable from the audit log to the run step.
-- The reservation agent books correctly in ≥ 95% of eval conversations with zero policy violations.
+- 0 policy violations in the adversarial suite.
+- Every agent action is traceable to the audit log.
+- The reservation agent books correctly in ≥ 95% of eval conversations.
 
-## C8 · ME cell, residency, e-invoicing (parallel track, ≈ 5 weeks)
+## C9 · ME cell, residency, e-invoicing (parallel track)
 
-- Decision **D2**, then provision the `me-central` cell as infrastructure-as-code: PG17 primary +
-  replica, pooler, in-region object storage, KMS, worker, ingest, backups and point-in-time
-  recovery, plus a restore drill.
-- **Control plane:**
-  - workspace directory (slug → cell) with signed cache;
-  - edge routing;
-  - per-cell auth;
-  - platform console across cells;
-  - a tenant move runbook built on `copy-tenant.ts`.
-- **Legal and compliance:**
-  - PDPL/PDPPL/Oman PDPL review (D3);
-  - processing records;
-  - retention settings;
-  - subprocessor list per cell.
-- **E-invoicing adapters:**
-  - UAE PINT AE through an Accredited Service Provider (needed by 1 Jul 2027 for most tenants, and by
-    1 Jan 2027 for revenue ≥ AED 50m);
-  - Oman Fawtara (track the revised dates);
-  - status shown on the invoice.
+- Decision D2, then the `me-central` cell as infrastructure-as-code: DB primary + replica, pooler,
+  in-region storage, KMS, worker, ingest, backups and point-in-time recovery, and a restore drill.
+- **Control plane:** slug → cell directory, edge routing, per-cell auth, a cross-cell console, and
+  the tenant move runbook (`copy-tenant.ts`).
+- **Legal:** PDPL/PDPPL/Oman PDPL review (D3), retention settings, subprocessors per cell.
+- **E-invoicing adapters:** UAE PINT AE (ASP), Oman Fawtara.
 
 **Exit:**
-- A Dubai workspace's data (DB, files, backups, AI calls) stays in the ME cell.
+- A Dubai workspace's data and AI calls stay in the ME cell.
 - p95 page response from Dubai ≤ 300 ms.
-- A test e-invoice is accepted by the ASP sandbox.
+- An ASP sandbox accepts a test invoice.
 
-## C9 · GA hardening (≈ 3 weeks, then ongoing)
+## C10 · GA hardening (≈ 3 weeks, then ongoing)
 
-- Migration importers (HQ, Rent Centric and generic CSV), accounting exports (QuickBooks, Xero,
-  Zoho Books), public REST API + webhooks docs.
-- Telematics adapter: Smartcar (OEM, keyless) or Teltonika, whichever the pilots use. Odometer and
-  fuel are captured automatically at check-out and check-in. Geofence alerts include Oman border
-  crossing without a permit.
-- **Later backlog:**
-  - long-term and subscription rentals (monthly billing, popular in the UAE);
-  - rideshare-driver weekly rentals (US);
-  - broker/OTA distribution;
-  - BNPL (Tabby/Tamara);
-  - keyless self-service pickup.
-- Load test at 10× the pilot volume. Chaos drill on the worker and the gateway webhook path. Security
-  review and pen test before GA.
+- Migration importers (HQ, Rent Centric, generic CSV). Accounting exports (QuickBooks, Xero, Zoho
+  Books). Public API and webhook docs.
+- Telematics adapter (Smartcar or Teltonika): odometer and fuel at check-out and check-in
+  automatically, and geofence alerts (including crossing into Oman without a cross-border product).
+- **Backlog:** chauffeur-driven rentals, insurance-replacement bookings, rideshare-driver weekly
+  rentals (US), broker APIs at scale, BNPL (Tabby/Tamara), keyless self-service pickup.
+- Load test at 10× pilot volume. Chaos drill. Pen test.
 
 ---
 
@@ -301,17 +371,20 @@ C9                                            ███ GA hardening, migration 
 
 | Layer | What | Where |
 | --- | --- | --- |
-| Domain unit | rate engine, settlement, eligibility, policy evaluator, state machines | `domain/*.test.ts` (vitest, fast, in CI) |
-| Golden cases | real past contracts per market (USD, AED, QAR, OMR) priced to the minor unit | `cars/rates/tests/golden` |
-| Contract | every command and event schema and version: consumers' expectations checked against producers | `contract/*.test.ts` |
-| DB integration | RLS (tenant A cannot see B, as `rental_app`), exclusion constraints, advisory-lock races, immutability triggers | existing PG17 CI service |
-| Concurrency | parallel bookings, double-assign, simultaneous captures | dedicated suite |
-| E2E | staff (1440) + phone (390) + **RTL `ar`**, using the existing puppeteer/Playwright scripts pattern | `apps/web/scripts/e2e-cars-*.mjs` |
-| Agent evals | golden + adversarial + multilingual, policy-violation rate must be 0 | CI gate for agent prompt/tool changes |
-| Performance | widget p95, reservation commit p95, field app offline | k6 or Playwright traces in staging |
+| Domain unit | rate engine, settlement, rule evaluator, settings resolver, state machines, readiness | `domain/*.test.ts` (vitest) |
+| Property tests | rule conflict resolution is deterministic; locked rules can't be loosened; snapshot hashing is stable | kernel |
+| Golden cases | real past bookings per market (USD, AED, QAR, OMR) priced to the minor unit | `cars/rates/tests/golden` |
+| Tenant rule tests | each tenant's saved rule-bench cases run on every rule change | Settings + CI for presets |
+| Contract | command and event schemas and versions; consumers checked against producers | `contract/*.test.ts` |
+| DB integration | RLS as `rental_app`, exclusion constraints, lock races, header ↔ detail integrity trigger, invoice immutability | PG17 CI service |
+| Concurrency | parallel holds, double-assign, simultaneous captures, overdue blocking | dedicated suite |
+| E2E | counter, web, portal, field app; desktop 1440 + phone 390 + **RTL `ar`**; timing assertions (≤ 90 s counter) | `apps/web/scripts/e2e-cars-*.mjs` |
+| Agent evals | golden + adversarial + multilingual; policy-violation rate must be 0 | CI gate |
+| Performance | search + quote p95, commit p95, field app offline | staging traces |
 
-## Decisions needed from the owner before or during C0
+## Decisions needed from the owner
 
 D1 GCC gateway · D2 ME cell hosting · D3 Qatar/Oman residency · D4 default deposit strategy · D5 KYC
-vendor · D6 incremental events migration (recommended) · D7 pilot tenants and their past contracts
-for golden cases. Details are in [architecture.md §12](./architecture.md#12-open-decisions-owner).
+vendor · D6 incremental events migration (recommended) · D7 pilot tenants and past bookings · D8
+shared header (decided, spike in C2) · D9 booking-flow questions
+([booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner)).

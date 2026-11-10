@@ -6,7 +6,7 @@ Odoo system as an independent product. Freedom Fun is the first tenant.
 
 Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/Betdr7kQ7JDVFC7bscU8E6
 
-Car rental vertical (US + GCC) proposal: [architecture](docs/car-rental/architecture.md), [dev plan](docs/car-rental/dev-plan.md), [competitors](docs/car-rental/market.md).
+Car rental vertical (US + GCC) proposal: [architecture](docs/car-rental/architecture.md), [booking flow](docs/car-rental/booking-flow.md), [dev plan](docs/car-rental/dev-plan.md), [competitors](docs/car-rental/market.md).
 
 ## Status
 
