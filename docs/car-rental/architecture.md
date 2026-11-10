@@ -2,8 +2,13 @@
 
 Status: proposal, for review. Written 10 Nov 2026 after reading the code on `main` (Phases 0–4b).
 Markets: **United States** and **GCC** (UAE: Dubai and Sharjah; Qatar; Oman).
-Companion docs: [booking-flow.md](./booking-flow.md) (the configurable car booking flow),
-[market.md](./market.md) (competitors) and [dev-plan.md](./dev-plan.md) (phases).
+Companion docs:
+- [booking-flow.md](./booking-flow.md): the configurable car booking flow;
+- [service-modes.md](./service-modes.md): chauffeur, transfers, insurance replacement, partner roles;
+- [channels.md](./channels.md): Meta, marketplaces, brokers, P2P, Google;
+- [market-reference.md](./market-reference.md): researched terms, pain points, reference cases;
+- [market.md](./market.md): competitors;
+- [dev-plan.md](./dev-plan.md): phases.
 
 ---
 
@@ -119,6 +124,7 @@ flowchart LR
     FIL[Files & Media]
     AUD[Audit]
     INT[Integrations: API · webhooks · MCP]
+    DIS[Distribution / Channel hub: Meta · brokers · marketplaces · P2P · Google]
     AGT[Agent runtime & policy]
   end
   subgraph Events["Events vertical"]
@@ -136,7 +142,7 @@ flowchart LR
     TF[Tolls & fines]
     MT[Maintenance]
     TL[Telematics]
-    CH[Channels / distribution]
+    CH[Car channel feeds → platform Distribution]
   end
   Events -->|contracts| Platform
   Cars -->|contracts| Platform
@@ -271,7 +277,7 @@ and plans its messages. The idempotency keys (`order:quote:v7`) stay as they are
 
 | Data | Decision | Why |
 | --- | --- | --- |
-| **Users** (logins: email, password, sessions, passkeys) | **One shared table** | One person can belong to an event business and a car business. Splitting breaks sign-in, password reset, invites and platform admin, and gains nothing (the table is tiny). Differences live in memberships: **roles per vertical** (events: coach, crew; cars: counter agent, fleet manager, yard, damage assessor), stored as one role per vertical on the membership so one person can hold different roles in each |
+| **Users** (logins: email, password, sessions, passkeys) | **One shared table** | One person can belong to an event business and a car business. Splitting breaks sign-in, password reset, invites and platform admin, and gains nothing (the table is tiny). Differences live in memberships: **roles per vertical** (events: coach, crew; cars: counter agent, fleet manager, yard, damage assessor, chauffeur, dispatcher), stored as one role per vertical on the membership so one person can hold different roles in each. Memberships also get a **kind**: `staff`, or **`partner`** (insurer adjuster, body shop, hotel/referrer, corporate booker). Partners are scoped by RLS to their own partner account's records ([service-modes.md §4](./service-modes.md#4-access-model-change-partner-memberships)) |
 | **Customers** (parties) | **One shared core** + vertical tables | One customer, card, consent, message history and blacklist flag per business. One place to export or delete data (PDPL, PDPPL, Oman PDPL, US state law). Car-only data (driver profiles, licences, IDs) lives in `cars.*`, encrypted, with its own retention |
 | **Orders** | **Thin shared header `commerce.orders`** + **separate detail tables per vertical** (`events.bookings`; `cars.reservations` → `cars.rental_agreements`) | 15 tables already reference `orders` (payments, invoices, refunds, credits, signatures, messages, lines, versions, reservations, coach tables). A shared header keeps real foreign keys, so payments, invoices, tax and e-invoicing are built once. Separate detail tables keep each vertical's fields strict (`NOT NULL`, CHECKs) and its migrations independent |
 
@@ -640,4 +646,5 @@ dependency-cruiser gate stops cross-context shortcuts.
 | D6 | Events migration into modules | big bang · incremental strangler | Incremental. Events keeps working on every merge |
 | D7 | Car pricing baseline | — | Golden cases from the pilot tenant's real past contracts (like the Odoo parity check) |
 | D8 | Shared users, customers, order header | separate per vertical · shared | **Shared** (§6.0), proven by the C2 spike |
-| D9 | Booking flow questions | — | See [booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner) (document lists, WhatsApp intake, chauffeur, insurance replacement, brokers) |
+| D9 | Booking flow questions | — | See [booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner). Document lists deferred; WhatsApp ID intake decided (platform only); chauffeur and insurance replacement specified; channels specified |
+| D10 | Channel hub placement | cars-only · platform | **Platform context `distribution`** with vertical feeds, so events can also use Meta inbox, CAPI and Google ([channels.md](./channels.md)) |

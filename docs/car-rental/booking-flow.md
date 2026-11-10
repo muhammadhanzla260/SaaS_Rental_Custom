@@ -49,7 +49,12 @@ booking**, all pointing to the shared `parties` (customers) table:
 | `additional_driver` | Extra drivers | 0..n (max by config) | Each one is checked. A daily fee per driver is configurable |
 | `contact` | On-site or coordination contact: assistant, hotel concierge, family member | 0..n | Name, phone, relation. Can receive delivery updates. **Vehicle hand-over to a non-driver is off by default** |
 | `bill_to` | Who pays: hirer, company, broker, insurer (replacement car) | 1 | Stored on the shared order header (invoices need it) |
-| `booker` | Who made the booking: staff member, corporate booker, broker, agent | 1 | For audit, commission and corporate approval |
+| `booker` | Who made the booking: staff member, corporate booker, broker, agent, hotel/concierge partner | 1 | For audit, commission and corporate approval |
+| `lead_passenger` | Chauffeur and transfer bookings only | 1 in those modes | Replaces driver checks in those modes ([service-modes.md](./service-modes.md)) |
+
+Every booking also has a **service mode**: `self_drive`, `chauffeur`, `transfer` or
+`insurance_replacement`. It changes requirements, pricing and bill-to through presets and rules,
+not through separate code paths. See [service-modes.md](./service-modes.md).
 
 ```mermaid
 erDiagram
@@ -276,7 +281,9 @@ replacing them.
   `better_of`).
 
 ### 5.4 Presets
-Onboarding offers presets that fill settings and rules in one go, and everything stays editable:
+Onboarding offers presets that fill settings and rules in one go, and everything stays editable.
+Default values and the reference cases each preset must pass are in
+[market-reference.md](./market-reference.md):
 - **Dubai standard:** Sat–Sun weekend, AED, VAT 5% included, Salik pass-through + admin fee, deposit
   charge-and-refund after 21 days, delivery zones.
 - **Dubai luxury:** vehicle-level booking, higher deposits, 25+ age, approval rules.
@@ -327,7 +334,7 @@ channel-specific limits. Defaults:
 | --- | --- | --- | --- |
 | Staff counter / phone | S1 S2 S3 S4 S6 | S5 S7 (if the customer isn't present) | One-screen builder with a "Still required" sidebar (the events POS pattern). Target ≤ 90 s for a returning customer |
 | Website widget / portal | S1 S2 S3 S4 (primary driver basics) S6 | S5, extra drivers, S7 | ≤ 4 screens to confirm. Instant eligibility pre-check from declared age and residency |
-| WhatsApp / AI agent | S1 S2 S3 S4 → payment **link** | S5 via **secure upload link** (not chat attachments, by default) | Same commands. Agent autonomy per step (architecture §9) |
+| WhatsApp / Instagram / Messenger (staff or AI agent) | S1 S2 S3 S4 → payment **link** | S5 **only in the platform** via a secure upload link | **ID documents are never accepted in chat** (platform guardrail, owner decision 10 Nov 2026). Same commands. Agent autonomy per step (architecture §9). See [channels.md](./channels.md) |
 | Broker / marketplace | imported as confirmed (bill-to broker, voucher, prepaid amount) | S4 extra drivers, S5, S6 deposit, S7 | Counter collects deposit, extras and any balance |
 | Corporate portal | S1 S2 S3 S4 (pick from authorised drivers) + PO | S5 (if not on file), S7 | Bill-to company, credit limit, monthly statement |
 | Monthly / subscription | S1 S2 S3 S4 S5 S6 S7 (all before confirm, by default) | — | Longer KYC. Recurring billing. Swap schedule |
@@ -483,13 +490,10 @@ public API render the same truth.
 
 ## 12. Open questions for the owner
 
-1. **Document types and accepted home-licence lists** per country. The presets need a reviewed list
-   for AE, QA, OM and US states.
-2. **WhatsApp document intake:** allow ID photos sent in chat (common in practice), or only the secure
-   link (the recommended default)?
-3. **Chauffeur-driven** rentals: in scope (a driver resource and hourly pricing) or later?
-4. **Insurance-replacement** bookings (insurer pays): needed for the US pilot?
-5. **Broker integrations:** which brokers and marketplaces the pilots actually get bookings from
-   (import by API, by email parsing, or manual entry first).
-6. **Pilot data:** 50–100 real past bookings per pilot to build the rule presets and pricing golden
-   cases.
+| # | Question | Status (10 Nov 2026) |
+| --- | --- | --- |
+| 1 | Document types and accepted home-licence lists per country (AE, QA, OM, US states) | **Deferred**: the owner verifies later. Presets ship with researched lists marked "verify" ([market-reference.md](./market-reference.md)) |
+| 2 | WhatsApp document intake | **Decided: within the platform only.** A secure upload link; ID photos in chat are never stored (platform guardrail, not configurable) |
+| 3 | Chauffeur-driven and insurance-replacement bookings | **Specified** in [service-modes.md](./service-modes.md): new staff roles (chauffeur, dispatcher) and **partner** roles (adjuster, body shop, referrer, corporate booker) |
+| 4 | Marketplaces and brokers | **Specified** in [channels.md](./channels.md): Meta (WhatsApp, Instagram, Messenger, ads/CAPI), lead marketplaces (OneClickDrive), brokers and aggregators (OTA XML), P2P (Turo/Getaround by iCal + email), Google. All configurable per tenant × channel |
+| 5 | Pilot data | **Replaced for now** by public-terms research and 16 reference cases ([market-reference.md](./market-reference.md)). Real pricing golden cases come once pilots onboard |

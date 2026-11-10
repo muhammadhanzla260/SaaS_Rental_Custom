@@ -28,15 +28,15 @@ Revised 10 Nov 2026 after the booking research. The changes:
 ## Timeline at a glance
 
 ```
-week    1    4    8    12   16   20   24   28   32   36
+week    1    4    8    12   16   20   24   28   32   36   40
 C0   ████████                                            foundations + config/rules kernel + shared header
 C1           ████████                                    fleet, catalog, rates, policies, presets, rule bench
 C2                   ██████████                          booking core: spike, availability levels, reservation, gates, counter
 C3                         ██████                        payments, deposits, ledger, tax invoices, GCC gateway
 C4                               ████████                drivers & documents & KYC, agreement, website + portal
 C5                                       ████████        hand-over & return, delivery/collection, settlement
-C6                                               ██████  monthly, corporate, brokers
-C7                                                 ██████ tolls, fines, maintenance → PILOT (1 US + 1 Dubai)
+C6                                               ██████████  monthly, corporate, insurance replacement, channel hub
+C7                                                       ██████ tolls, fines, maintenance → PILOT (1 US + 1 Dubai)
 C8           ···········████████████████████████         agents (parallel; reservation agent after C4)
 C9           ··········██████████                        ME cell, residency, e-invoicing (parallel)
 C10                                                   ▶  GA hardening
@@ -82,7 +82,10 @@ C10                                                   ▶  GA hardening
 7. **Tenancy and roles:**
    - `tenants.verticals text[]` and `home_cell`;
    - **roles per vertical** on memberships (events: coach, crew; cars: counter agent, fleet manager,
-     yard, damage assessor);
+     yard, damage assessor, chauffeur, dispatcher);
+   - **membership kind** `staff` | `partner`, with an RLS **partner scope** (`app.partner_id`) beside the
+     location scope, plus tests that a partner sees only their own records
+     ([service-modes.md §4](./service-modes.md#4-access-model-change-partner-memberships));
    - the register page's `?vertical=cars` path creates a cars early-access workspace.
 8. **i18n base:**
    - the ICU catalog is wired in;
@@ -141,6 +144,8 @@ C10                                                   ▶  GA hardening
   - a one-way with an airport fee and VAT.
 - The bench explains every rule that fires.
 - A locked rule cannot be loosened.
+- Reference cases **R1–R13** from [market-reference.md](./market-reference.md) pass as saved bench
+  tests for the presets.
 
 ## C2 · Booking core (≈ 5 weeks)
 
@@ -233,6 +238,9 @@ C10                                                   ▶  GA hardening
 - **Customer portal "complete your booking"** link: documents, extra drivers, sign, pay.
 - **Reminders** until the booking is `ready_for_pickup` (messaging; email, SMS and WhatsApp
   templates).
+- **Meta messaging inbox (staff-operated):** WhatsApp first, then Instagram and Messenger. Templates,
+  Flows for search and quote, payment links, secure upload links. **ID photos in chat are never
+  stored** (guardrail, reference case R6). The AI reservation agent joins the same inbox in C8.
 
 **Exit:**
 - An unverified or ineligible driver cannot pass hand-over (domain + DB test).
@@ -264,13 +272,21 @@ C10                                                   ▶  GA hardening
 - **Extensions, early returns and vehicle swaps** run from the portal and staff app, re-checked
   against availability under the locked terms or the repricing setting.
 - **Yard board:** due out and due in, late, ready vs incomplete, prep queue, deliveries.
+- **Chauffeur and transfer modes** ([service-modes.md](./service-modes.md)):
+  - the chauffeur staff resource (shifts, rest rules, credentials);
+  - two-resource availability;
+  - packages, overtime and waiting pricing;
+  - zone-matrix transfers;
+  - dispatch board (shared with delivery);
+  - chauffeur job flow in the field app;
+  - tolls and fines routed to the job (reference case R13).
 
 **Exit:**
 - Check-out ≤ 2 min for a ready booking on a mid-range phone, offline-capable.
 - Settlement golden suite passes.
 - Deposit release is automatic after a clean return.
 
-## C6 · Monthly, corporate, brokers (≈ 3 weeks)
+## C6 · Monthly, corporate, insurance replacement, channel hub (≈ 5 weeks)
 
 - **Monthly/subscription:**
   - recurring invoices per cycle;
@@ -284,15 +300,33 @@ C10                                                   ▶  GA hardening
   - PO required (setting);
   - monthly statement;
   - corporate portal flow.
-- **Brokers and marketplaces:**
-  - broker accounts (net vs gross, commission);
-  - voucher import (manual entry first, then email parsing or API per broker the pilots use);
-  - counter collection of deposit and extras;
-  - broker receivable in the ledger.
+- **Insurance replacement** ([service-modes.md §2](./service-modes.md#2-insurance-replacement)):
+  - insurer accounts (rates per class, default days, references, terms);
+  - authorisation intake (portal, staff, email draft);
+  - delivery to the body shop;
+  - extension approvals in the shared inbox;
+  - **split billing** (insurer + customer) and receivables aging per insurer;
+  - **partner portal** for adjusters, body shops, hotels/referrers and corporate bookers.
+- **Channel hub** ([channels.md](./channels.md)):
+  - the platform `distribution` context, the adapter capability model and per-channel settings
+    (scope, content, rates, allotments, policies, acceptance, money, customer ownership, tracking);
+  - ingest, idempotent upserts, throttled pushes, conflict queue, daily reconciliation, health and
+    kill switch.
+  - Connectors, in order:
+    1. Meta CAPI + catalog feed;
+    2. OneClickDrive lead capture;
+    3. Turo/Getaround iCal + booking-email parsing;
+    4. OTA XML supplier endpoint certified with **one** broker or aggregator the pilots use;
+    5. Google Business Profile links + schema.org.
+  - Brokers: broker accounts (net vs gross, commission), voucher bookings, counter collection of
+    deposit and extras, broker receivable in the ledger.
 
 **Exit:**
 - 3 monthly cycles simulated with excess km and a swap reconcile.
-- A broker voucher → counter → return → broker statement balances.
+- Reference cases R14 (insurance split), R15 (broker voucher) and R16 (Turo import, no duplicate on
+  resend) pass end to end.
+- An adapter outage doesn't lose bookings: replay from ingest succeeds, and the conflict queue
+  catches any oversell.
 
 ## C7 · Tolls, fines, maintenance → pilot (≈ 3 weeks)
 
@@ -328,8 +362,9 @@ C10                                                   ▶  GA hardening
 2. **Agents, in order:**
    1. Ops copilot (read-only).
    2. **Document extraction assistant** (MRZ/OCR proposals, with a person confirming).
-   3. **Reservation agent** on web chat, then **WhatsApp**, after C4. Same flow definition; payment
-      and upload by secure link.
+   3. **Reservation agent** on web chat, then in the **Meta inbox** (WhatsApp, Instagram,
+      Messenger), after C4. Same flow definition. Payment and document upload by secure link only.
+      Hand-off to a person is configurable.
    4. **Readiness/KYC chaser.**
    5. Fines & tolls matcher.
    6. Damage assistant (L0/L1 only).
@@ -386,5 +421,5 @@ C10                                                   ▶  GA hardening
 
 D1 GCC gateway · D2 ME cell hosting · D3 Qatar/Oman residency · D4 default deposit strategy · D5 KYC
 vendor · D6 incremental events migration (recommended) · D7 pilot tenants and past bookings · D8
-shared header (decided, spike in C2) · D9 booking-flow questions
+shared header (decided, spike in C2) · D9 booking-flow questions · D10 channel hub as a platform context
 ([booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner)).
