@@ -272,17 +272,21 @@ This is new work. The coach portal has no offline support today.
 
 ## C8 · Agents (parallel track, weeks 6–31)
 
-1. **Platform:** agent principals, autonomy levels, kill switches, the tool gateway from contracts,
+1. **Boundaries** ([agent-boundaries.md](./agent-boundaries.md), steps B1–B8): job charters, run
+   tokens, violation classes, immediate termination, suspension and reinstatement, output checks,
+   canary tools, and the boundary test suite.
+2. **Platform:** agent principals, autonomy levels, kill switches, the tool gateway from contracts,
    proposals in the shared inbox, run logs with cost from metering, subject binding, the eval
    harness in CI, the knowledge store, per-cell model routing (D14).
-2. **Agents before the pilot:**
+3. **Agents before the pilot:**
    1. Ops copilot (read-only).
    2. Document extraction assistant (a person confirms).
    3. Reservation agent on web chat, then in the WhatsApp inbox, in shadow mode first.
-3. **After the pilot:** readiness chaser, fines and tolls matcher, damage assistant, fleet and
+4. **After the pilot:** readiness chaser, fines and tolls matcher, damage assistant, fleet and
    yield advisor, collections.
 
-**Exit:** zero policy violations in the adversarial suite; every action traceable; ≥ 95% correct
+**Exit:** no forbidden action reaches a command in the boundary suite; every violation ends its
+run in the same request; zero policy violations in the adversarial suite; every action traceable; ≥ 95% correct
 bookings in eval conversations.
 
 ## C9 · UAE cell, residency, e-invoicing (parallel track, weeks 10–24)

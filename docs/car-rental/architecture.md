@@ -9,6 +9,7 @@ Companion docs:
 - [market-reference.md](./market-reference.md): researched terms, pain points, reference cases;
 - [architecture-review.md](./architecture-review.md): findings in the current app and ranked gaps;
 - [security.md](./security.md): the security architecture;
+- [agent-boundaries.md](./agent-boundaries.md): job charters, violations and termination for agents;
 - [market.md](./market.md): competitors;
 - [dev-plan.md](./dev-plan.md): phases.
 
