@@ -515,9 +515,12 @@ interface PaymentGateway {
   Qatar PDPPL, Oman PDPL) need legal review.
 - **Routing.** Middleware resolves slug → cell from a signed, cached directory and serves from that
   cell's hostname.
-- **Identity is per cell** (decided 12 Nov 2026). Each cell has its own `users` and sessions, so the
-  control plane holds no personal data. A person who works in both regions has two logins until
-  single sign-on joins them.
+- **One login everywhere** (owner decision, 13 Nov 2026). `users`, sessions and credentials live in
+  one central identity store in the control plane. Each cell trusts its signed sessions. Staff
+  names, emails and password hashes are therefore held centrally, outside the UAE cell; customer,
+  driver and booking data stays in its cell. This needs to be stated in the privacy terms and
+  checked in the legal review (D3). If the central store is down, nobody can sign in, so it runs
+  with a standby.
 - **Tenant moves** reuse `packages/db/scripts/copy-tenant.ts`, plus a cut-over checklist.
 - **Inside a cell:**
   - The transaction pooler stays (`prepare:false` already).
@@ -661,26 +664,25 @@ dependency-cruiser gate stops cross-context shortcuts.
 The review ([architecture-review.md](./architecture-review.md)) found gaps G1–G18. All are accepted.
 This section is the design for each. Security controls are in [security.md](./security.md).
 
-### 13.1 Legal entities and currencies (G1)
+### 13.1 One company and one currency per workspace (G1, deferred)
 
-```
-workspace (tenant) ── legal_entity ── branch (location)
-                         │ currency, country, tax registration (TRN / EIN), invoice sequences,
-                         │ gateway accounts, e-invoicing credentials, bank details, agreement text
-```
+**Owner decision, 13 Nov 2026:** legal entities are not built now. A workspace is one company with
+one currency and one tax registration, as today.
 
-- Every branch belongs to one legal entity. A workspace with Dubai and Muscat branches has two.
-- `commerce.orders` carries `legal_entity_id` and `currency`. Invoices, payments, the ledger and
-  document numbers belong to the entity.
-- Reports state their currency. Totals across currencies need an explicit rate and are labelled.
-- Settings levels become: platform → country → workspace → **entity** → branch → class → booking.
-  Channel, rate plan and corporate-account levels are added when a customer needs them (G17).
-- Existing event workspaces get one entity created from today's `tenants` columns. Nothing changes
-  for them.
+- A business with companies in two countries (for example Dubai and Muscat) uses two workspaces.
+  The single login and the workspace picker already make switching easy.
+- To keep the door open, two cheap things are still done:
+  - `commerce.orders`, invoices, payments and ledger rows store their `currency`, copied from the
+    workspace. Nothing computes with a currency it has not been given.
+  - Tax registration, invoice sequences and gateway accounts are read through one function
+    (`companyOf(workspace)`), so a later entity level changes one place.
+- Settings levels: platform → country → workspace → branch → class → booking. Channel, rate plan
+  and corporate-account levels are added when a customer needs them (G17).
+- Revisit when the first customer asks for two companies in one workspace.
 
 ### 13.2 Identity and access (G2)
 
-- Logins are per cell (§8).
+- One login everywhere, held in the central identity store (§8).
 - MFA is required for roles that can refund, see ID documents, change gateway or mail settings, or
   manage people. Passkeys are offered to everyone and required for platform admins.
 - Step-up confirmation for refunds, exports, viewing ID documents and changing bank or gateway
@@ -692,7 +694,7 @@ workspace (tenant) ── legal_entity ── branch (location)
 
 ### 13.3 Payments operating model (G3)
 
-- The gateway port supports two merchant models, chosen per legal entity:
+- The gateway port supports two merchant models, chosen per workspace:
   - **own gateway**: the business's own account and keys (today's model);
   - **platform**: Stripe Connect or a payment-facilitator partner, with a platform fee.
 - **Webhook ingestion** in `apps/ingest`: signature and timestamp checks, an event store, replay,
@@ -775,7 +777,7 @@ A platform context `billing` for the SaaS itself:
 - A daily fleet snapshot (per vehicle: status, branch, on rent or idle, revenue) for utilization
   and revenue per unit.
 - Accounting: revenue spread across the rental period for monthly rentals, deposits as a
-  liability, receivables aging by payer, and a general-ledger export per legal entity.
+  liability, receivables aging by payer, and a general-ledger export per workspace.
 
 ### 13.13 Car domain additions (G13)
 
@@ -812,7 +814,7 @@ A platform context `billing` for the SaaS itself:
 
 ### 13.17 Configuration, kept manageable (G17)
 
-- Seven setting levels at first (§13.1).
+- Six setting levels at first (§13.1).
 - Draft and publish for settings and rules, with an impact preview against the last 30 days of
   bookings.
 - A test mode per workspace: test bookings, a test gateway, no real messages.
@@ -835,3 +837,7 @@ A platform context `billing` for the SaaS itself:
 | D14 | AI model region for Gulf data | Confirm in-region availability before C8 agents handle personal data |
 | D15 | Government contract registration | Verify requirements in the UAE, Qatar and Oman |
 | D16 | Recovery targets | 4 hours to restore, 15 minutes of data loss at most |
+| D17 | Legal entities inside a workspace | **Deferred** (owner, 13 Nov 2026). One company per workspace; two workspaces for two companies |
+| D18 | Logins across regions | **One global login** (owner, 13 Nov 2026), in a central identity store |
+| D19 | Pilot scope | **Confirmed** (owner, 13 Nov 2026): one Dubai operator, self-drive, daily and monthly |
+| D8 | Shared order header | **Confirmed** (owner, 13 Nov 2026), prototype first in C2 |

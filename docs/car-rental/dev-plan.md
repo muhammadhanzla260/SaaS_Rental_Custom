@@ -6,13 +6,17 @@ weeks for **2–3 engineers working with coding agents**. They are planning esti
 commitments. Each phase follows the repo's release rule: one branch per phase (`cars/phase-cN`), a
 Vercel preview on staging, owner QA, then a PR into `main`.
 
+**Revision 4, 13 Nov 2026.** Owner decisions applied: the Dubai pilot and the shared order header
+are confirmed, there is one login for all regions, and legal entities are deferred (one company
+per workspace). The week freed in C0 is kept as buffer.
+
 **Revision 3, 12 Nov 2026.** It folds in the architecture review (gaps G1–G18) and the security
 architecture. The changes from revision 2:
 - The pilot is narrower: **Dubai, self-drive, daily and monthly rentals**, with tolls and fines and
   a staffed WhatsApp inbox.
 - The US launch, chauffeur and transfers, insurance replacement, corporate accounts, brokers and
   most agents move to waves after the pilot.
-- New work enters before the pilot: legal entities, stronger sign-in, payment webhooks and
+- New work enters before the pilot: stronger sign-in, payment webhooks and
   disputes, fraud checks, live updates, the media pipeline, key management, release safety, the
   SaaS billing layer and the security baseline.
 
@@ -33,7 +37,7 @@ architecture. The changes from revision 2:
 
 ```
 week    1    4    8    12   16   20   24   28   32   36   40
-C0   ██████████                                          foundations, entities, identity, security baseline
+C0   ██████████                                          foundations, identity, security baseline
 C1             ████████                                  fleet, catalog, rates, policies, presets
 C2                     ██████████                        booking core, risk checks, live updates, search
 C3                           ████████                    payments, webhooks, disputes, ledger, tax invoices
@@ -66,13 +70,13 @@ behaviour.
    - a lint rule against `/100` and `*100` outside the kernel;
    - `COUNTRY_DEFAULTS` for QA and OM; branch calendars;
    - contract helpers `defineCommand`, `defineQuery`, `defineEvent`.
-2. **Legal entities (G1):**
-   - `legal_entities` between workspace and branch, holding currency, tax registration, invoice
-     sequences and gateway accounts;
-   - `legal_entity_id` and `currency` on the order header;
-   - one entity created for each existing workspace from today's columns.
+2. **Currency on every money row (G1, entities deferred):**
+   - `currency` stored on the order header, invoices, payments and ledger rows, copied from the
+     workspace;
+   - tax registration, invoice sequences and gateway accounts read through one function, so a
+     legal-entity level can be added later in one place.
 3. **Configuration kernel:**
-   - `defineSetting` registry with seven levels (platform, country, workspace, entity, branch,
+   - `defineSetting` registry with six levels (platform, country, workspace, branch,
      class, booking);
    - rules as data with a pure evaluator;
    - policy snapshots;
@@ -84,7 +88,8 @@ behaviour.
    workspace instead of looping over all of them (G10). First strangled coupling: orders →
    messaging.
 7. **Identity and access (G2):**
-   - logins per cell;
+   - one login everywhere: the login tables move to a central identity store that both cells
+     trust (built with the UAE cell in C9; until then today's single database is that store);
    - MFA for owners, admins and platform admins; passkeys offered;
    - step-up confirmation for refunds and gateway changes;
    - login tables behind definer functions;
@@ -109,7 +114,7 @@ behaviour.
 - A request loop against an unknown path is cut off at the edge and causes no database calls (load
   test).
 - The RLS coverage test and the boundary check are green.
-- An existing workspace works unchanged with its generated legal entity.
+- Existing workspaces work unchanged.
 - The kit renders correctly in Arabic.
 
 ## C1 · Fleet, catalog, rates, policies, presets (≈ 4 weeks, weeks 6–9)
@@ -137,7 +142,7 @@ behaviour.
 ## C2 · Booking core (≈ 5 weeks, weeks 10–14)
 
 1. **Spike (weeks 10–11):** a thin car reservation → deposit → invoice → refund → report on the
-   shared header, per legal entity.
+   shared header.
 2. **Availability:** class, model and vehicle strategies; overbooking allowance; upgrade ladder;
    overdue rentals keep their car blocked; hired-in cars add supply for their period.
 3. **Reservation aggregate:** parties, pickup and return modes, state machine, gates A/B/C with the
@@ -160,7 +165,7 @@ behaviour.
 
 ## C3 · Payments, webhooks, disputes, ledger, tax invoices (≈ 4 weeks, weeks 13–16)
 
-- **`PaymentGateway` port** with capability flags, configured per legal entity. Stripe moves behind
+- **`PaymentGateway` port** with capability flags, configured per workspace. Stripe moves behind
   it with no change for events.
 - **First GCC gateway** (decision D1).
 - **Webhook ingestion (G3):** signature and timestamp checks, an event store, replay, handlers safe
@@ -169,7 +174,7 @@ behaviour.
 - **Payment options** for the pilot: pay now, pay at pickup with a card guarantee, cash.
 - **Deposit strategies:** hold with re-authorisation, charge and refund with a release window, no
   deposit with a surcharge, none.
-- **Ledger** per order and entity; ledger = gateway reconciliation.
+- **Ledger** per order; ledger = gateway reconciliation.
 - **Immutable tax invoices** with credit and debit notes, bilingual, with TRN.
 
 **Exit:**
@@ -294,7 +299,8 @@ bookings in eval conversations.
 - Decision D2, then the `me-central` cell as infrastructure-as-code: load balancer, at least two
   app instances in two zones, database with standby and replica, pooler, Redis, in-region storage,
   KMS, worker, ingest, backups with point-in-time recovery.
-- Control plane: workspace → cell directory with no personal data, edge routing, per-cell logins,
+- Control plane: workspace → cell directory, the **central identity store** (logins only, with a standby), edge
+  routing, sessions trusted by both cells,
   a cross-cell console, staged releases per cell.
 - Legal review (D3); the vendor register per cell.
 - E-invoicing adapters: UAE PINT AE first; Oman Fawtara with the Oman launch.
