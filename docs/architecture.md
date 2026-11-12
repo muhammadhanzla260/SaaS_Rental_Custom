@@ -67,13 +67,13 @@ Request path: browser → RSC page or server action → `server/context.ts` (who
 | First-load JS, staff pages | ≤ 130 KB gzip shared + ≤ 40 KB per route |
 | Fonts | self-hosted via `next/font` (Bricolage Grotesque, Geist, Geist Mono), latin subset, `display: swap` |
 | Mapbox GL (≈ 220 KB) | loaded lazily only on screens with an interactive map; static map images elsewhere |
-| Server response (p95, warm) | ≤ 300 ms for list pages on Neon pooled |
+| Server response (p95, warm) | ≤ 300 ms for list pages on the pooled database |
 | Interaction to next paint | ≤ 200 ms on a mid-range phone |
 | Layout shift | 0 on navigation (skeletons match final layout) |
 
 ## 8. Delivery
 
-Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, desktop 1440 and phone 390) → deploy to staging (Vercel + Neon + Railway) → owner QA → next phase. Commits are small and per milestone.
+Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, desktop 1440 and phone 390) → deploy to staging (Vercel + Supabase + Railway) → owner QA → next phase. Commits are small and per milestone.
 
 | Phase | Scope | Done when |
 |-------|-------|-----------|
@@ -123,4 +123,4 @@ Per phase: build → typecheck + unit + DB tests → browser e2e (puppeteer, des
 
 ## 10. Environments and secrets
 
-`.env` at the repo root (never committed). Production secrets live in Vercel / Railway / Neon dashboards. Only `pk.` Mapbox tokens reach the browser. SMTP passwords, SMS keys and gateway keys are encrypted at rest (AES-256-GCM with a key from `APP_ENCRYPTION_KEY`) and never sent back to the browser after saving.
+`.env` at the repo root (never committed). Production secrets live in Vercel / Railway / Supabase dashboards. Only `pk.` Mapbox tokens reach the browser. SMTP passwords, SMS keys and gateway keys are encrypted at rest (AES-256-GCM with a key from `APP_ENCRYPTION_KEY`) and never sent back to the browser after saving.

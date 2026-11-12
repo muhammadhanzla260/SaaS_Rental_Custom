@@ -3,6 +3,10 @@
 Written 11 Nov 2026 after a second, deeper read of the code on `main` and a review of the
 consolidated plan ("Rent Hatch Car Rental: A–Z Architecture & Plan", 10 Nov 2026).
 
+**Status (12 Nov 2026): all gaps and corrections are accepted and folded into
+[architecture.md §13](./architecture.md#13-additions-from-the-architecture-review-12-nov-2026),
+[dev-plan.md](./dev-plan.md) and [security.md](./security.md).**
+
 This review has four parts:
 1. what the current application is;
 2. facts the plan got wrong;

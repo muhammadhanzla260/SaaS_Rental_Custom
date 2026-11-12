@@ -8,7 +8,7 @@ Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/
 
 Car rental vertical (US + GCC), consolidated A–Z architecture and plan: https://claude.ai/artifact/QnN5ntZRtfcqaEToPX1Be7
 
-Car rental design docs: [architecture](docs/car-rental/architecture.md), [booking flow](docs/car-rental/booking-flow.md), [service modes](docs/car-rental/service-modes.md), [channels](docs/car-rental/channels.md), [market reference](docs/car-rental/market-reference.md), [dev plan](docs/car-rental/dev-plan.md), [competitors](docs/car-rental/market.md), [architecture review and gaps](docs/car-rental/architecture-review.md).
+Car rental design docs: [architecture](docs/car-rental/architecture.md), [booking flow](docs/car-rental/booking-flow.md), [service modes](docs/car-rental/service-modes.md), [channels](docs/car-rental/channels.md), [market reference](docs/car-rental/market-reference.md), [dev plan](docs/car-rental/dev-plan.md), [competitors](docs/car-rental/market.md), [architecture review and gaps](docs/car-rental/architecture-review.md), [security](docs/car-rental/security.md).
 
 ## Status
 
@@ -143,9 +143,9 @@ tenant can neither read nor write another tenant's rows.
 ## Deploying
 
 You create the accounts and add the keys as environment variables. Never commit `.env` or
-`.env.production`. Everything runs in the same US East region, so each database query stays fast.
+`.env.production`. Everything runs in the same US West region, so each database query stays fast.
 
-1. **Supabase.** Two projects in East US (North Virginia): `production` and `staging`. For each, put the
+1. **Supabase.** Two projects in West US (Oregon), next to the web app in Vercel `pdx1`: `production` and `staging`. For each, put the
    owner connection string in `DATABASE_URL_OWNER` and choose a strong `APP_DB_PASSWORD`. Run
    `pnpm db:migrate` once; it creates the `rental_app` role and sets its password. Then set `DATABASE_URL`
    to the **transaction pooler** connection string with user `rental_app` and that password.

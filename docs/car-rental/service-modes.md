@@ -74,7 +74,7 @@ then waiting time after the first N minutes. Further settings:
 - Conflicts and rest-rule warnings.
 - Live position, "driver en route" and "passenger on board".
 
-**Chauffeur app** (field app shell, the same PWA as the coach portal):
+**Chauffeur app** (the new offline-capable field app):
 - Today's jobs and navigation.
 - Statuses: *en route → arrived → passenger on board → stop → completed*.
 - Waiting time captured automatically from timestamps.

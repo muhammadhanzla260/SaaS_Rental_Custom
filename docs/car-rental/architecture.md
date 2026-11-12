@@ -7,6 +7,8 @@ Companion docs:
 - [service-modes.md](./service-modes.md): chauffeur, transfers, insurance replacement, partner roles;
 - [channels.md](./channels.md): Meta, marketplaces, brokers, P2P, Google;
 - [market-reference.md](./market-reference.md): researched terms, pain points, reference cases;
+- [architecture-review.md](./architecture-review.md): findings in the current app and ranked gaps;
+- [security.md](./security.md): the security architecture;
 - [market.md](./market.md): competitors;
 - [dev-plan.md](./dev-plan.md): phases.
 
@@ -28,7 +30,7 @@ Companion docs:
    **contract** (zod commands, queries, versioned domain events, error codes) and hides its tables.
    Contexts talk synchronously through contracts and asynchronously through a **transactional outbox**.
    Boundaries are enforced in CI.
-4. **Regional cells.** Run one `us-east` cell (today's stack) and one `me-central` cell (UAE) for
+4. **Regional cells.** Run one `us-west` cell (today's stack: Vercel `pdx1`, Supabase Oregon) and one `me-central` cell (UAE) for
    data residency and latency. A tiny global control plane maps each workspace slug to its cell.
    Each cell runs the same code with different provider adapters.
 5. **GCC realities are design inputs, not add-ons:**
@@ -56,10 +58,10 @@ Companion docs:
 | Price locks | Saved order prices never move when settings change | Rate-plan changes must not change a confirmed reservation |
 | Versioning | `orders.version` optimistic check, `order_versions` diff history | Rental agreement amendments (extension, vehicle swap) |
 | Messaging | Outbox with `org + key` idempotency, scheduled rows, worker `dispatch_due`, tenant SMTP/SMS | Pickup reminders, return-time alerts, fine notices; add WhatsApp |
-| Money ops | Reconcile job against Stripe, refund planning, overpayment handling | Deposit holds, captures, post-rental charges |
+| Money ops | Idempotent Stripe calls, refund planning, overpayment handling. Reconciliation is polling; webhooks are missing | Deposit holds, captures, post-rental charges |
 | Mutation gate | `assertWritable` (suspended / impersonation), `ActionResult`, `run()` | Same gate guards agent actions |
 | Ops | CI with real PG17, nightly backups to R2, per-phase branches, e2e scripts, parity script | Keep the discipline. Cars gets its own golden-case suite |
-| Field app | Coach portal PWA: checklists, photos, GPS, phases | Generalize into a **field app** for check-out/check-in inspections and delivery drivers |
+| Field app | Coach portal: checklists, photos, GPS, phases. It is online-only (no offline support) | Build an offline **field app** for check-out/check-in inspections and delivery drivers |
 
 ## 2. What must change (findings)
 
@@ -74,7 +76,7 @@ Companion docs:
 | F7 | One `tax_percent` per order or location | US car rental has stacked surcharges (state rental tax, airport concession recovery, vehicle licence fee). GCC needs VAT with a TRN on the invoice | Tax engine with multi-component jurisdictions |
 | F8 | Stripe is the only gateway, and the flow is charge plus saved card for the balance | No authorization holds, incremental auths or post-rental merchant-initiated charges, and no Qatar or Oman merchants | `PaymentGateway` port with capability flags and GCC adapters |
 | F9 | No i18n library, no RTL, and `COUNTRY_DEFAULTS` has AE but not QA or OM | Arabic UI, emails and invoices are required in the GCC | i18n with ICU messages, logical CSS properties, bilingual documents |
-| F10 | Single region (US East: Supabase, Vercel, Railway) | GCC latency, plus PDPL / PDPPL residency and transfer exposure | Cell architecture (section 8) |
+| F10 | Single region (US West: Supabase Oregon, Vercel `pdx1`, Railway) | GCC latency, plus PDPL / PDPPL residency and transfer exposure | Cell architecture (section 8) |
 | F11 | No public API, webhooks or agent tool surface. Side effects run inline | Agents and integrations would call internals | Contracts generate the API, webhooks and MCP tools |
 | F12 | Worker cron jobs scan all tenants on one queue (`concurrency: 3`) | Large tenants starve small ones, and telematics floods would block payments | Named queues by priority, per-tenant fairness, a separate ingest service |
 
@@ -166,7 +168,7 @@ happens in the UI or through events, never through imports.
 | Order lifecycle | commercial order: lines, totals, versions | EventBooking state machine (draft → sent → sale → done) | **Reservation** (class) → **RentalAgreement** (VIN, out/in readings) |
 | Payments | gateway port, authorize / capture / void / refund, saved cards, reconcile, ledger | deposit + event-day balance | **deposit hold** strategies, post-rental charges (fines, tolls, damage) |
 | Documents | templates, e-sign, print, bilingual, invoices and credit notes | rental agreement, setup map | agreement + **condition report** (photos, diagram, fuel, km) |
-| Field app | PWA shell, offline queue, photo upload, GPS | coach phases | check-out / check-in walk-around, delivery and collection runs |
+| Field app | offline-capable app shell (new work), upload queue, photo upload, GPS | coach phases | check-out / check-in walk-around, delivery and collection runs |
 | Ops board | rules engine for "needs action" | event-week board | yard board: due out, due in, late, prep queue, blocked |
 | Maintenance | ticket model (exists) | equipment repair | service due by **km or date**, blocks availability |
 | Messaging | outbox, templates, channels | quote → reminders → review | booking → KYC chase → pickup → return alerts → fine notices |
@@ -196,7 +198,7 @@ packages/
 apps/
   web       staff app (composes context UIs; server actions call contract commands only)
   portal    customer self-service: book, upload licence, sign, pay, extend, view charges
-  field     PWA for inspections and deliveries (grows out of the coach portal)
+  field     offline-capable app for inspections, deliveries and chauffeurs (new; reuses coach portal screens)
   api       public REST (OpenAPI from contracts), webhooks, MCP server
   worker    outbox relay, projections, scheduled jobs (named queues)
   ingest    telematics, toll and gateway webhooks (scales on its own)
@@ -498,21 +500,23 @@ interface PaymentGateway {
                 └───────────────┬───────────────────────────────────────┬──────────────────────┘
           edge routing by slug  │                                       │
          ┌──────────────────────▼─────────────┐          ┌──────────────▼───────────────────────┐
-         │ cell us-east                       │          │ cell me-central (UAE)                 │
+         │ cell us-west                       │          │ cell me-central (UAE)                 │
          │ web/api/portal · worker · ingest   │          │ web/api/portal · worker · ingest      │
          │ PG17 primary + replica · pooler    │          │ PG17 primary + replica · pooler       │
          │ object storage · KMS · AI routing  │          │ object storage (in-region) · KMS · AI │
          └────────────────────────────────────┘          └───────────────────────────────────────┘
 ```
 
-- **Cells.** `us-east` is today's Vercel + Supabase + Railway. `me-central` lives in a UAE cloud region
+- **Cells.** `us-west` is today's Vercel (`pdx1`) + Supabase (Oregon) + Railway. `me-central` lives in a UAE cloud region
   (AWS me-central-1, Azure UAE North, or Supabase or Vercel if they offer a UAE region; that is
   decision **D2**). Qatar or Oman tenants start in the UAE cell, unless law or a contract requires
   in-country hosting. Data residency is a tenant setting, and transfer rules (UAE PDPL Arts. 22–23,
   Qatar PDPPL, Oman PDPL) need legal review.
 - **Routing.** Middleware resolves slug → cell from a signed, cached directory and serves from that
-  cell's hostname. Sessions are per cell. A global identity (OIDC) comes later for users who work in
-  both cells.
+  cell's hostname.
+- **Identity is per cell** (decided 12 Nov 2026). Each cell has its own `users` and sessions, so the
+  control plane holds no personal data. A person who works in both regions has two logins until
+  single sign-on joins them.
 - **Tenant moves** reuse `packages/db/scripts/copy-tenant.ts`, plus a cut-over checklist.
 - **Inside a cell:**
   - The transaction pooler stays (`prepare:false` already).
@@ -648,3 +652,185 @@ dependency-cruiser gate stops cross-context shortcuts.
 | D8 | Shared users, customers, order header | separate per vertical · shared | **Shared** (§6.0), proven by the C2 spike |
 | D9 | Booking flow questions | — | See [booking-flow.md §12](./booking-flow.md#12-open-questions-for-the-owner). Document lists deferred; WhatsApp ID intake decided (platform only); chauffeur and insurance replacement specified; channels specified |
 | D10 | Channel hub placement | cars-only · platform | **Platform context `distribution`** with vertical feeds, so events can also use Meta inbox, CAPI and Google ([channels.md](./channels.md)) |
+
+---
+
+## 13. Additions from the architecture review (12 Nov 2026)
+
+The review ([architecture-review.md](./architecture-review.md)) found gaps G1–G18. All are accepted.
+This section is the design for each. Security controls are in [security.md](./security.md).
+
+### 13.1 Legal entities and currencies (G1)
+
+```
+workspace (tenant) ── legal_entity ── branch (location)
+                         │ currency, country, tax registration (TRN / EIN), invoice sequences,
+                         │ gateway accounts, e-invoicing credentials, bank details, agreement text
+```
+
+- Every branch belongs to one legal entity. A workspace with Dubai and Muscat branches has two.
+- `commerce.orders` carries `legal_entity_id` and `currency`. Invoices, payments, the ledger and
+  document numbers belong to the entity.
+- Reports state their currency. Totals across currencies need an explicit rate and are labelled.
+- Settings levels become: platform → country → workspace → **entity** → branch → class → booking.
+  Channel, rate plan and corporate-account levels are added when a customer needs them (G17).
+- Existing event workspaces get one entity created from today's `tenants` columns. Nothing changes
+  for them.
+
+### 13.2 Identity and access (G2)
+
+- Logins are per cell (§8).
+- MFA is required for roles that can refund, see ID documents, change gateway or mail settings, or
+  manage people. Passkeys are offered to everyone and required for platform admins.
+- Step-up confirmation for refunds, exports, viewing ID documents and changing bank or gateway
+  details.
+- SSO (SAML/OIDC) for larger operators and for insurer and corporate partners.
+- OAuth apps and scoped, hashed API keys for the public API and the MCP server.
+- `users`, `sessions`, `accounts` and `verifications` move behind definer functions, so the app
+  role can no longer read them freely.
+
+### 13.3 Payments operating model (G3)
+
+- The gateway port supports two merchant models, chosen per legal entity:
+  - **own gateway**: the business's own account and keys (today's model);
+  - **platform**: Stripe Connect or a payment-facilitator partner, with a platform fee.
+- **Webhook ingestion** in `apps/ingest`: signature and timestamp checks, an event store, replay,
+  and handlers that are safe to run twice. Polling reconciliation stays as the safety net.
+- **Disputes (chargebacks)** are a first-class workflow. The evidence pack is built from the signed
+  agreement, ID check result, condition reports, photos, and toll or fine statement lines.
+- Hold expiry and payouts are tracked from webhooks.
+
+### 13.4 Commercial layer (G4)
+
+A platform context `billing` for the SaaS itself:
+- **Entitlements:** features and limits by plan, checked through one function (`can(workspace,
+  feature)`), used by the UI, commands and agents.
+- **Metering:** usage events from the outbox (active vehicles, bookings, messages, ID checks, agent
+  runs, e-invoices).
+- **Subscriptions:** per vehicle or per branch pricing, trials, invoices in the right currency and
+  tax, failed-payment handling, suspension through the existing read-only mode.
+- **Prepaid usage balances** for pass-through costs (WhatsApp, SMS, ID checks, AI). Agent budgets
+  draw on them.
+
+### 13.5 Risk and fraud (G5)
+
+- A `risk` platform context scores a booking from signals: card country against licence country,
+  booking velocity per card, phone, device and IP, name mismatches, blacklist hits, selfie liveness
+  from the ID vendor, 3-D Secure result, and customer history.
+- The score is a fact for the rules engine. Outcomes are the existing effects: deny, approval,
+  higher deposit, require 3-D Secure, restrict to pay-now.
+- It runs at Hold and again before Confirm. Agents cannot confirm a booking that needs review.
+- **Overdue and recovery:** escalating contact, telematics location, a police-report record, and a
+  vehicle status of `missing`.
+
+### 13.6 Live updates (G6)
+
+- Outbox events are published to Redis. A stream endpoint (server-sent events) pushes them to open
+  screens. Access is checked per workspace, branch and partner on connect.
+- Used by the fleet calendar, yard board, dispatch board, approvals inbox and chat inbox. Other
+  screens keep the 60-second refresh.
+
+### 13.7 Media and evidence (G7)
+
+- Direct-to-bucket uploads with short-lived signed URLs; one bucket per cell.
+- Each file has a **purpose** that sets who may read it. ID documents need a permission, and every
+  view is logged.
+- Thumbnails are generated in a job. Customer uploads are scanned for malware.
+- **Evidence integrity:** each photo is hashed on the device, time-stamped by the server, and
+  listed in the condition report. Each signed report stores the hash of the previous one for that
+  agreement, so a later change is detectable.
+
+### 13.8 Keys (G8)
+
+- Secret format `v2.<key id>.<iv>.<tag>.<data>`. `v1` values are read and re-written as `v2`.
+- Envelope encryption: a data key per workspace, wrapped by a KMS key per cell. A separate key
+  for searchable hashes. A rotation job.
+
+### 13.9 Release engineering and operations (G9)
+
+- **Migrations:** expand, backfill in batches, switch, contract. Lock and statement timeouts on
+  every migration. A migration linter in CI. Applied by the pipeline, per cell: staging → one cell →
+  the rest.
+- **CI adds:** a linter, the browser tests, the boundary check, and a test that every tenant table
+  declares tenant, location and partner policies.
+- **Operations:** error tracking, tracing, dashboards, alerts and on-call. Recovery targets:
+  restore within 4 hours, lose at most 15 minutes of data (to be confirmed). Point-in-time recovery
+  and a quarterly restore drill per cell.
+
+### 13.10 Background work (G10)
+
+- A `scheduled_work(workspace_id, task, next_run_at)` table replaces the loops over all workspaces.
+  A dispatcher enqueues one job per workspace with a job key, so one slow workspace delays only
+  itself.
+
+### 13.11 Search and paging (G11)
+
+- Keyset paging on every list. `pg_trgm` and full-text indexes for names, phones, plates, VINs and
+  document numbers. One search query contract, used by the staff search box and by agent tools.
+
+### 13.12 Reporting and accounting (G12)
+
+- A `reporting` schema fed by outbox events and read from the replica.
+- A daily fleet snapshot (per vehicle: status, branch, on rent or idle, revenue) for utilization
+  and revenue per unit.
+- Accounting: revenue spread across the rental period for monthly rentals, deposits as a
+  liability, receivables aging by payer, and a general-ledger export per legal entity.
+
+### 13.13 Car domain additions (G13)
+
+| Addition | Design |
+| --- | --- |
+| Incidents and fleet insurance claims | `Incident` (accident, theft, impound) with police report, photos, third party; `Claim` on the fleet policy; repair work order; time off the road |
+| Cars the operator does not own | `Vehicle.ownership`: owned, leased, **investor-owned** (owner account, revenue-share rule, owner statement), **hired-in** from another operator (supplier, cost, period). Hired-in cars add supply for their period; owners and suppliers are payables in the ledger |
+| Vehicle cost and lifecycle | Purchase or lease cost, depreciation method, running costs, disposal; profit per vehicle in reports |
+| Government contract registration | An adapter port `ContractRegistry`, fed by `AgreementOpened` and `AgreementClosed`. Which countries need it is to be verified (D15) |
+
+### 13.14 Customer-facing side (G14)
+
+- **Booking websites on the operator's own domain:** domain verification, edge routing by host
+  name, cached class and price pages, and structured data for search engines.
+- **Customer accounts** are per workspace and optional. One-time links stay the default.
+- **Native apps:** start with an installable web app. Wrap it for the app stores if iPhone limits
+  block background uploads or notifications (D13).
+
+### 13.15 Agents (G15)
+
+- **Model location:** each agent feature declares the data it sends. A workspace with residency
+  switched on runs only features whose model endpoint is in its region (D14).
+- **Knowledge store:** `pgvector` tables per cell with the same row-level security, holding only the
+  workspace's published policies.
+- **Durable runs:** conversation and process state is persisted in Postgres and resumed by jobs. A
+  workflow engine is considered only if this proves too limited.
+- **Cost:** every run is metered (§13.4). Risk checks (§13.5) run before an agent confirms.
+
+### 13.16 Privacy operations (G16)
+
+- Each context implements `exportSubject(partyId)` and `eraseSubject(partyId)`. A privacy job calls
+  them all, honours legal holds, and records the result.
+- A register of every outside service that touches personal data, per cell, with its region.
+
+### 13.17 Configuration, kept manageable (G17)
+
+- Seven setting levels at first (§13.1).
+- Draft and publish for settings and rules, with an impact preview against the last 30 days of
+  bookings.
+- A test mode per workspace: test bookings, a test gateway, no real messages.
+- Export and import of a workspace's configuration.
+
+### 13.18 Scope (G18)
+
+- The pilot is **Dubai, self-drive, daily and monthly**, with tolls and fines and a staffed
+  WhatsApp inbox. See [dev-plan.md](./dev-plan.md).
+- The US launch, chauffeur and transfers, insurance replacement, corporate accounts, brokers and
+  most agents follow after the pilot.
+
+### 13.19 New decisions
+
+| # | Decision | Recommendation |
+| --- | --- | --- |
+| D11 | Merchant model | Own gateway for the pilot; platform model evaluated before GA |
+| D12 | Pricing of the SaaS | Per active vehicle, plus prepaid usage for pass-through costs |
+| D13 | Native apps | Installable web app first; wrap if needed |
+| D14 | AI model region for Gulf data | Confirm in-region availability before C8 agents handle personal data |
+| D15 | Government contract registration | Verify requirements in the UAE, Qatar and Oman |
+| D16 | Recovery targets | 4 hours to restore, 15 minutes of data loss at most |
