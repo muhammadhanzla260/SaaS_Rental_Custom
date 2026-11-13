@@ -6,6 +6,8 @@ weeks for **2–3 engineers working with coding agents**. They are planning esti
 commitments. Each phase follows the repo's release rule: one branch per phase (`cars/phase-cN`), a
 Vercel preview on staging, owner QA, then a PR into `main`.
 
+**The task-level plan is in [build/](./build/README.md).** This file is the phase overview.
+
 **Revision 4, 13 Nov 2026.** Owner decisions applied: the Dubai pilot and the shared order header
 are confirmed, there is one login for all regions, and legal entities are deferred (one company
 per workspace). The week freed in C0 is kept as buffer.

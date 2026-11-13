@@ -8,6 +8,8 @@ Architecture blueprint (stack, data model, roadmap): https://claude.ai/artifact/
 
 Car rental vertical (US + GCC), consolidated A–Z architecture and plan: https://claude.ai/artifact/QnN5ntZRtfcqaEToPX1Be7
 
+**To start building car rental:** read [CLAUDE.md](CLAUDE.md), then [docs/car-rental/build/README.md](docs/car-rental/build/README.md), and begin with task C0-01.
+
 Car rental design docs: [architecture](docs/car-rental/architecture.md), [booking flow](docs/car-rental/booking-flow.md), [service modes](docs/car-rental/service-modes.md), [channels](docs/car-rental/channels.md), [market reference](docs/car-rental/market-reference.md), [dev plan](docs/car-rental/dev-plan.md), [competitors](docs/car-rental/market.md), [architecture review and gaps](docs/car-rental/architecture-review.md), [security](docs/car-rental/security.md), [agent boundaries](docs/car-rental/agent-boundaries.md).
 
 ## Status
